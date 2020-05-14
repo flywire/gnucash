@@ -2845,6 +2845,19 @@ gnc_tree_model_split_reg_update_action_list (GncTreeModelSplitReg *model)
     /* Clear the liststore */
     gtk_list_store_clear (store);
 
+    /* TEST THIS HACK */
+    /* setup strings in the action pull-down for Tags */
+    if (true)
+    {
+
+        gtk_list_store_insert_with_values (store, &iter, 100, 0, C_("Action Column", "Tag0"), -1);
+        gtk_list_store_insert_with_values (store, &iter, 100, 0, _("Tag1"), -1);
+        gtk_list_store_insert_with_values (store, &iter, 100, 0, _("Tag2"), -1);
+        gtk_list_store_insert_with_values (store, &iter, 100, 0, _("Tag3"), -1);
+        
+        return;
+    }
+
     /* setup strings in the action pull-down */
     switch (model->type)
     {
