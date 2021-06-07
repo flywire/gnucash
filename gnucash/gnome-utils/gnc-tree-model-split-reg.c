@@ -2847,7 +2847,7 @@ gnc_tree_model_split_reg_update_action_list (GncTreeModelSplitReg *model)
 
     /* TEST THIS HACK */
     /* setup strings in the action pull-down for Tags */
-    if (true)
+    if (1>0)
     {
 
         gtk_list_store_insert_with_values (store, &iter, 100, 0, C_("Action Column", "Tag0"), -1);
