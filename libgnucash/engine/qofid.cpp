@@ -22,11 +22,12 @@
  *                                                                  *
 \********************************************************************/
 
+#include <glib.h>
+
 extern "C"
 {
 #include <config.h>
 #include <string.h>
-#include <glib.h>
 }
 
 #include "qof.h"

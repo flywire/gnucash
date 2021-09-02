@@ -3,21 +3,30 @@
 # Keld Simonsen <keld@dkuug.dk>, 2001-2003.
 # Christian Rose <menthos@menthos.com>, 2001.
 # Joe Hansen <joedalton2@yahoo.dk>, 2009.
-#
+# Aputsiak Niels Janussen <aj@isit.gl>, 2021.
 msgid ""
 msgstr ""
 "Project-Id-Version: gnucash-glossary 2.3.5\n"
-"POT-Creation-Date: 2020-03-27 21:58+0100\n"
-"PO-Revision-Date: 2009-09-04 22:41+0200\n"
-"Last-Translator: Joe Hansen <joedalton2@yahoo.dk>\n"
-"Language-Team: Danish <dansk@dansk-gruppen.dk>\n"
+"Report-Msgid-Bugs-To: https://bugs.gnucash.org/enter_bug."
+"cgi?product=GnuCash&component=Translations\n"
+"POT-Creation-Date: 2021-01-10 08:00+0100\n"
+"PO-Revision-Date: 2021-05-19 09:32+0000\n"
+"Last-Translator: Aputsiak Niels Janussen <aj@isit.gl>\n"
+"Language-Team: Danish <https://hosted.weblate.org/projects/gnucash/glossary/"
+"da/>\n"
 "Language: da\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Weblate 4.7-dev\n"
 
 #. "English Definition (Dear translator: This file will never be visible to the user! It should only serve as a tool for you, the translator. Nothing more.)"
 msgid "Term (Dear translator: This file will never be visible to the user!)"
+msgstr ""
+
+#. "Opening and closing quote symbols and optionally their key combos like [altgr]+[Y]/[X]. Define the preferred style of quotation, see https://en.wikipedia.org/wiki/Quotation_mark#Summary_table"
+msgid "\"\""
 msgstr ""
 
 #. "A detailed record of money spent and received"
@@ -335,6 +344,10 @@ msgstr "valuta"
 msgid "Custom"
 msgstr "Tilpasset"
 
+#. "Compact, well-structured presentation of informations. See https://en.wikipedia.org/wiki/Dashboard_(business)"
+msgid "dashboard"
+msgstr ""
+
 #. "The backend where the data is stored."
 msgid "database"
 msgstr "database"
@@ -380,6 +393,14 @@ msgstr "konto"
 msgid "double entry"
 msgstr "dobbelt bogholderi"
 
+#. "Transactions or bills/invoices can contain a document link which links either to some file on the local disk or to some arbitrary URL."
+msgid "document link"
+msgstr ""
+
+#. "Electronic mail. Some languages allow different writings, but each team should use only one. https://en.wikipedia.org/wiki/Email"
+msgid "email"
+msgstr ""
+
 #. "a person who works for somebody or a company in return for wages"
 msgid "employee"
 msgstr "medarbejder"
@@ -420,6 +441,15 @@ msgstr "finansiel lommeregner: rentesats"
 msgid "financial calculator: payments"
 msgstr "finansiel lommeregner: betalinger"
 
+#. "formal records of the financial activities and position of a business, person, or other entity. See https://en.wikipedia.org/wiki/Financial_statement for a list."
+#, fuzzy
+msgid "financial statement"
+msgstr "hændelse: betaling"
+
+#. "Free software is a matter of liberty, not price … see https://en.wikipedia.org/wiki/Free_software"
+msgid "free software"
+msgstr "fri software"
+
 #. "An increase in wealth; profit; advantage (See also: capital gains)"
 msgid "gain"
 msgstr "gevinst"
@@ -434,7 +464,7 @@ msgstr "import"
 
 #. "Report that ... FIXME: add description. This report used to be called the 'Profit & Loss', but it was renamed on 2004-07-13."
 msgid "income statement"
-msgstr ""
+msgstr "resultatopgørelse"
 
 #. "Money charged for borrowing money, or paid to somebody who invests money"
 msgid "interest"
@@ -457,9 +487,14 @@ msgid "liabilities/equity"
 msgstr "gæld/egenkapital"
 
 # src/languages.h:184
-#. "A sum of money that is lent (by a bank)"
+#. "A sum of money that is lent (by a bank), see also: financial calculator, Mortgage"
 msgid "loan"
 msgstr "lån"
+
+# src/languages.h:184
+#. "Annual Percentage Rate, includes in contrast to the Nominal Rate some of the various costs to obtain a loan."
+msgid "loan: APR"
+msgstr "lån: ÅOP"
 
 #. "The money lost in business activity"
 msgid "loss"
@@ -496,6 +531,18 @@ msgstr "Note"
 
 #. "(a) An agreement by which money is lent by a bank for buying a house or other property, the property being the security. (b) A sum of money lent in this way."
 msgid "Mortgage"
+msgstr "Huslån"
+
+#. "Adjustable Rate Mortgage"
+#, fuzzy
+#| msgid "Mortgage"
+msgid "mortgage: ARM"
+msgstr "Huslån"
+
+#. "Fixed Rate Mortgage"
+#, fuzzy
+#| msgid "Mortgage"
+msgid "mortgage: FRM"
 msgstr "Huslån"
 
 #. "e.g. USD, DEM, see Currency."
@@ -711,7 +758,7 @@ msgstr "Aktiebalance (kassekladde)"
 msgid "shares"
 msgstr "aktier"
 
-#. "(of a price) A place wfrom which sth comes or is obtained"
+#. "(often: of a quote) A place from which something comes or is obtained."
 msgid "source"
 msgstr "kilde"
 
@@ -736,7 +783,25 @@ msgstr "skatteinformation"
 msgid "tax info"
 msgstr "skatteinformation"
 
-#. "if you create a new e.g. style sheet, you can start from a template"
+#. "Amost everybody has to declare and probably pay it. See https://en.wikipedia.org/wiki/Income_tax"
+#, fuzzy
+#| msgid "account type: Income"
+msgid "tax type: income tax"
+msgstr "kontotype: Salg"
+
+#. "Usually only business users have to handle it, see https://en.wikipedia.org/wiki/Sales_tax."
+msgid "tax type: sales tax"
+msgstr ""
+
+#. "'Goods and Service Tax' is one form of sales tax."
+msgid "tax type: GST"
+msgstr ""
+
+#. "'Value Added Tax' is the other form of sales tax."
+msgid "tax type: VAT"
+msgstr ""
+
+#. "If you create a new e.g. style sheet, you can start from a template."
 msgid "template"
 msgstr "skabelon"
 
@@ -798,7 +863,7 @@ msgstr "type"
 msgid "units"
 msgstr "enheder"
 
-#. "-"
+#. "Uniform Resource Locator, https://en.wikipedia.org/wiki/URL"
 msgid "URL"
 msgstr "URL"
 

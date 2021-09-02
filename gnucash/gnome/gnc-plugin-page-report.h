@@ -49,6 +49,8 @@ G_BEGIN_DECLS
 
 #define GNC_PLUGIN_PAGE_REPORT_NAME "GncPluginPageReport"
 
+#define WINDOW_REPORT_CM_CLASS "window-report"
+
 /* typedefs & structures */
 typedef struct
 {
@@ -74,6 +76,8 @@ GType gnc_plugin_page_report_get_type( void );
  * @return a new "report" plugin page.
  */
 GncPluginPage *gnc_plugin_page_report_new( int reportId );
+
+void gnc_plugin_page_report_reload (GncPluginPageReport *report);
 
 // entry-point from scm menu-extension callback [gnc:menu-extension].
 void       gnc_main_window_open_report (int report_id, GncMainWindow *window);

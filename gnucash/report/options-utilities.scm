@@ -21,7 +21,22 @@
 ;; Boston, MA  02110-1301,  USA       gnu@gnu.org
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(define-module (gnucash report options-utilities))
+
 (use-modules (gnucash core-utils))
+(use-modules (gnucash app-utils))
+
+(export gnc:options-add-report-date!)
+(export gnc:options-add-date-interval!)
+(export gnc:options-add-interval-choice!)
+(export gnc:options-add-account-levels!)
+(export gnc:options-add-account-selection!)
+(export gnc:options-add-currency!)
+(export gnc:options-add-price-source!)
+(export gnc:options-add-plot-size!)
+(export gnc:options-add-marker-choice!)
+(export gnc:options-add-sort-method!)
+(export gnc:options-add-subtotal-view!)
 
 ;; These are just a bunch of options which were useful in several
 ;; reports and hence they got defined in a separate function.
@@ -48,14 +63,13 @@
    (gnc:make-multichoice-option
     pagename optname
     sort-tag (N_ "The amount of time between data points.") default
-    (list (vector 'DayDelta (N_ "Day") (N_ "One Day."))
-	  (vector 'WeekDelta (N_ "Week") (N_ "One Week."))
-	  (vector 'TwoWeekDelta (N_ "2Week") (N_ "Two Weeks."))
-	  (vector 'MonthDelta (N_ "Month") (N_ "One Month."))
-	  (vector 'QuarterDelta (N_ "Quarter") (N_ "One Quarter."))
-	  (vector 'HalfYearDelta (N_ "Half Year") (N_ "Half Year."))
-	  (vector 'YearDelta (N_ "Year") (N_ "One Year."))
-	  ))))
+    (list (vector 'DayDelta (N_ "One Day"))
+          (vector 'WeekDelta (N_ "One Week"))
+          (vector 'TwoWeekDelta (N_ "Two Weeks"))
+          (vector 'MonthDelta (N_ "One Month"))
+          (vector 'QuarterDelta (N_ "Quarter Year"))
+          (vector 'HalfYearDelta (N_ "Half Year"))
+          (vector 'YearDelta (N_ "One Year"))))))
 
 ;; A multichoice option intended to chose the account level. Different
 ;; from the other functions the help string can still be given. Used
@@ -67,13 +81,13 @@
    options  
    (gnc:make-multichoice-option
     pagename name-display-depth sort-tag help-string default-depth
-    (list (vector 'all (N_ "All") (N_ "All accounts"))
-	  (vector 1 "1" (N_ "Top-level."))
-	  (vector 2 "2" (N_ "Second-level."))
-	  (vector 3 "3" (N_ "Third-level."))
-	  (vector 4 "4" (N_ "Fourth-level."))
-	  (vector 5 "5" (N_ "Fifth-level."))
-	  (vector 6 "6" (N_ "Sixth-level."))))))
+    (list (vector 'all (N_ "All"))
+          (vector 1 "1")
+          (vector 2 "2")
+          (vector 3 "3")
+          (vector 4 "4")
+          (vector 5 "5")
+          (vector 6 "6")))))
 
 ;; These help for selecting a bunch of accounts.
 (define (gnc:options-add-account-selection! 
@@ -127,19 +141,11 @@
    (gnc:make-multichoice-option
     pagename optname
     sort-tag (N_ "The source of price information.") default
-    (list (vector 'average-cost
-		  (N_ "Average Cost")
-		  (N_ "The volume-weighted average cost of purchases."))
-          (vector 'weighted-average 
-		  (N_ "Weighted Average")
-		  (N_ "The weighted average of all currency transactions of the past."))
-	  (vector 'pricedb-latest 
-		  (N_ "Most recent")
-		  (N_ "The most recent recorded price."))
-	  (vector 'pricedb-nearest
-		  (N_ "Nearest in time")
-		  (N_ "The price recorded nearest in time to the report date."))
-	  ))))
+    (list (vector 'average-cost (N_ "Average cost of purchases weighted by volume"))
+          (vector 'weighted-average (N_ "Weighted average of all transactions in the past"))
+          (vector 'pricedb-before (N_ "Last up through report date"))
+          (vector 'pricedb-nearest (N_ "Closest to report date"))
+          (vector 'pricedb-latest (N_ "Most recent"))))))
 
 ;; The width- and height- options for charts
 (define (gnc:options-add-plot-size!
@@ -173,15 +179,15 @@
     (N_ "Choose the marker for each data point.")
     default
     (list
-     (vector 'diamond (N_ "Diamond") (N_ "Hollow diamond"))
-     (vector 'circle (N_ "Circle") (N_ "Hollow circle"))
-     (vector 'square (N_ "Square") (N_ "Hollow square"))
-     (vector 'cross (N_ "Cross") (N_ "Cross"))
-     (vector 'plus (N_ "Plus") (N_ "Plus"))
-     (vector 'dash (N_ "Dash") (N_ "Dash"))
-     (vector 'filleddiamond (N_ "Filled diamond") (N_ "Diamond filled with color"))
-     (vector 'filledcircle (N_ "Filled circle") (N_ "Circle filled with color"))
-     (vector 'filledsquare (N_ "Filled square") (N_ "Square filled with color"))))))
+     (vector 'diamond (N_ "Diamond"))
+     (vector 'circle (N_ "Circle"))
+     (vector 'square (N_ "Square"))
+     (vector 'cross (N_ "Cross"))
+     (vector 'plus (N_ "Plus"))
+     (vector 'dash (N_ "Dash"))
+     (vector 'filleddiamond (N_ "Filled diamond"))
+     (vector 'filledcircle (N_ "Filled circle"))
+     (vector 'filledsquare (N_ "Filled square"))))))
 
 
 (define (gnc:options-add-sort-method!
@@ -194,9 +200,9 @@
     (N_ "Choose the method for sorting accounts.")
     default
     (list
-     (vector 'acct-code (N_ "Account Code") (N_ "Alphabetical by account code."))
-     (vector 'alphabetical (N_ "Alphabetical") (N_ "Alphabetical by account name."))
-     (vector 'amount (N_ "Amount") (N_ "By amount, largest to smallest."))))))
+     (vector 'acct-code (N_ "Alphabetical by account code"))
+     (vector 'alphabetical (N_ "Alphabetical by account name"))
+     (vector 'amount (N_ "Numerical by descending amount"))))))
 
 
 ;; These control the calculation and view mode of subtotal balances
@@ -212,17 +218,16 @@
     ;; usually the option name is: (N_ "Parent account balances")
     optname-parent-balance-mode
     (string-append sort-tag "a")
-    (N_ "How to show the balances of parent accounts.")
+    (string-join
+     (list
+      (G_ "How to show the balances of parent accounts.")
+      (G_ "Account Balance in the parent account, excluding any subaccounts.")
+      (G_ "Do not show any balances of parent accounts."))
+      "\n* ")
     'immediate-bal
-    (list (vector 'immediate-bal
-		  (N_ "Account Balance")
-		  (N_ "Show only the balance in the parent account, excluding any subaccounts."))
-	  (vector 'recursive-bal
-		  (N_ "Subtotal")
-		  (N_ "Calculate the subtotal for this parent account and all of its subaccounts, and show this as the parent account balance."))
-	  (vector 'omit-bal
-		  (N_ "Do not show")
-		  (N_ "Do not show any balances of parent accounts.")))))
+    (list (vector 'immediate-bal (N_ "Account Balance"))
+          (vector 'recursive-bal (N_ "Calculate Subtotal"))
+          (vector 'omit-bal (N_ "Do not show")))))
   (gnc:register-option
    options
    (gnc:make-multichoice-option
@@ -230,15 +235,12 @@
     ;; usually the option name is: (N_ "Parent account subtotals")
     optname-parent-total-mode
     (string-append sort-tag "b")
-    (N_ "How to show account subtotals for parent accounts.")
+    (string-join
+     (list
+      (G_ "How to show account subtotals for parent accounts.")
+      (G_ "Show subtotals for selected parent accounts which have subaccounts.")
+      (G_ "Do not show any subtotals for parent accounts."))
+      "\n* ")
     'f
-    (list (vector 't
-		  (N_ "Show subtotals")
-		  (N_ "Show subtotals for selected parent accounts which have subaccounts."))
-	  (vector 'f
-		  (N_ "Do not show")
-		  (N_ "Do not show any subtotals for parent accounts."))
-	  (vector 'canonically-tabbed
-		  ;;(N_ "Subtotals indented text book style")
-		  (N_ "Text book style (experimental)")
-		  (N_ "Show parent account subtotals, indented per accounting text book practice (experimental)."))))))
+    (list (vector 't (N_ "Show subtotals"))
+          (vector 'f (N_ "Do not show"))))))

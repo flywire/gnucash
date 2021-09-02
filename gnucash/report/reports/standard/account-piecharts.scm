@@ -31,6 +31,7 @@
 (use-modules (gnucash app-utils))
 (use-modules (gnucash report))
 (use-modules (srfi srfi-1))
+(use-modules (ice-9 format))
 
 (define menuname-income (N_ "Income Piechart"))
 (define menuname-expense (N_ "Expense Piechart"))
@@ -67,7 +68,7 @@ balance at a given time"))
 (define optname-price-source (N_ "Price Source"))
 
 (define optname-accounts (N_ "Accounts"))
-(define optname-levels (N_ "Show Accounts until level"))
+(define optname-levels (N_ "Levels of Subaccounts"))
 
 (define optname-fullname (N_ "Show long names"))
 (define optname-show-total (N_ "Show Totals"))
@@ -113,21 +114,10 @@ balance at a given time"))
           gnc:pagename-general optname-averaging
           "f" opthelp-averaging
           'None
-          (list (vector 'None
-                        (N_ "No Averaging")
-                        (N_ "Just show the amounts, without any averaging."))
-                (vector 'YearDelta
-                        (N_ "Yearly")
-                        (N_ "Show the average yearly amount during the reporting period."))
-                (vector 'MonthDelta
-                        (N_ "Monthly")
-                        (N_ "Show the average monthly amount during the reporting period."))
-                (vector 'WeekDelta
-                        (N_ "Weekly")
-                        (N_ "Show the average weekly amount during the reporting period."))
-                )
-          ))
-        )
+          (list (vector 'None (N_ "No Averaging"))
+                (vector 'YearDelta (N_ "Yearly"))
+                (vector 'MonthDelta (N_ "Monthly"))
+                (vector 'WeekDelta (N_ "Weekly"))))))
 
     (add-option
      (gnc:make-account-list-option
@@ -148,7 +138,7 @@ balance at a given time"))
     (if depth-based?
       (gnc:options-add-account-levels!
        options gnc:pagename-accounts optname-levels "b"
-       (N_ "Show accounts to this depth and not further.")
+       (N_ "Maximum number of levels in the account tree displayed.")
        2))
 
     (add-option
@@ -209,12 +199,12 @@ balance at a given time"))
   (cond
    ((eq? sort-method 'acct-code)
     (lambda (a b)
-      (string<? (xaccAccountGetCode (cadr a))
-                (xaccAccountGetCode (cadr b)))))
+      (gnc:string-locale<? (xaccAccountGetCode (cadr a))
+                           (xaccAccountGetCode (cadr b)))))
    ((eq? sort-method 'alphabetical)
     (lambda (a b)
-      (string<? (display-name-accounts show-fullname? (cadr a))
-                (display-name-accounts show-fullname? (cadr b)))))
+      (gnc:string-locale<? (display-name-accounts show-fullname? (cadr a))
+                           (display-name-accounts show-fullname? (cadr b)))))
    (else
     (lambda (a b) (> (car a) (car b))))))
 
@@ -223,12 +213,12 @@ balance at a given time"))
   (cond
    ((eq? sort-method 'acct-code)
     (lambda (a b)
-      (string<? (gnc-commodity-get-mnemonic (cadr a))
-                (gnc-commodity-get-mnemonic (cadr b)))))
+      (gnc:string-locale<? (gnc-commodity-get-mnemonic (cadr a))
+                           (gnc-commodity-get-mnemonic (cadr b)))))
    ((eq? sort-method 'alphabetical)
     (lambda (a b)
-      (string<? (display-name-security show-fullname? (cadr a))
-                (display-name-security show-fullname? (cadr b)))))
+      (gnc:string-locale<? (display-name-security show-fullname? (cadr a))
+                           (display-name-security show-fullname? (cadr b)))))
    (else
     (lambda (a b) (> (car a) (car b))))))
 
@@ -410,38 +400,34 @@ balance at a given time"))
            ;; accordingly.
            (report-title
             (case averaging-selection
-              ((YearDelta) (string-append report-title " " (_ "Yearly Average")))
-              ((MonthDelta) (string-append report-title " " (_ "Monthly Average")))
-              ((WeekDelta) (string-append report-title " " (_ "Weekly Average")))
+              ((YearDelta) (string-append report-title " " (G_ "Yearly Average")))
+              ((MonthDelta) (string-append report-title " " (G_ "Monthly Average")))
+              ((WeekDelta) (string-append report-title " " (G_ "Weekly Average")))
               (else report-title)))
            (combined '())
-           (other-anchor "")
-           (print-info (gnc-commodity-print-info report-currency #t)))
+           (other-anchor ""))
 
-      ;; Converts a commodity-collector into one single double
+      ;; Converts a commodity-collector into one single inexact
       ;; number, depending on the report's currency and the
       ;; exchange-fn calculated above. Returns the absolute value
-      ;; as double, multiplied by the averaging-multiplies (smaller
-      ;; than one; multiplication instead of division to avoid
-      ;; division-by-zero issues) in case the user wants to see the
-      ;; amounts averaged over some value.
-      (define (collector->double c)
+      ;; multiplied by the averaging-multiplier (smaller than one;
+      ;; multiplication instead of division to avoid division-by-zero
+      ;; issues) in case the user wants to see the amounts averaged
+      ;; over some value.
+      (define (collector->amount c)
         ;; Future improvement: Let the user choose which kind of
         ;; currency combining she want to be done. Right now
         ;; everything foreign gets converted
         ;; (gnc:sum-collector-commodity) based on the average
         ;; cost of all holdings.
-        (*
-         (gnc:gnc-monetary-amount
-          (gnc:sum-collector-commodity
-           c report-currency
-           exchange-fn))
-         averaging-multiplier))
+        (* (gnc:gnc-monetary-amount
+            (gnc:sum-collector-commodity c report-currency exchange-fn))
+           averaging-multiplier))
 
-      ;; Get balance of an account as double number, already converted
-      ;; to the report's currency.
+      ;; Get balance of an account as an inexact number converted to,
+      ;; and using precision of the report's currency.
       (define (account-balance a subaccts?)
-        (collector->double (profit-fn a subaccts?)))
+        (collector->amount (profit-fn a subaccts?)))
 
       (define (count-accounts current-depth accts)
 	(if (< current-depth tree-depth)
@@ -488,7 +474,7 @@ balance at a given time"))
                        (sum (apply + (unzip1 finish))))
                   (set! combined
                         (append start
-                                (list (list sum (_ "Other")))))
+                                (list (list sum (G_ "Other")))))
                   (if depth-based?
                     (let ((options (gnc:make-report-options report-guid))
                           (id #f))
@@ -528,7 +514,12 @@ balance at a given time"))
                                                    ((if show-fullname?
                                                         gnc-account-get-full-name
                                                         xaccAccountGetName) acct))))))))
-                               combined))))
+                               combined)))
+                   (scu (gnc-commodity-get-fraction report-currency)))
+
+               (define (round-scu amt)
+                 (gnc-numeric-convert amt scu GNC-HOW-RND-ROUND))
+
                (gnc:html-chart-set-type! chart 'pie)
 
                (gnc:html-chart-set-currency-iso!
@@ -541,11 +532,11 @@ balance at a given time"))
                             (string-append
                              (if do-intervals?
                                  (format #f
-                                         (_ "~a to ~a")
+                                         (G_ "~a to ~a")
                                          (qof-print-date from-date)
                                          (qof-print-date to-date))
                                  (format #f
-                                         (_ "Balance at ~a")
+                                         (G_ "Balance at ~a")
                                          (qof-print-date to-date)))
                              (if show-total?
                                  (let ((total (apply + (unzip1 combined))))
@@ -553,13 +544,14 @@ balance at a given time"))
                                     #f ": ~a"
                                     (gnc:monetary->string
                                      (gnc:make-gnc-monetary
-                                      report-currency total))))
+                                      report-currency
+                                      (round-scu total)))))
                                  ""))))
                (gnc:html-chart-set-width! chart width)
                (gnc:html-chart-set-height! chart height)
                (gnc:html-chart-add-data-series! chart
-                                                "Accounts"
-                                                (unzip1 combined)
+                                                (G_ "Accounts")
+                                                (map round-scu (unzip1 combined))
                                                 (gnc:assign-colors (length combined))
                                                 'urls urls)
                (gnc:html-chart-set-axes-display! chart #f)
@@ -578,7 +570,7 @@ balance at a given time"))
                          (gnc:monetary->string
                           (gnc:make-gnc-monetary
                            report-currency
-                           (car series))))
+                           (round-scu (car series)))))
                         "")
                     (if show-percent?
                         (format #f " (~2,1f%)"

@@ -2,21 +2,21 @@
 add_subdirectory(standard/test)
 add_subdirectory(support)
 
+#These provide some functions used by more than one report.
 set (reports_common_SCHEME
-  aging.scm
+  aging.scm                     #deprecated 4.x to be removed in 5.x
+  cash-flow-calc.scm
 )
 
 # The 'with exposed generator' reports are standard reports that can
-# be created with a special generator function
-# This function is exposed via reports.scm.
-# As such these reports should be built before reports.scm
-# However all other reports need to be built after reports.scm
-# as they in turn may consume these generators.
+# be created with a special generator function, exported by reports.scm
 set (reports_standard_with_exposed_generator_SCHEME
+    standard/new-aging.scm
     standard/register.scm
-    standard/owner-report.scm
-    standard/payables.scm
-    standard/receivables.scm
+    standard/owner-report.scm   #deprecated 4.x to be removed in 5.x
+    standard/new-owner-report.scm
+    standard/payables.scm       #deprecated 4.x to be removed in 5.x
+    standard/receivables.scm    #deprecated 4.x to be removed in 5.x
 )
 
 set (reports_standard_SCHEME
@@ -32,16 +32,17 @@ set (reports_standard_SCHEME
     standard/budget-income-statement.scm
     standard/budget.scm
     standard/cash-flow.scm
+    standard/cashflow-barchart.scm
     standard/category-barchart.scm
     standard/dashboard.scm
     standard/equity-statement.scm
     standard/general-journal.scm
     standard/general-ledger.scm
+    standard/ifrs-cost-basis.scm
     standard/income-gst-statement.scm
     standard/income-statement.scm
     standard/lot-viewer.scm
     standard/net-charts.scm
-    standard/new-owner-report.scm
     standard/portfolio.scm
     standard/price-scatter.scm
     standard/reconcile-report.scm
@@ -55,10 +56,10 @@ set (reports_standard_SCHEME
     standard/balsheet-eg.scm
 )
 
+# Reports depending on one of the generator functions from
+# scm-reports-standard-with-exposed-generator:
 set (reports_standard_SCHEME_2
-    standard/cashflow-barchart.scm #depends on cash-flow report
-    standard/customer-summary.scm # Depends on owner-report
-    standard/new-aging.scm        # ditto
+    standard/customer-summary.scm # Depends on gnc:owner-report-create-with-enddate
 )
 
 set(reports_example_SCHEME

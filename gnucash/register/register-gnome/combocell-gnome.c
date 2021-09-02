@@ -299,6 +299,12 @@ gnc_combo_cell_gui_destroy (BasicCell* bcell)
             box->item_list = NULL;
         }
 
+        if (box && box->tmp_store)
+        {
+            g_object_unref (box->tmp_store);
+            box->tmp_store = NULL;
+        }
+
         /* allow the widget to be shown again */
         cell->cell.gui_realize = gnc_combo_cell_gui_realize;
         cell->cell.gui_move = NULL;
@@ -327,13 +333,7 @@ gnc_combo_cell_destroy (BasicCell* bcell)
             box->qf = NULL;
         }
 
-        for (node = box->ignore_strings; node; node = node->next)
-        {
-            g_free (node->data);
-            node->data = NULL;
-        }
-
-        g_list_free (box->ignore_strings);
+        g_list_free_full (box->ignore_strings, g_free);
         box->ignore_strings = NULL;
 
         g_free (box);
@@ -462,7 +462,6 @@ void
 gnc_combo_cell_add_account_menu_item (ComboCell* cell, char* menustr)
 {
     PopBox* box;
-    gchar* menu_copy, *value_copy;
 
     if (cell == NULL)
         return;
@@ -478,9 +477,10 @@ gnc_combo_cell_add_account_menu_item (ComboCell* cell, char* menustr)
         gnc_item_list_append (box->item_list, menustr);
         if (cell->cell.value)
         {
-            menu_copy = g_strdelimit (g_strdup (menustr), "-:/\\.", ' ');
-            value_copy =
-                g_strdelimit (g_strdup (cell->cell.value), "-:/\\.", ' ');
+            gchar* menu_copy = g_strdup (menustr);
+            gchar* value_copy = g_strdup (cell->cell.value);
+            g_strdelimit (menu_copy, "-:/\\.", ' ');
+            g_strdelimit (value_copy, "-:/\\.", ' ');
             if (strcmp (menu_copy, value_copy) == 0)
             {
                 gnc_combo_cell_set_value (cell, menustr);
@@ -523,17 +523,21 @@ list_store_append (GtkListStore *store, char* string)
  */
 static gchar*
 gnc_combo_cell_type_ahead_search (const gchar* newval,
-                                  GtkListStore* full_store, PopBox* box)
+                                  GtkListStore* full_store, ComboCell *cell)
 {
     GtkTreeIter iter;
+    PopBox* box = cell->cell.gui_private;
     int num_found = 0;
     gchar* match_str = NULL;
     const char* sep = gnc_get_account_separator_string ();
-    gchar* newval_rep = g_strdup_printf (".*%s.*", sep);
-    GRegex* regex0 = g_regex_new (sep, 0, 0, NULL);
-    char* rep_str = g_regex_replace_literal (regex0, newval, -1, 0,
+    char* escaped_sep = g_regex_escape_string (sep, -1);
+    char* escaped_newval = g_regex_escape_string (newval, -1);
+    gchar* newval_rep = g_strdup_printf (".*%s.*", escaped_sep);
+    GRegex* regex0 = g_regex_new (escaped_sep, 0, 0, NULL);
+    char* rep_str = g_regex_replace_literal (regex0, escaped_newval, -1, 0,
                                              newval_rep, 0, NULL);
-    GRegex *regex = g_regex_new (rep_str, G_REGEX_CASELESS, 0, NULL);
+    char* normal_rep_str = g_utf8_normalize (rep_str, -1, G_NORMALIZE_ALL);
+    GRegex *regex = g_regex_new (normal_rep_str, G_REGEX_CASELESS, 0, NULL);
 
     gboolean valid = gtk_tree_model_get_iter_first (GTK_TREE_MODEL (full_store),
                                                     &iter);
@@ -543,11 +547,17 @@ gnc_combo_cell_type_ahead_search (const gchar* newval,
      */
     static const gint MAX_NUM_MATCHES = 30;
 
+    g_free (normal_rep_str);
     g_free (rep_str);
     g_free (newval_rep);
+    g_free (escaped_sep);
+    g_free (escaped_newval);
     g_regex_unref (regex0);
 
+    block_list_signals (cell); //Prevent recursion from gtk_tree_view signals.
+    gnc_item_edit_hide_popup (box->item_edit);
     gtk_list_store_clear (box->tmp_store);
+    unblock_list_signals (cell);
 
     while (valid && num_found < MAX_NUM_MATCHES)
     {
@@ -620,45 +630,57 @@ gnc_combo_cell_modify_verify (BasicCell* _cell,
      * type-ahead and a quickfill_match won't work.
      */
     if (!gnc_item_list_using_temp (box->item_list))
-        match_str = quickfill_match (box->qf, newval);
-    if (match_str != NULL)
     {
-        /* We have a match, but if we were deleting or inserting in the middle,
-         * just accept.
-         */
+        // If we were deleting or inserting in the middle, just accept.
         if (change == NULL || *cursor_position < _cell->value_chars)
         {
             gnc_basic_cell_set_value_internal (_cell, newval);
+            *start_selection = *end_selection = *cursor_position;
             return;
         }
-        *start_selection = newval_chars;
-        *end_selection = -1;
-        *cursor_position += change_chars;
-        box_str = match_str;
+        match_str = quickfill_match (box->qf, newval);
+
+        if (match_str != NULL) // Do we have a quickfill match
+        {
+            *start_selection = newval_chars;
+            *end_selection = -1;
+            *cursor_position += change_chars;
+            box_str = match_str;
+
+            block_list_signals (cell); // Prevent recursion
+            gnc_item_list_select (box->item_list, match_str);
+            unblock_list_signals (cell);
+        }
     }
-    else
+
+    // Try using type-ahead
+    if (match_str == NULL && cell->shared_store)
     {
         // No start-of-name match, try type-ahead search, we match any substring of the full account name.
         GtkListStore *store = cell->shared_store;
-        match_str = gnc_combo_cell_type_ahead_search (newval, store, box);
+        match_str = gnc_combo_cell_type_ahead_search (newval, store, cell);
         *start_selection = newval_chars;
         *end_selection = -1;
         *cursor_position = newval_chars;
+
         // Do not change the string in the type-in box.
         box_str = newval;
     }
 
+    // No type-ahead / quickfill entry found
     if (match_str == NULL)
     {
-        if (gnc_item_list_using_temp (box->item_list))
+        block_list_signals (cell); // Prevent recursion
+        if (cell->shared_store && gnc_item_list_using_temp (box->item_list))
         {
             gnc_item_list_set_temp_store (box->item_list, NULL);
             gtk_list_store_clear (box->tmp_store);
         }
-        gnc_basic_cell_set_value_internal (_cell, newval);
-        block_list_signals (cell);
         gnc_item_list_select (box->item_list, NULL);
         unblock_list_signals (cell);
+        gnc_basic_cell_set_value_internal (_cell, newval);
+        *cursor_position = *start_selection = newval_chars;
+        *end_selection = -1;
         return;
     }
 
@@ -667,10 +689,6 @@ gnc_combo_cell_modify_verify (BasicCell* _cell,
         gnc_item_edit_show_popup (box->item_edit);
         box->list_popped = TRUE;
     }
-
-    block_list_signals (cell);
-    gnc_item_list_select (box->item_list, match_str);
-    unblock_list_signals (cell);
 
     gnc_basic_cell_set_value_internal (_cell, box_str);
     g_free (match_str);
@@ -713,6 +731,14 @@ gnc_combo_cell_direct_update (BasicCell* bcell,
     /* fall through */
     case GDK_KEY_Tab:
     case GDK_KEY_ISO_Left_Tab:
+        if (gnc_item_list_using_temp (box->item_list))
+        {
+            char* string = gnc_item_list_get_selection (box->item_list);
+            g_signal_emit_by_name (G_OBJECT (box->item_list), "change_item",
+                                   string, (gpointer)bcell);
+            g_free (string);
+            return FALSE;
+        }
         if (! (event->state & GDK_CONTROL_MASK) &&
             !keep_on_going)
             return FALSE;
@@ -883,10 +909,23 @@ popup_get_height (G_GNUC_UNUSED GtkWidget* widget,
                   gpointer user_data)
 {
     PopBox* box = user_data;
-    int count, pad = 4;
+    GtkScrolledWindow* scrollwin = GNC_ITEM_LIST(widget)->scrollwin;
+    int count, height;
 
     count = gnc_item_list_num_entries (box->item_list);
-    return MIN (space_available, (count * (row_height + pad)) + pad);
+    height = count * (gnc_item_list_get_cell_height (box->item_list) + 2);
+
+    if (height < space_available)
+    {
+        gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrollwin),
+                                        GTK_POLICY_AUTOMATIC, GTK_POLICY_NEVER);
+        // if the list is empty height would be 0 so return 1 instead to
+        // satisfy the check_popup_height_is_true function
+        return height ? height : 1;
+    }
+    gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrollwin),
+                                    GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+    return space_available;
 }
 
 static int
@@ -939,6 +978,7 @@ gnc_combo_cell_enter (BasicCell* bcell,
 {
     ComboCell* cell = (ComboCell*) bcell;
     PopBox* box = bcell->gui_private;
+    PopupToggle popup_toggle;
     GList* find = NULL;
 
     if (bcell->value)
@@ -955,8 +995,21 @@ gnc_combo_cell_enter (BasicCell* bcell,
                              popup_get_width, box);
 
     block_list_signals (cell);
+
+    if (cell->shared_store && gnc_item_list_using_temp (box->item_list))
+    {
+        // Clear the temp store to ensure we don't start in type-ahead mode.
+        gnc_item_list_set_temp_store (box->item_list, NULL);
+        gtk_list_store_clear (box->tmp_store);
+    }
     gnc_item_list_select (box->item_list, bcell->value);
     unblock_list_signals (cell);
+
+    popup_toggle = box->item_edit->popup_toggle;
+
+    // if the list is empty disable the toggle button
+    gtk_widget_set_sensitive (GTK_WIDGET(popup_toggle.tbutton),
+                              gnc_item_list_num_entries (box->item_list));
 
     combo_connect_signals (cell);
 

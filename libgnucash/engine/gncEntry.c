@@ -44,9 +44,9 @@ struct _gncEntry
 
     time64	date;
     time64	date_entered;
-    char *	desc;
-    char *	action;
-    char *	notes;
+    const char *	desc;
+    const char *	action;
+    const char *	notes;
     gnc_numeric 	quantity;
 
     /* customer invoice data */
@@ -191,13 +191,9 @@ gboolean gncEntryPaymentStringToType (const char *str, GncEntryPaymentType *type
 #define _GNC_MOD_NAME GNC_ID_ENTRY
 
 #define SET_STR(obj, member, str) { \
-	char * tmp; \
-	\
 	if (!g_strcmp0 (member, str)) return; \
 	gncEntryBeginEdit (obj); \
-	tmp = CACHE_INSERT (str); \
-	CACHE_REMOVE (member); \
-	member = tmp; \
+	CACHE_REPLACE (member, str); \
 	}
 
 static inline void mark_entry (GncEntry *entry);
@@ -1088,7 +1084,7 @@ GncOrder * gncEntryGetOrder (const GncEntry *entry)
  * to let a consumer know how much they saved.
  *
  * Note this function will not do any rounding unless forced to prevent overflow.
- * It's the caller's responsability to round to the proper commodity
+ * It's the caller's responsibility to round to the proper commodity
  * denominator if needed.
  */
 static void gncEntryComputeValueInt (gnc_numeric qty, gnc_numeric price,

@@ -6,7 +6,9 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: gnucash-glossary 2.2\n"
-"POT-Creation-Date: 2020-03-27 21:58+0100\n"
+"Report-Msgid-Bugs-To: https://bugs.gnucash.org/enter_bug.cgi?"
+"product=GnuCash&component=Translations\n"
+"POT-Creation-Date: 2021-01-10 08:00+0100\n"
 "PO-Revision-Date: 2008-08-03 16:43+0200\n"
 "Last-Translator: David Planella Molas <david.planella@gmail.com>\n"
 "Language-Team: Catalan <ca@li.org>\n"
@@ -18,6 +20,10 @@ msgstr ""
 #. "English Definition (Dear translator: This file will never be visible to the user! It should only serve as a tool for you, the translator. Nothing more.)"
 msgid "Term (Dear translator: This file will never be visible to the user!)"
 msgstr "Termini"
+
+#. "Opening and closing quote symbols and optionally their key combos like [altgr]+[Y]/[X]. Define the preferred style of quotation, see https://en.wikipedia.org/wiki/Quotation_mark#Summary_table"
+msgid "\"\""
+msgstr ""
 
 #. "A detailed record of money spent and received"
 msgid "account"
@@ -334,6 +340,10 @@ msgstr "moneda"
 msgid "Custom"
 msgstr "Personalitzat"
 
+#. "Compact, well-structured presentation of informations. See https://en.wikipedia.org/wiki/Dashboard_(business)"
+msgid "dashboard"
+msgstr ""
+
 #. "The backend where the data is stored."
 msgid "database"
 msgstr "base de dades"
@@ -379,6 +389,14 @@ msgstr "compte"
 msgid "double entry"
 msgstr "entrada doble"
 
+#. "Transactions or bills/invoices can contain a document link which links either to some file on the local disk or to some arbitrary URL."
+msgid "document link"
+msgstr ""
+
+#. "Electronic mail. Some languages allow different writings, but each team should use only one. https://en.wikipedia.org/wiki/Email"
+msgid "email"
+msgstr ""
+
 #. "a person who works for somebody or a company in return for wages"
 msgid "employee"
 msgstr "treballador"
@@ -419,6 +437,16 @@ msgstr "tipus d'interès"
 msgid "financial calculator: payments"
 msgstr "pagaments"
 
+#. "formal records of the financial activities and position of a business, person, or other entity. See https://en.wikipedia.org/wiki/Financial_statement for a list."
+#, fuzzy
+#| msgid "income statement"
+msgid "financial statement"
+msgstr "informe d'ingressos"
+
+#. "Free software is a matter of liberty, not price … see https://en.wikipedia.org/wiki/Free_software"
+msgid "free software"
+msgstr ""
+
 #. "An increase in wealth; profit; advantage (See also: capital gains)"
 msgid "gain"
 msgstr "guany, benefici"
@@ -456,8 +484,14 @@ msgstr "llibre major"
 msgid "liabilities/equity"
 msgstr "passiu/patrimoni"
 
-#. "A sum of money that is lent (by a bank)"
+#. "A sum of money that is lent (by a bank), see also: financial calculator, Mortgage"
 msgid "loan"
+msgstr "préstec"
+
+#. "Annual Percentage Rate, includes in contrast to the Nominal Rate some of the various costs to obtain a loan."
+#, fuzzy
+#| msgid "loan"
+msgid "loan: APR"
 msgstr "préstec"
 
 #. "The money lost in business activity"
@@ -495,6 +529,18 @@ msgstr "Anotació"
 
 #. "(a) An agreement by which money is lent by a bank for buying a house or other property, the property being the security. (b) A sum of money lent in this way."
 msgid "Mortgage"
+msgstr "Hipoteca"
+
+#. "Adjustable Rate Mortgage"
+#, fuzzy
+#| msgid "Mortgage"
+msgid "mortgage: ARM"
+msgstr "Hipoteca"
+
+#. "Fixed Rate Mortgage"
+#, fuzzy
+#| msgid "Mortgage"
+msgid "mortgage: FRM"
 msgstr "Hipoteca"
 
 #. "e.g. USD, DEM, see Currency."
@@ -707,7 +753,7 @@ msgstr "Saldo de les accions"
 msgid "shares"
 msgstr "accions"
 
-#. "(of a price) A place wfrom which sth comes or is obtained"
+#. "(often: of a quote) A place from which something comes or is obtained."
 msgid "source"
 msgstr "font"
 
@@ -732,7 +778,25 @@ msgstr "informació d'impostos"
 msgid "tax info"
 msgstr "informació d'impostos"
 
-#. "if you create a new e.g. style sheet, you can start from a template"
+#. "Amost everybody has to declare and probably pay it. See https://en.wikipedia.org/wiki/Income_tax"
+#, fuzzy
+#| msgid "account type: Income"
+msgid "tax type: income tax"
+msgstr "Ingressos"
+
+#. "Usually only business users have to handle it, see https://en.wikipedia.org/wiki/Sales_tax."
+msgid "tax type: sales tax"
+msgstr ""
+
+#. "'Goods and Service Tax' is one form of sales tax."
+msgid "tax type: GST"
+msgstr ""
+
+#. "'Value Added Tax' is the other form of sales tax."
+msgid "tax type: VAT"
+msgstr ""
+
+#. "If you create a new e.g. style sheet, you can start from a template."
 msgid "template"
 msgstr "plantilla"
 
@@ -792,7 +856,7 @@ msgstr "tipus"
 msgid "units"
 msgstr "unitats"
 
-#. "-"
+#. "Uniform Resource Locator, https://en.wikipedia.org/wiki/URL"
 msgid "URL"
 msgstr "URL"
 

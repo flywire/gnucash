@@ -34,6 +34,7 @@
 (use-modules (gnucash app-utils))
 (use-modules (gnucash report))
 (use-modules (srfi srfi-1))
+(use-modules (srfi srfi-26))
 
 (define optname-from-date (N_ "Start Date"))
 (define optname-to-date (N_ "End Date"))
@@ -176,7 +177,7 @@
 ;; includes all the relevant Scheme code. The option database passed
 ;; to the function is one created by the options-generator function
 ;; defined above.
-(define (net-renderer report-obj inc-exp? linechart?)
+(define (net-renderer report-obj inc-exp? linechart? export-type)
 
   ;; This is a helper function for looking up option values.
   (define (get-option section name)
@@ -228,11 +229,7 @@
     ;; This exchanges the commodity-collector 'c' to one single
     ;; 'report-currency' according to the exchange-fn. Returns a gnc:monetary
     (define (collector->monetary c date)
-      (if (not (number? date))
-          (throw 'wrong))
-      (gnc:sum-collector-commodity
-       c report-currency
-       (lambda (a b) (exchange-fn a b date))))
+      (gnc:sum-collector-commodity c report-currency (cut exchange-fn <> <> date)))
 
     ;; gets an account alist balances
     ;; output: (list acc bal0 bal1 bal2 ...)
@@ -330,7 +327,7 @@
        (gnc:html-chart-set-height! chart height)
        (gnc:html-chart-set-title!
         chart (list report-title
-                    (format #f (_ "~a to ~a")
+                    (format #f (G_ "~a to ~a")
                             (qof-print-date from-date-t64)
                             (qof-print-date to-date-t64))))
        (gnc:html-chart-set-y-axis-label!
@@ -346,7 +343,7 @@
        (when show-sep?
          (gnc:html-chart-add-data-series!
           chart
-          (if inc-exp? (_ "Income") (_ "Assets"))
+          (if inc-exp? (G_ "Income") (G_ "Assets"))
           (map gnc:gnc-monetary-amount minuend-balances)
           "#0074D9"
           'fill (not linechart?)
@@ -362,12 +359,12 @@
                   (list gnc:pagename-general
                         gnc:optname-reportname
                         (if inc-exp?
-                            (_ "Income Chart")
-                            (_ "Asset Chart"))))))
+                            (G_ "Income Chart")
+                            (G_ "Asset Chart"))))))
 
          (gnc:html-chart-add-data-series!
           chart
-          (if inc-exp? (_ "Expense") (_ "Liabilities"))
+          (if inc-exp? (G_ "Expense") (G_ "Liabilities"))
           (map - (map gnc:gnc-monetary-amount subtrahend-balances))
           "#FF4136"
           'fill (not linechart?)
@@ -383,13 +380,13 @@
                   (list gnc:pagename-general
                         gnc:optname-reportname
                         (if inc-exp?
-                            (_ "Expense Chart")
-                            (_ "Liability Chart")))))))
+                            (G_ "Expense Chart")
+                            (G_ "Liability Chart")))))))
 
        (when show-net?
          (gnc:html-chart-add-data-series!
           chart
-          (if inc-exp? (_ "Net Profit") (_ "Net Worth"))
+          (if inc-exp? (G_ "Net Profit") (G_ "Net Worth"))
           (map gnc:gnc-monetary-amount difference-balances)
           "#2ECC40"
           'fill (not linechart?)
@@ -413,35 +410,47 @@
                    (gnc:html-table-set-col-headers!
                     table
                     (append
-                     (list (_ "Date"))
+                     (list (G_ "Date"))
                      (if show-sep?
                          (if inc-exp?
-                             (list (_ "Income") (_ "Expense"))
-                             (list (_ "Assets") (_ "Liabilities")))
+                             (list (G_ "Income") (G_ "Expense"))
+                             (list (G_ "Assets") (G_ "Liabilities")))
                          '())
                      (if show-net?
                          (if inc-exp?
-                             (list (_ "Net Profit"))
-                             (list (_ "Net Worth")))
+                             (list (G_ "Net Profit"))
+                             (list (G_ "Net Worth")))
                          '())))
-                   (gnc:html-table-append-column! table date-string-list)
-                   (when show-sep?
-                     (gnc:html-table-append-column! table minuend-balances)
-                     (gnc:html-table-append-column! table subtrahend-balances))
 
-                   (if show-net?
-                       (gnc:html-table-append-column! table difference-balances))
-
-                   ;; set numeric columns to align right
                    (for-each
-                    (lambda (col)
-                      (gnc:html-table-set-col-style!
-                       table col "td"
-                       'attribute (list "class" "number-cell")))
-                    '(1 2 3))
+                    (lambda (date minuend subtrahend difference)
+                      (gnc:html-table-append-row!
+                       table
+                       (cons date
+                             (map
+                              (cut gnc:make-html-table-cell/markup "number-cell" <>)
+                              (append (if show-sep? (list minuend subtrahend) '())
+                                      (if show-net? (list difference) '()))))))
+                    date-string-list
+                    minuend-balances
+                    subtrahend-balances
+                    difference-balances)
 
-                   (gnc:html-document-add-object! document table))
-                 ))
+                   (gnc:html-document-add-object! document table)))
+
+             (cond
+              ((eq? export-type 'csv)
+               (let ((iso-date (qof-date-format-get-string QOF-DATE-FORMAT-ISO)))
+                 (gnc:html-document-set-export-string
+                  document
+                  (gnc:lists->csv
+                   (cons (if inc-exp?
+                             (map G_ '("Date" "Income" "Expense" "Net Profit"))
+                             (map G_ '("Date" "Assets" "Liabilities" "Net Worth")))
+                         (map list
+                              (map (cut gnc-print-time64 <> iso-date) dates-list)
+                              minuend-balances
+                              subtrahend-balances difference-balances))))))))
            (gnc:html-document-add-object!
             document
             (gnc:html-make-empty-data-warning
@@ -452,6 +461,9 @@
       document
       (gnc:html-make-no-account-warning
        report-title (gnc:report-id report-obj))))
+
+    (unless (gnc:html-document-export-string document)
+      (gnc:html-document-set-export-error document (G_ "No exportable data")))
 
     (gnc:report-finished)
     document))
@@ -473,7 +485,10 @@
  'report-guid net-worth-barchart-uuid
  'menu-path (list gnc:menuname-asset-liability)
  'options-generator (lambda () (options-generator #f #f))
- 'renderer (lambda (report-obj) (net-renderer report-obj #f #f)))
+ 'renderer (lambda (report-obj) (net-renderer report-obj #f #f #f))
+ 'export-types '(("CSV" . csv))
+ 'export-thunk (lambda (report-obj export-type)
+                 (net-renderer report-obj #f #f export-type)))
 
 (gnc:define-report
  'version 1
@@ -482,7 +497,10 @@
  'menu-name (N_ "Income & Expense Barchart")
  'menu-path (list gnc:menuname-income-expense)
  'options-generator (lambda () (options-generator #t #f))
- 'renderer (lambda (report-obj) (net-renderer report-obj #t #f)))
+ 'renderer (lambda (report-obj) (net-renderer report-obj #t #f #f))
+ 'export-types '(("CSV" . csv))
+ 'export-thunk (lambda (report-obj export-type)
+                 (net-renderer report-obj #t #f export-type)))
 
 (gnc:define-report
  'version 1
@@ -490,7 +508,10 @@
  'report-guid net-worth-linechart-uuid
  'menu-path (list gnc:menuname-asset-liability)
  'options-generator (lambda () (options-generator #f #t))
- 'renderer (lambda (report-obj) (net-renderer report-obj #f #t)))
+ 'renderer (lambda (report-obj) (net-renderer report-obj #f #t #f))
+ 'export-types '(("CSV" . csv))
+ 'export-thunk (lambda (report-obj export-type)
+                 (net-renderer report-obj #f #t export-type)))
 
 ;; Not sure if a line chart makes sense for Income & Expense
 ;; Feel free to uncomment and try it though
@@ -501,4 +522,7 @@
  'menu-name (N_ "Income & Expense Linechart")
  'menu-path (list gnc:menuname-income-expense)
  'options-generator (lambda () (options-generator #t #t))
- 'renderer (lambda (report-obj) (net-renderer report-obj #t #t)))
+ 'renderer (lambda (report-obj) (net-renderer report-obj #t #t #f))
+ 'export-types '(("CSV" . csv))
+ 'export-thunk (lambda (report-obj export-type)
+                 (net-renderer report-obj #t #t export-type)))

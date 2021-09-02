@@ -17,7 +17,21 @@
 ;; Boston, MA  02110-1301,  USA       gnu@gnu.org
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(define-module (gnucash engine business-core))
+
+(eval-when (compile load eval expand)
+  (load-extension "libgnucash-guile" "gnc_guile_bindings_init"))
+
+(use-modules (sw_engine))
 (use-modules (srfi srfi-1))
+
+(export gnc:owner-get-address)
+(export gnc:owner-get-name-dep)
+(export gnc:owner-get-address-dep)
+(export gnc:owner-get-name-and-address-dep)
+(export gnc:owner-get-owner-id)
+(export gnc:owner-from-split)
+(export gnc:split->owner)
 
 (define (gnc:owner-get-address owner)
   (let ((type (gncOwnerGetType owner)))
@@ -99,6 +113,8 @@
 ;; result-owner argument is mutated to it.
 (define (gnc:owner-from-split split result-owner)
   (define (notnull x) (and (not (null? x)) x))
+  (issue-deprecation-warning
+   "gnc:owner-from-split is deprecated in 4.x. use gnc:split->owner instead.")
   (let* ((trans (xaccSplitGetParent split))
 	 (invoice (notnull (gncInvoiceGetInvoiceFromTxn trans)))
 	 (temp (gncOwnerNew))
@@ -114,3 +130,27 @@
     (cond (owner (gncOwnerCopy (gncOwnerGetEndOwner owner) result-owner)
                  result-owner)
           (else  '()))))
+
+
+;; optimized from above, and simpler: does not search all transaction
+;; splits. It will allocate and memoize (cache) the owners because
+;; gncOwnerGetOwnerFromLot is slow. after use, it must be called with
+;; #f to free the owners.
+(define gnc:split->owner
+  (let ((ht (make-hash-table)))
+    (lambda (split)
+      (cond
+       ((not split)
+        (hash-for-each (lambda (k v) (gncOwnerFree v)) ht)
+        (hash-clear! ht))
+       ((hash-ref ht (gncSplitGetGUID split)) => identity)
+       (else
+        (let ((lot (xaccSplitGetLot split))
+              (owner (gncOwnerNew)))
+          (unless (gncOwnerGetOwnerFromLot lot owner)
+            (gncOwnerCopy (gncOwnerGetEndOwner
+                           (gncInvoiceGetOwner
+                            (gncInvoiceGetInvoiceFromLot lot)))
+                          owner))
+          (hash-set! ht (gncSplitGetGUID split) owner)
+          owner))))))

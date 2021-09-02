@@ -33,8 +33,9 @@
 (use-modules (gnucash utilities))
 (use-modules (gnucash core-utils))
 (use-modules (gnucash app-utils))
-(use-modules (gnucash reports standard cash-flow))
+(use-modules (gnucash reports cash-flow-calc))
 (use-modules (gnucash report))
+(use-modules (srfi srfi-26))
 
 (define reportname (N_ "Cash Flow Barchart"))
 
@@ -151,7 +152,6 @@
                                optname-accounts))
          (include-trading-accounts (get-option gnc:pagename-accounts
                                                optname-include-trading-accounts))
-         (row-num 0)
          (work-done 0)
          (work-to-do 0)
          (report-currency (get-option gnc:pagename-general
@@ -187,16 +187,11 @@
                                    gnc:optname-reportname))
 
          (doc (gnc:make-html-document))
-         (table (gnc:make-html-table))
-         (txt (gnc:make-html-text))
          (chart (gnc:make-html-chart))
          (non-zeros #f))
 
     (if (not (null? accounts))
-        (let* ((money-diff-collector (gnc:make-commodity-collector))
-               (account-disp-list '())
-               (time-exchange-fn #f)
-               (commodity-list (gnc:accounts-get-commodities
+        (let* ((commodity-list (gnc:accounts-get-commodities
                                 accounts
                                 report-currency))
                ;; Get an exchange function that will convert each transaction using the
@@ -208,7 +203,6 @@
                (date-string-list (map (lambda (date-list-item)       ; date-list-item is (start . end)
                                         (qof-print-date (car date-list-item)))
                                       dates-list))
-               (results-by-date '())
                (in-list '())
                (out-list '())
                (net-list '())
@@ -279,7 +273,7 @@
           (gnc:html-chart-set-title!
            chart (list report-title
                        (format #f
-                               (_ "~a to ~a")
+                               (G_ "~a to ~a")
                                (qof-print-date from-date-t64)
                                (qof-print-date to-date-t64))))
           (gnc:html-chart-set-width! chart width)
@@ -294,19 +288,19 @@
           (gnc:html-chart-set-data-labels! chart date-string-list)
           (if show-in?
               (gnc:html-chart-add-data-series! chart
-                                               (_ "Money In")
+                                               (G_ "Money In")
                                                (map gnc:gnc-monetary-amount in-list)
                                                "#0074D9"
                                                'urls cashflow-urls))
           (if show-out?
               (gnc:html-chart-add-data-series! chart
-                                               (_ "Money Out")
+                                               (G_ "Money Out")
                                                (map gnc:gnc-monetary-amount out-list)
                                                "#FF4136"
                                                'urls cashflow-urls))
           (if show-net?
               (gnc:html-chart-add-data-series! chart
-                                               (_ "Net Flow")
+                                               (G_ "Net Flow")
                                                (map gnc:gnc-monetary-amount net-list)
                                                "#2ECC40"
                                                'urls cashflow-urls))
@@ -327,30 +321,28 @@
 
           (if (and non-zeros show-table?)
               (let* ((table (gnc:make-html-table)))
+
+                (define (add-row date in out net)
+                  (gnc:html-table-append-row!
+                   table
+                   (cons date
+                         (map (cut gnc:make-html-table-cell/markup "number-cell" <>)
+                              (append
+                               (if show-in?  (list in)  '())
+                               (if show-out? (list out) '())
+                               (if show-net? (list net) '()))))))
+
                 (gnc:html-table-set-col-headers!
-                 table (append (list (_ "Date"))
-                               (if show-in? (list (_ "Money In")) '())
-                               (if show-out? (list (_ "Money Out")) '())
-                               (if show-net? (list (_ "Net Flow")) '())))
+                 table (append (list (G_ "Date"))
+                               (if show-in? (list (G_ "Money In")) '())
+                               (if show-out? (list (G_ "Money Out")) '())
+                               (if show-net? (list (G_ "Net Flow")) '())))
 
                 (gnc:html-document-add-object!
-                 doc (gnc:make-html-text (gnc:html-markup-h3 (_ "Overview:"))))
-                (gnc:html-table-append-column! table (append date-string-list (list "Total")))
+                 doc (gnc:make-html-text (gnc:html-markup-h3 (G_ "Overview:"))))
 
-                (if show-in?
-                    (gnc:html-table-append-column! table (append in-list (list total-in))))
-                (if show-out?
-                    (gnc:html-table-append-column! table (append out-list (list total-out))))
-                (if show-net?
-                    (gnc:html-table-append-column! table (append net-list (list total-net))))
-
-                ;; set numeric columns to align right
-                (for-each
-                 (lambda (col)
-                   (gnc:html-table-set-col-style!
-                    table col "td"
-                    'attribute (list "class" "number-cell")))
-                 '(1 2 3))
+                (for-each add-row date-string-list in-list out-list net-list)
+                (add-row (G_ "Total") total-in total-out total-net)
 
                 (gnc:html-document-add-object! doc table))))
 

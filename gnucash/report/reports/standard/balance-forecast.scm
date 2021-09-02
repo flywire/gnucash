@@ -35,7 +35,7 @@
 (define reportname           (N_ "Balance Forecast"))
 
 (define optname-accounts     (N_ "Accounts"))
-(define opthelp-accounts     (_ "Report on these accounts."))
+(define opthelp-accounts     (G_ "Report on these accounts."))
 
 (define optname-from-date    (N_ "Start Date"))
 (define optname-to-date      (N_ "End Date"))
@@ -47,25 +47,25 @@
 (define optname-plot-width   (N_ "Plot Width"))
 (define optname-plot-height  (N_ "Plot Height"))
 (define optname-show-markers (N_ "Data markers?"))
-(define opthelp-show-markers (_ "Display a mark for each data point."))
+(define opthelp-show-markers (G_ "Display a mark for each data point."))
 
 (define optname-show-reserve (N_ "Show reserve line"))
-(define opthelp-show-reserve (_ "Show reserve line"))
+(define opthelp-show-reserve (G_ "Show reserve line"))
 
 (define optname-reserve      (N_ "Reserve amount"))
-(define opthelp-reserve      (_ "The reserve amount is set to a \
+(define opthelp-reserve      (G_ "The reserve amount is set to a \
 minimum balance desired"))
 
 (define optname-show-target  (N_ "Show target line"))
-(define opthelp-show-target  (_ "Show target line"))
+(define opthelp-show-target  (G_ "Show target line"))
 
 (define optname-target       (N_ "Target amount above reserve"))
-(define opthelp-target       (_ "The target is used to plan for \
+(define opthelp-target       (G_ "The target is used to plan for \
 a future large purchase, which will be added as a line above the \
 reserve amount."))
 
 (define optname-show-minimum (N_ "Show future minimum"))
-(define opthelp-show-minimum (_ "The future minimum will add, for each \
+(define opthelp-show-minimum (G_ "The future minimum will add, for each \
 date point, a projected minimum balance including scheduled transactions."))
 
 ; Options generator
@@ -169,6 +169,7 @@ date point, a projected minimum balance including scheduled transactions."))
                         price currency
                         (gnc:accounts-get-commodities accounts #f)
                         to-date #f #f))
+          (iso-date (qof-date-format-get-string QOF-DATE-FORMAT-ISO))
           (accounts-balancelist
            (map
             (lambda (acc)
@@ -233,7 +234,7 @@ date point, a projected minimum balance including scheduled transactions."))
         (when show-minimum
           (gnc:html-chart-add-data-series!
            chart
-           (_ "Minimum")
+           (G_ "Minimum")
            (let loop ((balances balances) (result '()))
                    (if (null? balances) (reverse! result)
                        (loop (cdr balances) (cons (apply min balances) result))))
@@ -244,7 +245,7 @@ date point, a projected minimum balance including scheduled transactions."))
 
         ;; Balance line (do this here so it draws over the minimum line)
         (gnc:html-chart-add-data-series!
-         chart (_ "Balance") balances "#0A0"
+         chart (G_ "Balance") balances "#0A0"
          'fill #f
          'borderWidth 1.5
          'pointRadius markers)
@@ -252,7 +253,7 @@ date point, a projected minimum balance including scheduled transactions."))
         ;; Target line
         (when show-target
           (gnc:html-chart-add-data-series!
-           chart (_ "Target")
+           chart (G_ "Target")
            (make-list (length intervals) (+ reserve target))
            "#FF0"
            'fill #f
@@ -262,7 +263,7 @@ date point, a projected minimum balance including scheduled transactions."))
         ;; Reserve line
         (when show-reserve
           (gnc:html-chart-add-data-series!
-           chart (_ "Reserve") (make-list (length intervals) reserve)
+           chart (G_ "Reserve") (make-list (length intervals) reserve)
            "#F00"
            'fill #f
            'borderWidth 1.5
@@ -272,7 +273,7 @@ date point, a projected minimum balance including scheduled transactions."))
         ;; Set the chart titles
         (gnc:html-chart-set-title!
          chart (list report-title
-                     (format #f (_ "~a to ~a")
+                     (format #f (G_ "~a to ~a")
                        (qof-print-date from-date) (qof-print-date to-date))))
         ;; Set the chart size
         (gnc:html-chart-set-width! chart plot-width)
@@ -281,11 +282,10 @@ date point, a projected minimum balance including scheduled transactions."))
         (gnc:html-chart-set-y-axis-label!
          chart (gnc-commodity-get-mnemonic currency))
         ;; Set series labels
-        (let ((old-fmt (qof-date-format-get)))
-          (qof-date-format-set QOF-DATE-FORMAT-ISO)
-          (gnc:html-chart-set-data-labels!
-           chart (map qof-print-date (map cadr intervals)))
-          (qof-date-format-set old-fmt))
+        (gnc:html-chart-set-data-labels!
+         chart (map (lambda (data)
+                      (gnc-print-time64 (cadr data) iso-date))
+                    intervals))
 
         ;; Set currency symbol
         (gnc:html-chart-set-currency-iso!

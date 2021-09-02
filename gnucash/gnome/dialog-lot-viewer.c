@@ -61,7 +61,9 @@ enum lot_cols
     LOT_COL_CLOSE,
     LOT_COL_TITLE,
     LOT_COL_BALN,
+    LOT_COL_BALN_DOUBLE, // used only for sorting
     LOT_COL_GAINS,
+    LOT_COL_GAINS_DOUBLE, // used only for sorting
     LOT_COL_PNTR,
     NUM_LOT_COLS
 };
@@ -72,9 +74,13 @@ enum split_cols
     SPLIT_COL_NUM,
     SPLIT_COL_DESCRIPTION,
     SPLIT_COL_AMOUNT,
+    SPLIT_COL_AMOUNT_DOUBLE, // used only for sorting
     SPLIT_COL_VALUE,
+    SPLIT_COL_VALUE_DOUBLE, // used only for sorting
     SPLIT_COL_GAIN_LOSS,
+    SPLIT_COL_GAIN_LOSS_DOUBLE, // used only for sorting
     SPLIT_COL_BALANCE,
+    SPLIT_COL_BALANCE_DOUBLE, // used only for sorting
     SPLIT_COL_PNTR,
     NUM_SPLIT_COLS
 };
@@ -106,6 +112,7 @@ struct _GNCLotViewer
     GtkListStore  * split_in_lot_store;
     GtkTreeView   * split_free_view;
     GtkListStore  * split_free_store;
+    GtkWidget     * split_hpaned;
     GtkButton     * add_split_to_lot_button;
     GtkButton     * remove_split_from_lot_button;
     GtkToggleButton * only_show_open_lots_checkbutton;
@@ -221,12 +228,14 @@ lv_show_splits_free (GNCLotViewer *lv)
         Split *split = node->data;
         if (NULL == xaccSplitGetLot(split))
         {
-            filtered_list = g_list_append(filtered_list, split);
+            filtered_list = g_list_prepend (filtered_list, split);
         }
     }
+    filtered_list = g_list_reverse (filtered_list);
 
     /* display list */
     gnc_split_viewer_fill(lv, lv->split_free_store, filtered_list);
+    g_list_free (filtered_list);
 }
 
 /* ======================================================================== */
@@ -403,11 +412,13 @@ gnc_lot_viewer_fill (GNCLotViewer *lv)
         xaccSPrintAmount (baln_buff, amt_baln,
                           gnc_account_print_info (lv->account, TRUE));
         gtk_list_store_set(store, &iter, LOT_COL_BALN, baln_buff, -1);
+        gtk_list_store_set(store, &iter, LOT_COL_BALN_DOUBLE, gnc_numeric_to_double (amt_baln), -1);
 
         /* Capital Gains/Losses Appreciation/Depreciation */
         xaccSPrintAmount (gain_buff, gains_baln,
                           gnc_commodity_print_info (currency, TRUE));
         gtk_list_store_set(store, &iter, LOT_COL_GAINS, gain_buff, -1);
+        gtk_list_store_set(store, &iter, LOT_COL_GAINS_DOUBLE, gnc_numeric_to_double (gains_baln), -1);
 
         /* Self-reference */
         gtk_list_store_set(store, &iter, LOT_COL_PNTR, lot, -1);
@@ -524,6 +535,7 @@ gnc_split_viewer_fill (GNCLotViewer *lv, GtkListStore *store, SplitList *split_l
         xaccSPrintAmount (amtbuff, amnt,
                           gnc_account_print_info (lv->account, TRUE));
         gtk_list_store_set (store, &iter, SPLIT_COL_AMOUNT, amtbuff, -1);
+        gtk_list_store_set (store, &iter, SPLIT_COL_AMOUNT_DOUBLE, gnc_numeric_to_double (amnt), -1);
 
         /* Value.
          * For non-business accounts which are part of a lot,
@@ -535,6 +547,7 @@ gnc_split_viewer_fill (GNCLotViewer *lv, GtkListStore *store, SplitList *split_l
         xaccSPrintAmount (valbuff, valu,
                           gnc_commodity_print_info (currency, TRUE));
         gtk_list_store_set (store, &iter, SPLIT_COL_VALUE, valbuff, -1);
+        gtk_list_store_set (store, &iter, SPLIT_COL_VALUE_DOUBLE, gnc_numeric_to_double (valu), -1);
 
         /* Gains. Blank if none. */
         gains = xaccSplitGetCapGains (split);
@@ -548,6 +561,7 @@ gnc_split_viewer_fill (GNCLotViewer *lv, GtkListStore *store, SplitList *split_l
                               gnc_commodity_print_info (currency, TRUE));
         }
         gtk_list_store_set (store, &iter, SPLIT_COL_GAIN_LOSS, gainbuff, -1);
+        gtk_list_store_set (store, &iter, SPLIT_COL_GAIN_LOSS_DOUBLE, gnc_numeric_to_double (gains), -1);
 
         /* Balance of Gains */
         baln = gnc_numeric_add_fixed (baln, amnt);
@@ -561,6 +575,7 @@ gnc_split_viewer_fill (GNCLotViewer *lv, GtkListStore *store, SplitList *split_l
                               gnc_account_print_info (lv->account, TRUE));
         }
         gtk_list_store_set (store, &iter, SPLIT_COL_BALANCE, balnbuff, -1);
+        gtk_list_store_set (store, &iter, SPLIT_COL_BALANCE_DOUBLE, gnc_numeric_to_double (baln), -1);
 
         /* Self-reference */
         gtk_list_store_set(store, &iter, SPLIT_COL_PNTR, split, -1);
@@ -687,9 +702,11 @@ lv_add_split_to_lot_cb (GtkWidget *widget, GNCLotViewer * lv)
     split = lv_get_selected_split(lv, lv->split_free_view);
     if ( NULL == split ) return;
 
+    gnc_suspend_gui_refresh();
     xaccAccountBeginEdit(lv->account);
     gnc_lot_add_split(lv->selected_lot, split);
     xaccAccountCommitEdit(lv->account);
+    gnc_resume_gui_refresh();
 
     lv_refresh(lv);
 }
@@ -706,9 +723,11 @@ lv_remove_split_from_lot_cb (GtkWidget *widget, GNCLotViewer * lv)
     if ( FALSE == lv_can_remove_split_from_lot(split, lv->selected_lot) )
         return;
 
+    gnc_suspend_gui_refresh();
     xaccAccountBeginEdit(lv->account);
     gnc_lot_remove_split(lv->selected_lot, split);
     xaccAccountCommitEdit(lv->account);
+    gnc_resume_gui_refresh();
 
     lv_refresh(lv);
 }
@@ -737,7 +756,7 @@ lv_response_cb (GtkDialog *dialog, gint response, gpointer data)
     case RESPONSE_VIEW:
         if (NULL == lot)
             return;
-        printf ("UNIMPLEMENTED: need to display register showing only this one lot \n");
+        printf ("UNIMPLEMENTED: need to display register showing only this one lot.\n");
         break;
 
     case RESPONSE_DELETE:
@@ -812,6 +831,16 @@ static void print_date (GtkTreeViewColumn *tree_column,
 }
 
 static void
+configure_number_columns (GtkTreeViewColumn *column,
+                          GtkCellRenderer *renderer, gint sort_column)
+{
+    gtk_tree_view_column_set_sort_column_id (column, sort_column);
+    gtk_cell_renderer_set_alignment (renderer, 1.0, 0.5); // right align amount column
+    gtk_tree_view_column_set_alignment (column, 1.0);
+    gtk_cell_renderer_set_padding (renderer, 5, 0); // add padding so its not close to edge
+}
+
+static void
 lv_init_lot_view (GNCLotViewer *lv)
 {
     GtkTreeView *view;
@@ -824,8 +853,10 @@ lv_init_lot_view (GNCLotViewer *lv)
 
     view = lv->lot_view;
     store = gtk_list_store_new(NUM_LOT_COLS, G_TYPE_STRING, G_TYPE_INT64,
-                               G_TYPE_INT64, G_TYPE_STRING, G_TYPE_STRING,
-                               G_TYPE_STRING, G_TYPE_POINTER);
+                               G_TYPE_INT64, G_TYPE_STRING,
+                               G_TYPE_STRING, G_TYPE_DOUBLE,
+                               G_TYPE_STRING,G_TYPE_DOUBLE,
+                               G_TYPE_POINTER);
     gtk_tree_view_set_model(view, GTK_TREE_MODEL(store));
     g_object_unref(store);
     lv->lot_store = store;
@@ -861,18 +892,19 @@ lv_init_lot_view (GNCLotViewer *lv)
     column = gtk_tree_view_column_new_with_attributes(_("Title"), renderer,
              "text", LOT_COL_TITLE, NULL);
     gtk_tree_view_column_set_sort_column_id(column, LOT_COL_TITLE);
+    gtk_tree_view_column_set_expand (column, TRUE);
     gtk_tree_view_append_column(view, column);
 
     renderer = gtk_cell_renderer_text_new();
     column = gtk_tree_view_column_new_with_attributes(_("Balance"), renderer,
              "text", LOT_COL_BALN, NULL);
-    gtk_tree_view_column_set_sort_column_id(column, LOT_COL_BALN);
+    configure_number_columns (column, renderer, LOT_COL_BALN_DOUBLE);
     gtk_tree_view_append_column(view, column);
 
     renderer = gtk_cell_renderer_text_new();
     column = gtk_tree_view_column_new_with_attributes(_("Gains"), renderer,
              "text", LOT_COL_GAINS, NULL);
-    gtk_tree_view_column_set_sort_column_id(column, LOT_COL_GAINS);
+    configure_number_columns (column, renderer, LOT_COL_GAINS_DOUBLE);
     gtk_tree_view_append_column(view, column);
 
     /* Set up signals */
@@ -896,9 +928,12 @@ lv_init_split_view (GNCLotViewer *lv, GtkTreeView *view)
 
     g_return_val_if_fail(GTK_IS_TREE_VIEW(view), NULL);
 
-    store = gtk_list_store_new(NUM_SPLIT_COLS, G_TYPE_INT64, G_TYPE_STRING,
-                               G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING,
+    store = gtk_list_store_new(NUM_SPLIT_COLS, G_TYPE_INT64,
                                G_TYPE_STRING, G_TYPE_STRING,
+                               G_TYPE_STRING, G_TYPE_DOUBLE,
+                               G_TYPE_STRING, G_TYPE_DOUBLE,
+                               G_TYPE_STRING, G_TYPE_DOUBLE,
+                               G_TYPE_STRING, G_TYPE_DOUBLE,
                                G_TYPE_POINTER);
     gtk_tree_view_set_model(view, GTK_TREE_MODEL(store));
     g_object_unref(store);
@@ -923,31 +958,39 @@ lv_init_split_view (GNCLotViewer *lv, GtkTreeView *view)
     renderer = gtk_cell_renderer_text_new();
     column = gtk_tree_view_column_new_with_attributes(_("Description"), renderer,
              "text", SPLIT_COL_DESCRIPTION, NULL);
+
+    g_object_set (renderer, "ellipsize", PANGO_ELLIPSIZE_END, NULL);
+    /* as this column is the expander column, if ellipsize is set, the column
+       width would be small, so set a minimum width */
+    gtk_tree_view_column_set_min_width (column, 200);
+
     gtk_tree_view_column_set_sort_column_id(column, SPLIT_COL_DESCRIPTION);
+    gtk_tree_view_column_set_expand (column, TRUE);
+    gtk_tree_view_column_set_resizable (column, TRUE);
     gtk_tree_view_append_column(view, column);
 
     renderer = gtk_cell_renderer_text_new();
     column = gtk_tree_view_column_new_with_attributes(_("Amount"), renderer,
              "text", SPLIT_COL_AMOUNT, NULL);
-    gtk_tree_view_column_set_sort_column_id(column, SPLIT_COL_AMOUNT);
+    configure_number_columns (column, renderer, SPLIT_COL_AMOUNT_DOUBLE);
     gtk_tree_view_append_column(view, column);
 
     renderer = gtk_cell_renderer_text_new();
     column = gtk_tree_view_column_new_with_attributes(_("Value"), renderer,
              "text", SPLIT_COL_VALUE, NULL);
-    gtk_tree_view_column_set_sort_column_id(column, SPLIT_COL_VALUE);
+    configure_number_columns (column, renderer, SPLIT_COL_VALUE_DOUBLE);
     gtk_tree_view_append_column(view, column);
 
     renderer = gtk_cell_renderer_text_new();
     column = gtk_tree_view_column_new_with_attributes(_("Gain/Loss"), renderer,
              "text", SPLIT_COL_GAIN_LOSS, NULL);
-    gtk_tree_view_column_set_sort_column_id(column, SPLIT_COL_GAIN_LOSS);
+    configure_number_columns (column, renderer, SPLIT_COL_GAIN_LOSS_DOUBLE);
     gtk_tree_view_append_column(view, column);
 
     renderer = gtk_cell_renderer_text_new();
     column = gtk_tree_view_column_new_with_attributes(_("Balance"), renderer,
              "text", SPLIT_COL_BALANCE, NULL);
-    gtk_tree_view_column_set_sort_column_id(column, SPLIT_COL_BALANCE);
+    configure_number_columns (column, renderer, SPLIT_COL_BALANCE_DOUBLE);
     gtk_tree_view_append_column(view, column);
 
     /* Set up the selection callbacks */
@@ -976,6 +1019,16 @@ lv_init_split_buttons (GNCLotViewer *lv)
 }
 
 /* ======================================================================== */
+
+static void
+window_realize_set_split_paned_position_cb (GtkWidget *widget, gpointer user_data)
+{
+    GNCLotViewer *lv = user_data;
+    gint width;
+
+    gtk_window_get_size (GTK_WINDOW(lv->window), &width, NULL);
+    gtk_paned_set_position (GTK_PANED(lv->split_hpaned), width / 2);
+}
 
 static void
 lv_create (GNCLotViewer *lv, GtkWindow *parent)
@@ -1013,6 +1066,7 @@ lv_create (GNCLotViewer *lv, GtkWindow *parent)
 
     lv->split_in_lot_view = GTK_TREE_VIEW(gtk_builder_get_object (builder, "split_in_lot_view"));
     lv->split_free_view = GTK_TREE_VIEW(gtk_builder_get_object (builder, "split_free_view"));
+    lv->split_hpaned = GTK_WIDGET(gtk_builder_get_object (builder, "split_hpaned"));
     lv_init_split_views(lv);
 
     lv->add_split_to_lot_button = GTK_BUTTON(gtk_builder_get_object (builder, "add_split_to_lot_button"));
@@ -1040,6 +1094,10 @@ lv_create (GNCLotViewer *lv, GtkWindow *parent)
     }
 
     lv->selected_lot = NULL;
+
+    /* set the split paned position to be halfway at the start */
+    g_signal_connect (G_OBJECT(lv->window), "realize",
+                      G_CALLBACK(window_realize_set_split_paned_position_cb), lv);
 
     /* Setup signals */
     gtk_builder_connect_signals(builder, lv);

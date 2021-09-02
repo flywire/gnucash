@@ -30,6 +30,7 @@ set (gnome_utils_SOURCES
   assistant-xml-encoding.c
   cursors.c
   dialog-account.c
+  dialog-doclink-utils.c
   dialog-book-close.c
   dialog-commodity.c
   dialog-dup-trans.c
@@ -53,7 +54,6 @@ set (gnome_utils_SOURCES
   gnc-cell-renderer-text-flag.c
   gnc-cell-renderer-text-view.c
   gnc-cell-view.c
-  gnc-combott.c
   gnc-commodity-edit.c
   gnc-component-manager.c
   gnc-currency-edit.c
@@ -123,6 +123,7 @@ set (gnome_utils_HEADERS
   account-quickfill.h
   assistant-xml-encoding.h
   dialog-account.h
+  dialog-doclink-utils.h
   dialog-book-close.h
   dialog-commodity.h
   dialog-dup-trans.h
@@ -143,7 +144,6 @@ set (gnome_utils_HEADERS
   gnc-cell-renderer-text-flag.h
   gnc-cell-renderer-text-view.h
   gnc-cell-view.h
-  gnc-combott.h
   gnc-commodity-edit.h
   gnc-component-manager.h
   gnc-currency-edit.h
@@ -259,16 +259,15 @@ install(FILES ${gnome_utils_HEADERS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/gnu
 set(GUILE_DEPENDS      gnc-gnome-utils scm-engine scm-app-utils)
 
 gnc_add_scheme_targets(scm-gnome-utils-1
-    SOURCES gnome-utils.scm
-    OUTPUT_DIR gnucash
-    DEPENDS "${GUILE_DEPENDS}")
-
-
-gnc_add_scheme_targets(scm-gnome-utils-2
     SOURCES gnc-menu-extensions.scm
     OUTPUT_DIR "gnucash/gnome-utils"
     DEPENDS "${GUILE_DEPENDS}"
     MAKE_LINKS)
+
+gnc_add_scheme_targets(scm-gnome-utils-2
+    SOURCES gnome-utils.scm
+    OUTPUT_DIR gnucash
+    DEPENDS "scm-gnome-utils-1")
 
 add_custom_target(scm-gnome-utils ALL DEPENDS scm-gnome-utils-2 scm-gnome-utils-1)
 

@@ -34,7 +34,6 @@
 
 #include "gnc-engine.h"
 #include "gnucash-item-list.h"
-#include "gnucash-scrolled-window.h"
 
 /* Item list signals */
 enum
@@ -59,7 +58,9 @@ gnc_item_list_num_entries (GncItemList* item_list)
     g_return_val_if_fail (item_list != NULL, 0);
     g_return_val_if_fail (IS_GNC_ITEM_LIST (item_list), 0);
 
-    model = GTK_TREE_MODEL (item_list->list_store);
+    model = gnc_item_list_using_temp (item_list) ?
+        GTK_TREE_MODEL (item_list->temp_store) :
+        GTK_TREE_MODEL (item_list->list_store);
     return gtk_tree_model_iter_n_children (model, NULL);
 }
 
@@ -201,6 +202,22 @@ gnc_item_list_select (GncItemList* item_list, const char* string)
     g_free (to_find_data);
 }
 
+char*
+gnc_item_list_get_selection (GncItemList *item_list)
+{
+    GtkTreeIter iter;
+    GtkTreeModel* model;
+    gchar* string;
+
+    GtkTreeSelection *selection =
+        gtk_tree_view_get_selection (item_list->tree_view);
+    if (!gtk_tree_selection_get_selected (selection, &model, &iter))
+        return NULL;
+
+    gtk_tree_model_get (model, &iter, 0, &string, -1);
+    return string;
+}
+
 
 void
 gnc_item_list_show_selected (GncItemList* item_list)
@@ -241,11 +258,16 @@ gnc_item_list_set_temp_store (GncItemList *item_list, GtkListStore *store)
 
     item_list->temp_store = store;
     if (store)
+    {
         gtk_tree_view_set_model (item_list->tree_view,
                                  GTK_TREE_MODEL (item_list->temp_store));
+    }
     else
+    {
         gtk_tree_view_set_model (item_list->tree_view,
                                  GTK_TREE_MODEL (item_list->list_store));
+        item_list->temp_store = NULL;
+    }
 }
 
 gboolean
@@ -257,9 +279,11 @@ gnc_item_list_using_temp (GncItemList *item_list)
 static void
 gnc_item_list_init (GncItemList* item_list)
 {
+    item_list->scrollwin = NULL;
     item_list->tree_view = NULL;
     item_list->list_store = NULL;
     item_list->temp_store = NULL;
+    item_list->cell_height = 0;
 }
 
 
@@ -321,21 +345,15 @@ static gboolean
 gnc_item_list_key_event (GtkWidget* widget, GdkEventKey* event, gpointer data)
 {
     GncItemList* item_list = GNC_ITEM_LIST (data);
-    GtkTreeSelection* selection = NULL;
-    GtkTreeIter iter;
-    GtkTreeModel* model;
     gchar* string;
     gboolean retval;
 
     switch (event->keyval)
     {
     case GDK_KEY_Return:
-        selection = gtk_tree_view_get_selection (item_list->tree_view);
-        if (!gtk_tree_selection_get_selected (selection, &model, &iter))
-            return FALSE;
-
-        gtk_tree_model_get (model, &iter, 0, &string, -1);
-
+        string = gnc_item_list_get_selection (item_list);
+        if (!string) // Nothing selected, might be new value
+             break;  // Let the sheet deal with it.
         g_signal_emit (G_OBJECT (item_list),
                        gnc_item_list_signals[ACTIVATE_ITEM],
                        0,
@@ -370,6 +388,7 @@ gnc_item_list_class_init (GncItemListClass* item_list_class)
 
     gnc_item_list_parent_class = g_type_class_peek_parent (item_list_class);
 
+    gtk_widget_class_set_css_name (GTK_WIDGET_CLASS(item_list_class), "gnc-id-sheet-list");
 
     gnc_item_list_signals[SELECT_ITEM] =
         g_signal_new ("select_item",
@@ -459,22 +478,37 @@ tree_view_selection_changed (GtkTreeSelection* selection,
     g_free (string);
 }
 
+
+gint
+gnc_item_list_get_cell_height (GncItemList *item_list)
+{
+
+   gint min_height, nat_height;
+   gtk_cell_renderer_get_preferred_height (item_list->renderer,
+                                           GTK_WIDGET(item_list->tree_view),
+                                           &min_height,
+                                           &nat_height);
+
+    return min_height;
+}
+
+
 GtkWidget*
 gnc_item_list_new (GtkListStore* list_store)
 {
     GtkWidget* tree_view;
-    GtkWidget* scrollwin;
-    GtkCellRenderer* renderer;
     GtkTreeViewColumn* column;
 
     GncItemList* item_list =
         GNC_ITEM_LIST (g_object_new (GNC_TYPE_ITEM_LIST,
                                      NULL));
 
-    scrollwin = gnc_scrolled_window_new();
-    gtk_container_add (GTK_CONTAINER (item_list), scrollwin);
+    item_list->scrollwin =
+        GTK_SCROLLED_WINDOW (gtk_scrolled_window_new(NULL, NULL));
+    gtk_container_add (GTK_CONTAINER (item_list),
+                       GTK_WIDGET (item_list->scrollwin));
 
-    gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrollwin),
+    gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (item_list->scrollwin),
                                     GTK_POLICY_AUTOMATIC,
                                     GTK_POLICY_AUTOMATIC);
 
@@ -492,14 +526,14 @@ gnc_item_list_new (GtkListStore* list_store)
     gtk_tree_sortable_set_sort_column_id (GTK_TREE_SORTABLE (list_store),
                                           0, GTK_SORT_ASCENDING);
 
-    renderer = gtk_cell_renderer_text_new();
+    item_list->renderer = gtk_cell_renderer_text_new();
     column = gtk_tree_view_column_new_with_attributes (_ ("List"),
-                                                       renderer,
+                                                       item_list->renderer,
                                                        "text", 0,
                                                        NULL);
     gtk_tree_view_append_column (GTK_TREE_VIEW (tree_view), column);
 
-    gtk_container_add (GTK_CONTAINER (scrollwin), tree_view);
+    gtk_container_add (GTK_CONTAINER (item_list->scrollwin), tree_view);
 
     item_list->tree_view = GTK_TREE_VIEW (tree_view);
     item_list->list_store = list_store;
@@ -510,11 +544,9 @@ gnc_item_list_new (GtkListStore* list_store)
     g_signal_connect (G_OBJECT (tree_view), "key_press_event",
                       G_CALLBACK (gnc_item_list_key_event), item_list);
 
-    g_signal_connect (G_OBJECT (gtk_tree_view_get_selection (GTK_TREE_VIEW (
-            tree_view))), "changed",
+    g_signal_connect (G_OBJECT (gtk_tree_view_get_selection (
+                                GTK_TREE_VIEW (tree_view))), "changed",
                       G_CALLBACK (tree_view_selection_changed), item_list);
 
     return GTK_WIDGET (item_list);
 }
-
-

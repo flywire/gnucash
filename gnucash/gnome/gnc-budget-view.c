@@ -297,6 +297,9 @@ gnc_budget_view_finalize (GObject *object)
 
     priv = GNC_BUDGET_VIEW_GET_PRIVATE(budget_view);
 
+    g_list_free (priv->period_col_list);
+    g_list_free (priv->totals_col_list);
+
     gnc_prefs_remove_cb_by_func (GNC_PREFS_GROUP_GENERAL, GNC_PREF_GRID_LINES_HORIZONTAL,
                                  gbv_treeview_update_grid_lines, priv->totals_tree_view);
     gnc_prefs_remove_cb_by_func (GNC_PREFS_GROUP_GENERAL, GNC_PREF_GRID_LINES_VERTICAL,
@@ -382,7 +385,7 @@ gbv_tree_view_model_row_changed_cb (GtkTreeModel *tree_model, GtkTreePath *path,
     GncBudgetView *budget_view = user_data;
     GncBudgetViewPrivate *priv = GNC_BUDGET_VIEW_GET_PRIVATE(budget_view);
 
-    // The model row-changed signal can be emmitted multiple times so we
+    // The model row-changed signal can be emitted multiple times so we
     // use an idle_add to do a redraw of the totals tree view once
     g_idle_remove_by_data (priv->totals_tree_view);
     g_idle_add ((GSourceFunc)gbv_totals_tree_view_redraw_idle, priv->totals_tree_view);
@@ -513,6 +516,7 @@ gbv_create_widget (GncBudgetView *budget_view)
     gtk_tree_selection_set_mode (gtk_tree_view_get_selection (totals_tree_view), GTK_SELECTION_NONE);
     gtk_tree_view_set_headers_visible (totals_tree_view, FALSE);
     gtk_tree_view_set_model (totals_tree_view, GTK_TREE_MODEL(totals_tree_model));
+    g_object_unref (totals_tree_model);
 
     // add the totals title column
     totals_title_col = gtk_tree_view_column_new_with_attributes ("", gtk_cell_renderer_text_new (), "text", 0, NULL);
@@ -636,6 +640,7 @@ gnc_budget_view_restore (GncBudgetView *budget_view, GKeyFile *key_file, const g
     GncGUID guid;
     GncBudget *bgt;
     QofBook *book;
+    gboolean has_guid;
 
     g_return_val_if_fail (key_file, FALSE);
     g_return_val_if_fail (group_name, FALSE);
@@ -652,7 +657,10 @@ gnc_budget_view_restore (GncBudgetView *budget_view, GKeyFile *key_file, const g
         error = NULL;
         return FALSE;
     }
-    if (!string_to_guid (guid_str, &guid))
+    has_guid = string_to_guid (guid_str, &guid);
+    g_free (guid_str);
+
+    if (!has_guid)
     {
         return FALSE;
     }
@@ -930,7 +938,7 @@ query_tooltip_tree_view_cb (GtkWidget *widget, gint x, gint y,
     GncBudgetViewPrivate *priv = GNC_BUDGET_VIEW_GET_PRIVATE(view);
     GtkTreePath          *path  = NULL;
     GtkTreeViewColumn    *column = NULL;
-    const gchar          *note;
+    gchar                *note;
     guint                 period_num;
     Account              *account;
 
@@ -938,23 +946,36 @@ query_tooltip_tree_view_cb (GtkWidget *widget, gint x, gint y,
 
     if (keyboard_tip || !gtk_tree_view_get_path_at_pos (tree_view, x, y, &path,
                                                         &column, NULL, NULL))
+    {
+        gtk_tree_path_free (path);
         return FALSE;
+    }
 
     if (!column)
+    {
+        gtk_tree_path_free (path);
         return FALSE;
+    }
 
     period_num = GPOINTER_TO_UINT(g_object_get_data (G_OBJECT(column), "period_num"));
     if (!period_num && priv->period_col_list->data != column)
+    {
+        gtk_tree_path_free (path);
         return FALSE;
+    }
     account = gnc_tree_view_account_get_account_from_path (
                   GNC_TREE_VIEW_ACCOUNT(widget), path);
     note = gnc_budget_get_account_period_note (priv->budget, account, period_num);
     if (!note)
+    {
+        gtk_tree_path_free (path);
         return FALSE;
+    }
 
     gtk_tooltip_set_text (tooltip, note);
     gtk_tree_view_set_tooltip_cell (tree_view, tooltip, path, column, NULL);
     gtk_tree_path_free (path);
+    g_free (note);
 
     return TRUE;
 }
@@ -1629,7 +1650,7 @@ gnc_budget_view_refresh (GncBudgetView *budget_view)
         if (col != NULL)
         {
             gtk_tree_view_append_column (priv->totals_tree_view, col);
-            totals_col_list = g_list_append (totals_col_list, col);
+            totals_col_list = g_list_prepend (totals_col_list, col);
         }
 
         num_periods_visible = g_list_length (col_list);
@@ -1639,7 +1660,7 @@ gnc_budget_view_refresh (GncBudgetView *budget_view)
     gdk_rgba_free (note_color_selected);
 
     priv->period_col_list = col_list;
-    priv->totals_col_list = totals_col_list;
+    priv->totals_col_list = g_list_reverse (totals_col_list);
 
     if (priv->total_col == NULL)
     {

@@ -137,14 +137,12 @@ static gboolean
 gnc_report_system_report_stream_cb (const char *location, char ** data, int *len)
 {
     gboolean ok;
+    gchar *captured_str;
 
-    ok = gnc_run_report_id_string (location, data);
+    ok = gnc_run_report_id_string_with_error_handling (location, data, &captured_str);
 
     if (!ok)
     {
-        SCM captured = scm_c_eval_string ("gnc:last-captured-error");
-        gchar *captured_str = gnc_scm_to_utf8_string(captured);
-
         *data = g_strdup_printf ("<html><body><h3>%s</h3>"
                                  "<p>%s</p><pre>%s</pre></body></html>",
                                  _("Report error"),
@@ -244,9 +242,9 @@ gnc_report_system_help_url_cb (const char *location, const char *label,
     g_return_val_if_fail (location != NULL, FALSE);
 
     if (label && (*label != '\0'))
-        gnc_gnome_help (location, label);
+        gnc_gnome_help (GTK_WINDOW(result->parent), location, label);
     else
-        gnc_gnome_help (location, NULL);
+        gnc_gnome_help (GTK_WINDOW(result->parent), location, NULL);
     return TRUE;
 }
 

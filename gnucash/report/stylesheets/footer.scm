@@ -102,15 +102,9 @@
       (N_ "Images")
       (N_ "Heading Alignment") "c" (N_ "Banner for top of report.")
       'left
-      (list (vector 'left
-                    (N_ "Left")
-                    (N_ "Align the banner to the left."))
-            (vector 'center
-                    (N_ "Center")
-                    (N_ "Align the banner in the center."))
-            (vector 'right
-                    (N_ "Right")
-                    (N_ "Align the banner to the right.")))))
+      (list (vector 'left (N_ "Left"))
+            (vector 'center (N_ "Center"))
+            (vector 'right (N_ "Right")))))
 
     (opt-register
      (gnc:make-pixmap-option
@@ -374,13 +368,13 @@
              (gnc:make-html-text
               (gnc:html-markup-h3 headline)
               (gnc:html-markup-br)
-              (_ "Prepared by: ")
+              (G_ "Prepared by: ")
               (gnc:html-markup-b preparer)
               (gnc:html-markup-br)
-              (_ "Prepared for: ")
+              (G_ "Prepared for: ")
               (gnc:html-markup-b prepared-for)
               (gnc:html-markup-br)
-              (_ "Date: ")
+              (G_ "Date: ")
               (qof-print-date
                (current-time)))
 

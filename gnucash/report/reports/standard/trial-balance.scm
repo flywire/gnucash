@@ -183,7 +183,7 @@
     (add-option
      (gnc:make-string-option
       (N_ "General") optname-report-title
-      "a" opthelp-report-title (_ reportname)))
+      "a" opthelp-report-title (G_ reportname)))
     (add-option
      (gnc:make-string-option
       (N_ "General") optname-party-name
@@ -200,15 +200,9 @@
       gnc:pagename-general optname-report-variant
       "d" opthelp-report-variant
       'current
-      (list (vector 'current
-                    (N_ "Current Trial Balance")
-                    (N_ "Uses the exact balances in the general journal"))
-            (vector 'pre-adj
-                    (N_ "Pre-adjustment Trial Balance")
-                    (N_ "Ignores Adjusting/Closing entries"))
-            (vector 'work-sheet
-                    (N_ "Work Sheet")
-                    (N_ "Creates a complete end-of-period work sheet")))))
+      (list (vector 'current (N_ "General journal exact balances"))
+            (vector 'pre-adj (N_ "No adjusting/closing entries"))
+            (vector 'work-sheet (N_ "Full end-of-period work sheet")))))
 
     ;; accounts to work on
     (add-option
@@ -276,7 +270,7 @@
     (add-option
      (gnc:make-string-option
       pagename-entries optname-adjusting-pattern
-      "a" opthelp-adjusting-pattern (_ "Adjusting Entries")))
+      "a" opthelp-adjusting-pattern (G_ "Adjusting Entries")))
     (add-option
      (gnc:make-simple-boolean-option
       pagename-entries optname-adjusting-casing
@@ -288,7 +282,7 @@
     (add-option
      (gnc:make-string-option
       pagename-entries optname-closing-pattern
-      "d" opthelp-closing-pattern (_ "Closing Entries")))
+      "d" opthelp-closing-pattern (G_ "Closing Entries")))
     (add-option
      (gnc:make-simple-boolean-option
       pagename-entries optname-closing-casing
@@ -401,7 +395,8 @@
          ;; exchange rates calculation parameters
          (exchange-fn
           (gnc:case-exchange-fn price-source report-commodity end-date))
-         (period-for (string-append " " (_ "for Period"))))
+         (price-fn (gnc:case-price-fn price-source report-commodity end-date))
+         (period-for (string-append " " (G_ "for Period"))))
 
     (gnc:html-document-set-title!
      doc (if (eq? report-variant 'current)
@@ -409,7 +404,7 @@
                      company-name report-title
                      (qof-print-date end-date))
              (format #f (string-append "~a ~a "
-                                       (_ "For Period Covering ~a to ~a"))
+                                       (G_ "For Period Covering ~a to ~a"))
                      company-name report-title
                      (qof-print-date start-date-printable)
                      (qof-print-date end-date))))
@@ -566,11 +561,11 @@
           (if (eq? report-variant 'work-sheet)
               (let* ((headings
                       (list
-                       (_ "Trial Balance")
-                       (_ "Adjustments")
-                       (_ "Adjusted Trial Balance")
-                       (_ "Income Statement")
-                       (_ "Balance Sheet")))
+                       (G_ "Trial Balance")
+                       (G_ "Adjustments")
+                       (G_ "Adjusted Trial Balance")
+                       (G_ "Income Statement")
+                       (G_ "Balance Sheet")))
                      (parent-headings #f))
                 (set! parent-headings
                   (apply append
@@ -589,13 +584,13 @@
           ;; add the DEBIT/CREDIT headers
           (let* ((debit-cell
                   (gnc:make-html-table-cell/markup
-                   "th" (_ "Debit")))
+                   "th" (G_ "Debit")))
                  (credit-cell
                   (gnc:make-html-table-cell/markup
-                   "th" (_ "Credit")))
+                   "th" (G_ "Credit")))
                  (row (append
                        (list (gnc:make-html-table-cell/markup
-                              "th" (_ "Account Name")))
+                              "th" (G_ "Account Name")))
                        (gnc:html-make-empty-cells (- account-cols 1))
                        (list debit-cell)
                        (list credit-cell)))
@@ -731,8 +726,8 @@
                               report-commodity exchange-fn show-fcur?)))
                  (add-line build-table
                            (if credit?
-                               (_ "Unrealized Gains")
-                               (_ "Unrealized Losses"))
+                               (G_ "Unrealized Gains")
+                               (G_ "Unrealized Losses"))
                            neg-unrealized-gain-collector)
                  (when (eq? report-variant 'work-sheet)
                    ;; make table line wide enough
@@ -857,7 +852,7 @@
                               exchange-fn show-fcur?))
                 (gnc:html-table-add-labeled-amount-line!
                  build-table tbl-width "primary-subheading" #f
-                 (if is-credit? (_ "Net Income") (_ "Net Loss"))
+                 (if is-credit? (G_ "Net Income") (G_ "Net Loss"))
                  0 1 "total-label-cell" is-entry
                  (+ account-cols (* 2 is-col) (if is-credit? 0 1))
                  1 "total-number-cell")
@@ -894,8 +889,8 @@
           (if show-rates?
               (gnc:html-document-add-object!
                doc
-               (gnc:html-make-exchangerates
-                report-commodity exchange-fn accounts)))
+               (gnc:html-make-rates-table
+                report-commodity price-fn accounts)))
           (gnc:report-percent-done 100)))
 
     (gnc:report-finished)

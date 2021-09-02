@@ -126,9 +126,9 @@
       gnc:pagename-display (N_ "Plot Type")
       "c" (N_ "The type of graph to generate.") (list 'AvgBalPlot)
       (list 
-       (vector 'AvgBalPlot (N_ "Average") (N_ "Average Balance."))
-       (vector 'GainPlot (N_ "Profit") (N_ "Profit (Gain minus Loss)."))
-       (vector 'GLPlot (N_ "Gain/Loss") (N_ "Gain And Loss.")))))
+       (vector 'AvgBalPlot (N_ "Average"))
+       (vector 'GainPlot (N_ "Profit"))
+       (vector 'GLPlot (N_ "Gain/Loss")))))
 
     (gnc:options-add-plot-size! 
      options gnc:pagename-display 
@@ -146,9 +146,9 @@
 (define columns
   ;; Watch out -- these names should be consistent with the display
   ;; option where you choose them, otherwise users are confused.
-  (list (_ "Period start") (_ "Period end") (_ "Average") 
-        (_ "Maximum") (_ "Minimum") (_ "Gain") 
-        (_ "Loss") (_ "Profit") ))
+  (list (G_ "Period start") (G_ "Period end") (G_ "Average") 
+        (G_ "Maximum") (G_ "Minimum") (G_ "Gain") 
+        (G_ "Loss") (G_ "Profit") ))
 
 
 (define (analyze-splits splits balances daily-dates interval-dates
@@ -338,7 +338,8 @@
 
 	  ;; for balance purposes, we don't need to do this, but it cleans up
 	  ;; the table display.
-          (gnc:query-set-match-non-voids-only! query (gnc-get-current-book))
+          (xaccQueryAddClearedMatch
+           query (logand CLEARED-ALL (lognot CLEARED-VOIDED)) QOF-QUERY-AND)
           ;; add accounts to the query (include subaccounts 
           ;; if requested)
 	  (gnc:report-percent-done 25)
@@ -400,8 +401,7 @@
               (let ((barchart (gnc:make-html-chart))
                     (height (get-option gnc:pagename-display optname-plot-height))
                     (width (get-option gnc:pagename-display optname-plot-width))
-                    (col-labels '())
-                    (col-colors '()))
+                    (col-labels '()))
                 (if (memq 'AvgBalPlot plot-type)
                     (let
                         ((number-data
@@ -454,7 +454,6 @@
                        barchart (gnc-commodity-get-nice-symbol report-currency))
 
                       (gnc:html-chart-set-data-labels! barchart col-labels)
-                      ;; (gnc:html-barchart-set-col-colors! barchart col-colors)
                       (gnc:html-chart-set-data-labels! barchart (map car data))
                       ;; (gnc:html-chart-set-row-labels-rotated?! barchart #t)
                       (gnc:html-chart-set-width! barchart width)

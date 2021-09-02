@@ -39,8 +39,6 @@
 (define optname-to-date (N_ "To"))
 (define optname-sort-by (N_ "Sort By"))
 (define optname-sort-order (N_ "Sort Order"))
-(define optname-report-currency (N_ "Report's currency"))
-(define optname-price-source (N_ "Price Source"))
 (define optname-show-zeros (N_ "Show zero balance items"))
 (define optname-date-driver (N_ "Due or Post Date"))
 
@@ -60,17 +58,18 @@ copying this report to a spreadsheet for use in a mail merge."))
         (list (N_ "Address Email") "i" (N_ "Display Email."))
         (list (N_ "Active") "j" (N_ "Display Active status."))))
 
-(define no-APAR-account (_ "No valid A/Payable or A/Receivable \
+(define no-APAR-account (G_ "No valid A/Payable or A/Receivable \
 account found. Please ensure valid AP/AR account exists."))
 
-(define empty-APAR-accounts (_ "A/Payable or A/Receivable accounts \
+(define empty-APAR-accounts (G_ "A/Payable or A/Receivable accounts \
 exist but have no suitable transactions."))
 
 (define num-buckets 6)
 
 (define (setup-query query accounts date)
   (qof-query-set-book query (gnc-get-current-book))
-  (gnc:query-set-match-non-voids-only! query (gnc-get-current-book))
+  (xaccQueryAddClearedMatch
+   query (logand CLEARED-ALL (lognot CLEARED-VOIDED)) QOF-QUERY-AND)
   (xaccQueryAddAccountMatch query accounts QOF-GUID-MATCH-ANY QOF-QUERY-AND)
   (xaccQueryAddDateMatchTT query #f 0 #t date QOF-QUERY-AND)
   (qof-query-set-sort-order query (list SPLIT-TRANS TRANS-DATE-POSTED) '() '())
@@ -93,22 +92,16 @@ exist but have no suitable transactions."))
      (gnc:make-multichoice-option
       gnc:pagename-general optname-sort-by "i" (N_ "Sort companies by.") 'name
       (list
-       (vector 'name
-               (N_ "Name")
-               (N_ "Name of the company."))
-       (vector 'total
-               (N_ "Total Owed")
-               (N_ "Total amount owed to/from Company."))
-       (vector 'oldest-bracket
-               (N_ "Bracket Total Owed")
-               (N_ "Amount owed in oldest bracket - if same go to next oldest.")))))
+       (vector 'name (N_ "Name of the company"))
+       (vector 'total (N_ "Total amount owed to/from Company"))
+       (vector 'oldest-bracket (N_ "Bracket Total Owed")))))
 
     (add-option
      (gnc:make-multichoice-option
       gnc:pagename-general optname-sort-order "ia" (N_ "Sort order.") 'increasing
       (list
-       (vector 'increasing (N_ "Increasing") (N_ "Alphabetical order"))
-       (vector 'decreasing (N_ "Decreasing") (N_ "Reverse alphabetical order")))))
+       (vector 'increasing (N_ "Ascending"))
+       (vector 'decreasing (N_ "Descending")))))
 
     (add-option
      (gnc:make-simple-boolean-option
@@ -120,14 +113,8 @@ exist but have no suitable transactions."))
      (gnc:make-multichoice-option
       gnc:pagename-general optname-date-driver "k" (N_ "Leading date.") 'duedate
       (list
-       ;; Should be using standard label for due date?
-       (vector 'duedate
-               (N_ "Due Date")
-               (N_ "Due date is leading."))
-       ;; Should be using standard label for post date?
-       (vector 'postdate
-               (N_ "Post Date")
-               (N_ "Post date is leading.")))))
+       (vector 'duedate (N_ "Due Date"))
+       (vector 'postdate (N_ "Post Date")))))
 
     (gnc:options-set-default-section options "General")
 
@@ -160,7 +147,7 @@ exist but have no suitable transactions."))
                     (gncAddressGetPhone addr)
                     (gncAddressGetFax addr)
                     (gncAddressGetEmail addr)
-                    (if (gncOwnerGetActive owner) (_ "Y") (_ "N")))))
+                    (if (gncOwnerGetActive owner) (C_ "One-letter indication for 'yes'" "Y") (C_ "One-letter indication for 'no'" "N")))))
            (else address-list-names))))
     (fold-right (lambda (opt elt prev) (if opt (cons elt prev) prev))
                 '() address-list-options result-list)))
@@ -170,20 +157,11 @@ exist but have no suitable transactions."))
     (not (or (eqv? type TXN-TYPE-INVOICE)
              (eqv? type TXN-TYPE-PAYMENT)))))
 
-(define (gnc-owner-equal? a b)
-  (string=? (gncOwnerReturnGUID a) (gncOwnerReturnGUID b)))
-
 (define (split-has-owner? split owner)
-  (let* ((split-owner (split->owner split))
-         (retval (gnc-owner-equal? split-owner owner)))
-    (gncOwnerFree split-owner)
-    retval))
+  (gncOwnerEqual (gnc:split->owner split) owner))
 
 (define (split-owner-is-invalid? split)
-  (let* ((owner (split->owner split))
-         (retval (not (gncOwnerIsValid owner))))
-    (gncOwnerFree owner)
-    retval))
+  (not (gncOwnerIsValid (gnc:split->owner split))))
 
 (define (split-from-acct? split acct)
   (equal? acct (xaccSplitGetAccount split)))
@@ -192,32 +170,20 @@ exist but have no suitable transactions."))
   (let-values (((list-yes list-no) (partition (lambda (elt) (fn elt cmp)) lst)))
     (cons list-yes list-no)))
 
-;; simpler version of gnc:owner-from-split. must be gncOwnerFree after
-;; use! see split-has-owner? above...
-(define (split->owner split)
-  (let* ((lot (xaccSplitGetLot split))
-         (owner (gncOwnerNew))
-         (use-lot-owner? (gncOwnerGetOwnerFromLot lot owner)))
-    (unless use-lot-owner?
-      (gncOwnerCopy (gncOwnerGetEndOwner
-                     (gncInvoiceGetOwner (gncInvoiceGetInvoiceFromLot lot)))
-                    owner))
-    owner))
-
 (define (aging-renderer report-obj receivable)
   (define options (gnc:report-options report-obj))
   (define (op-value section name)
     (gnc:option-value (gnc:lookup-option options section name)))
 
   (define make-heading-list
-    (list (_ "Company")
-          (_ "Pre-Payment")
-          (_ "Current")
-          (_ "0-30 days")
-          (_ "31-60 days")
-          (_ "61-90 days")
-          (_ "91+ days")
-          (_ "Total")))
+    (list (G_ "Company")
+          (G_ "Pre-Payment")
+          (G_ "Current")
+          (G_ "0-30 days")
+          (G_ "31-60 days")
+          (G_ "61-90 days")
+          (G_ "91+ days")
+          (G_ "Total")))
 
   (let* ((type (if receivable ACCT-TYPE-RECEIVABLE ACCT-TYPE-PAYABLE))
          (accounts (filter (lambda (acc) (eqv? (xaccAccountGetType acc) type))
@@ -238,7 +204,7 @@ exist but have no suitable transactions."))
       (match-let* (((own1 aging1 aging-total1) a)
                    ((own2 aging2 aging-total2) b)
                    (increasing? (eq? sort-order 'increasing))
-                   (op-str (if increasing? string<? string>?))
+                   (op-str (if increasing? gnc:string-locale<? gnc:string-locale>?))
                    (op-num (if increasing? < >)))
         (case sort-by
           ((name)  (op-str (gncOwnerGetName own1) (gncOwnerGetName own2)))
@@ -251,7 +217,9 @@ exist but have no suitable transactions."))
               (else (op-num (car aging1) (car aging2)))))))))
 
     ;; set default title
-    (gnc:html-document-set-title! document report-title)
+    (gnc:html-document-set-title!
+     document
+     (format #f "~a - ~a" report-title (qof-print-date report-date)))
 
     (cond
      ((null? accounts)
@@ -263,12 +231,15 @@ exist but have no suitable transactions."))
       (let* ((splits (xaccQueryGetSplitsUniqueTrans query)))
         (qof-query-destroy query)
 
+        ;; split->owner hashtable should be empty at the start of
+        ;; report renderer. clear it anyway.
+        (gnc:split->owner #f)
+
         ;; loop into each APAR account
         (let loop ((accounts accounts)
                    (splits splits)
                    (accounts-and-owners '())
-                   (invalid-splits '())
-                   (tofree '()))
+                   (invalid-splits '()))
           (cond
            ((null? accounts)
 
@@ -327,7 +298,7 @@ exist but have no suitable transactions."))
                               "number-cell"
                               (gnc:make-html-text
                                (gnc:html-markup-anchor
-                                (gnc:owner-report-text owner account)
+                                (gnc:owner-report-text owner account report-date)
                                 (gnc:make-gnc-monetary comm aging-total)))))
                             (options->address options receivable owner)))))
                       (sort owners-and-aging sort-aging<?))
@@ -337,7 +308,7 @@ exist but have no suitable transactions."))
                       (append
                        (if accounts>1? '(#f) '())
                        (list (gnc:make-html-table-cell/markup
-                              "total-label-cell" (_ "Total")))
+                              "total-label-cell" (G_ "Total")))
                        (map
                         (lambda (amt)
                           (gnc:make-html-table-cell/markup
@@ -345,7 +316,7 @@ exist but have no suitable transactions."))
                         acc-totals)))))
                  (reverse accounts-and-owners))
 
-                (for-each gncOwnerFree tofree)
+                (gnc:split->owner #f)       ;free the gncOwners
                 (gnc:html-document-add-object! document table)
 
                 (unless (null? invalid-splits)
@@ -355,7 +326,7 @@ exist but have no suitable transactions."))
                   (gnc:html-document-add-object!
                    document
                    (gnc:make-html-text
-                    (_ "Please note some transactions were not processed")
+                    (G_ "Please note some transactions were not processed")
                     (gnc:html-markup-ol
                      (map
                       (lambda (invalid-split)
@@ -371,7 +342,6 @@ exist but have no suitable transactions."))
               (let lp ((acc-splits (car splits-acc-others))
                        (acc-totals (make-list (1+ num-buckets) 0))
                        (invalid-splits invalid-splits)
-                       (tofree tofree)
                        (owners-and-aging '()))
 
                 (match acc-splits
@@ -382,17 +352,15 @@ exist but have no suitable transactions."))
                              accounts-and-owners
                              (cons (list account owners-and-aging acc-totals)
                                    accounts-and-owners))
-                         invalid-splits
-                         tofree))
+                         invalid-splits))
 
                   ;; txn type != TXN_TYPE_INVOICE or TXN_TYPE_PAYMENT.
                   (((? split-is-not-business? this) . rest)
                    (let ((type (xaccTransGetTxnType (xaccSplitGetParent this))))
                      (lp rest
                          acc-totals
-                         (cons (list (format #f (_ "Invalid Txn Type ~a") type) this)
+                         (cons (list (format #f (G_ "Invalid Txn Type ~a") type) this)
                                invalid-splits)
-                         tofree
                          owners-and-aging)))
 
                   ;; some payment splits may have no owner in this
@@ -401,12 +369,11 @@ exist but have no suitable transactions."))
                    (gnc:warn "split " this " has no owner")
                    (lp rest
                        acc-totals
-                       (cons (list (_ "Payment has no owner") this) invalid-splits)
-                       tofree
+                       (cons (list (G_ "Payment has no owner") this) invalid-splits)
                        owners-and-aging))
 
                   ((this . _)
-                   (match-let* ((owner (split->owner this))
+                   (match-let* ((owner (gnc:split->owner this))
                                 ((owner-splits . other-owner-splits)
                                  (list-split acc-splits split-has-owner? owner))
                                 (aging (gnc:owner-splits->aging-list
@@ -416,7 +383,6 @@ exist but have no suitable transactions."))
                      (lp other-owner-splits
                          (map + acc-totals (reverse (cons aging-total aging)))
                          invalid-splits
-                         (cons owner tofree)
                          (if (or show-zeros (any (negate zero?) aging))
                              (cons (list owner aging aging-total) owners-and-aging)
                              owners-and-aging)))))))))))))
@@ -435,12 +401,8 @@ exist but have no suitable transactions."))
      (gnc:make-multichoice-option
       gnc:pagename-display optname-addr-source "a" (N_ "Address source.") 'billing
       (list
-       (vector 'billing
-               (N_ "Billing")
-               (N_ "Address fields from billing address."))
-       (vector 'shipping
-               (N_ "Shipping")
-               (N_ "Address fields from shipping address.")))))
+       (vector 'billing (N_ "Billing address"))
+       (vector 'shipping (N_ "Shipping address")))))
     options))
 
 (define (payables-renderer report-obj)
@@ -449,20 +411,53 @@ exist but have no suitable transactions."))
 (define (receivables-renderer report-obj)
   (aging-renderer report-obj #t))
 
+(define payables-aging-guid "e57770f2dbca46619d6dac4ac5469b50")
+(define receivables-aging-guid "9cf76bed17f14401b8e3e22d0079cb98")
+
 (gnc:define-report
  'version 1
- 'name (N_ "Payable Aging (beta)")
- 'report-guid "e57770f2dbca46619d6dac4ac5469b50-new"
- 'menu-path (list gnc:menuname-experimental)
+ 'name (N_ "Payable Aging")
+ 'report-guid payables-aging-guid
+ 'menu-path (list gnc:menuname-business-reports)
  'options-generator payable-options-generator
  'renderer payables-renderer
  'in-menu? #t)
 
 (gnc:define-report
  'version 1
- 'name (N_ "Receivable Aging (beta)")
- 'report-guid "9cf76bed17f14401b8e3e22d0079cb98-new"
- 'menu-path (list gnc:menuname-experimental)
+ 'name (N_ "Receivable Aging")
+ 'report-guid "9cf76bed17f14401b8e3e22d0079cb98"
+ 'menu-path (list gnc:menuname-business-reports)
  'options-generator receivable-options-generator
  'renderer receivables-renderer
  'in-menu? #t)
+
+(define (receivables-report-create-internal acct title show-zeros?)
+  (let* ((options (gnc:make-report-options receivables-aging-guid))
+         (zero-op (gnc:lookup-option options gnc:pagename-general optname-show-zeros))
+         (title-op (gnc:lookup-option options gnc:pagename-general gnc:optname-reportname)))
+    (when title (gnc:option-set-value title-op title))
+    (gnc:option-set-value zero-op show-zeros?)
+    (gnc:make-report receivables-aging-guid options)))
+
+(define (payables-report-create-internal acct title show-zeros?)
+  (let* ((options (gnc:make-report-options payables-aging-guid))
+         (zero-op (gnc:lookup-option options gnc:pagename-general optname-show-zeros))
+         (title-op (gnc:lookup-option options gnc:pagename-general gnc:optname-reportname)))
+    (when title (gnc:option-set-value title-op title))
+    (gnc:option-set-value zero-op show-zeros?)
+    (gnc:make-report payables-aging-guid options)))
+
+(define (gnc:receivables-create-internal
+         account split query journal? double? title debit-string credit-string)
+  (receivables-report-create-internal account #f #f))
+
+(define (gnc:payables-create-internal
+         account split query journal? double? title debit-string credit-string)
+  (payables-report-create-internal account #f #f))
+
+(gnc:register-report-hook ACCT-TYPE-RECEIVABLE #f gnc:receivables-create-internal)
+(gnc:register-report-hook ACCT-TYPE-PAYABLE #f gnc:payables-create-internal)
+
+(export payables-report-create-internal)
+(export receivables-report-create-internal)

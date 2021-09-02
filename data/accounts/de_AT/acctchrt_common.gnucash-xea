@@ -31,16 +31,18 @@
   xmlns:ts="http://www.gnucash.org/XML/ts"
   xmlns:tte="http://www.gnucash.org/XML/tte"
   xmlns:vendor="http://www.gnucash.org/XML/vendor">
-    <gnc-act:title>
-      Allgemeine Konten
-    </gnc-act:title>
-    <gnc-act:short-description>
-      Grundlegende Kontenstruktur
-    </gnc-act:short-description>
-    <gnc-act:long-description>
-    Die meisten privaten, aber nicht die geschäftlichen Anwender benötigen diese grundlegende Kontenstruktur. Sie finden hier die allgemein üblichen Konten wie Giro-, Sparkonto, Bargeld, Kreditkarte, Erträge und verschiedene Ausgaben.
-  </gnc-act:long-description>    
-  <gnc-act:start-selected>1</gnc-act:start-selected>
+
+<gnc-act:title>
+  Allgemeine Konten
+</gnc-act:title>
+<gnc-act:short-description>
+  Grundlegende Kontenstruktur
+</gnc-act:short-description>
+<gnc-act:long-description>
+  Die meisten privaten, aber nicht die geschäftlichen Anwender benötigen diese grundlegende Kontenstruktur. Sie finden hier die allgemein üblichen Konten wie Giro-, Sparkonto, Bargeld, Kreditkarte, Erträge und verschiedene Ausgaben. Wenn Sie aber einen SKR verwenden wollen, brauchen Sie sie nicht.
+</gnc-act:long-description>
+<gnc-act:start-selected>1</gnc-act:start-selected>
+
 <gnc:account version="2.0.0">
   <act:name>Root Account</act:name>
   <act:id type="new">1972cce2e2364f95b2b0bc014502661d</act:id>
@@ -594,7 +596,7 @@
   <act:parent type="new">073ef0026c59c96d794935e1361602d0</act:parent>
 </gnc:account>
 <gnc:account version="2.0.0">
-  <act:name>Einkommenssteuer</act:name>
+  <act:name>Einkommensteuer</act:name>
   <act:id type="new">ab3b17af105254efa0aa4348773d34fc</act:id>
   <act:type>EXPENSE</act:type>
   <act:commodity>
@@ -602,7 +604,7 @@
     <cmdty:id>EUR</cmdty:id>
   </act:commodity>
   <act:commodity-scu>100</act:commodity-scu>
-  <act:description>Einkommenssteuer</act:description>
+  <act:description>Einkommensteuer</act:description>
   <act:parent type="new">92bd7aeef848a997f1af8ac7b132035e</act:parent>
 </gnc:account>
 <gnc:account version="2.0.0">
@@ -964,5 +966,11 @@
   <act:commodity-scu>100</act:commodity-scu>
   <act:description>Anfangsbestand</act:description>
   <act:parent type="new">1972cce2e2364f95b2b0bc014502661d</act:parent>
+  <act:slots>
+    <slot>
+      <slot:key>equity-type</slot:key>
+      <slot:value type="string">opening-balance</slot:value>
+    </slot>
+  </act:slots>
 </gnc:account>
 </gnc-account-example>

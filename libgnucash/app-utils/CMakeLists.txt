@@ -1,5 +1,9 @@
 # NB: Unit tests which require GSchemas should be made conditional on COMPILE_GSCHEMAS.
 add_subdirectory(test)
+add_subdirectory(mocks)
+
+include (GncFindLibm)
+
 # Build the library
 
 set (app_utils_noinst_HEADERS
@@ -66,9 +70,14 @@ set (app_utils_SOURCES
   gnc-ui-util.c
   gnc-ui-balances.c
   option-util.c
-)
+  )
 
 set_source_files_properties (${app_utils_SOURCES} PROPERTIES OBJECT_DEPENDS ${CONFIG_H})
+
+gnc_check_standard_math_library()
+if (NOT STANDARD_MATH_LIBRARY_FOUND)
+  message(FATAL_ERROR "An implementation of the standard C function pow() is required and is supported neither by the C runtime nor libm.so.")
+endif()
 
 set(app_utils_ALL_SOURCES ${app_utils_SOURCES} ${app_utils_HEADERS} ${app_utils_noinst_HEADERS})
 set(app_utils_ALL_LIBRARIES
@@ -77,7 +86,10 @@ set(app_utils_ALL_LIBRARIES
     gnucash-guile
     ${GIO_LDFLAGS}
     ${LIBXML2_LDFLAGS}
-    ${LIBXSLT_LDFLAGS})
+    ${LIBXSLT_LDFLAGS}
+    ${STANDARD_MATH_LIBRARY}
+)
+
 set(app_utils_ALL_INCLUDES
     ${CMAKE_CURRENT_SOURCE_DIR}/calculation
     ${GIO_INCLUDE_DIRS}
@@ -157,12 +169,21 @@ install(FILES ${app_utils_HEADERS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/gnuca
 # And now handle scheme files
 
 set (app_utils_SCHEME_1
-    business-options.scm
-    business-prefs.scm
     c-interface.scm
     date-utilities.scm
-    options.scm
     fin.scm
+)
+
+set (app_utils_SCHEME_1a
+    options.scm
+)
+
+set (app_utils_SCHEME_1b
+    business-options.scm
+)
+
+set (app_utils_SCHEME_1c
+    business-prefs.scm
 )
 
 set (app_utils_SCHEME_2
@@ -180,10 +201,29 @@ gnc_add_scheme_targets(scm-app-utils-1
     DEPENDS "${GUILE_DEPENDS}"
     MAKE_LINKS)
 
+gnc_add_scheme_targets(scm-app-utils-1a
+    SOURCES "${app_utils_SCHEME_1a}"
+    OUTPUT_DIR "gnucash/app-utils"
+    DEPENDS "scm-app-utils-1"
+    MAKE_LINKS)
+
+gnc_add_scheme_targets(scm-app-utils-1b
+    SOURCES "${app_utils_SCHEME_1b}"
+    OUTPUT_DIR "gnucash/app-utils"
+    DEPENDS "scm-app-utils-1a"
+    MAKE_LINKS)
+
+gnc_add_scheme_targets(scm-bus-prefs
+    SOURCES "${app_utils_SCHEME_1c}"
+    OUTPUT_DIR "gnucash/app-utils"
+    DEPENDS "scm-app-utils-1b"
+    MAKE_LINKS)
+
 gnc_add_scheme_targets(scm-app-utils-2
     SOURCES "${app_utils_SCHEME_2}"
     OUTPUT_DIR "gnucash"
-    DEPENDS "scm-app-utils-1")
+    DEPENDS "scm-bus-prefs"
+    MAKE_LINKS)
 
 # Module interfaces deprecated in 4.x, will be removed for 5.x
 gnc_add_scheme_deprecated_module (OLD_MODULE "migrate-prefs")
@@ -196,6 +236,17 @@ gnc_add_scheme_deprecated_module (
 add_custom_target(scm-app-utils ALL DEPENDS scm-app-utils-2 scm-app-utils-1)
 
 set_local_dist(app_utils_DIST_local
-        ${app_utils_ALL_SOURCES} ${app_utils_SCHEME_1} ${app_utils_SCHEME_2} ${app_utils_SCHEME_3}
-        app-utils.i CMakeLists.txt gnc-help-utils.c)
-set(app_utils_DIST ${app_utils_DIST_local} ${test_app_utils_DIST} PARENT_SCOPE)
+    ${app_utils_ALL_SOURCES}
+    ${app_utils_SCHEME_1}
+    ${app_utils_SCHEME_1a}
+    ${app_utils_SCHEME_1b}
+    ${app_utils_SCHEME_1c}
+    ${app_utils_SCHEME_2}
+    ${app_utils_SCHEME_3}
+    app-utils.i CMakeLists.txt gnc-help-utils.c)
+
+set(app_utils_DIST
+    ${app_utils_DIST_local}
+    ${test_app_utils_DIST}
+    ${app_utils_mocks_DIST}
+    PARENT_SCOPE)

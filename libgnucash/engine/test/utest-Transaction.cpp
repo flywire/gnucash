@@ -21,11 +21,12 @@
  * 51 Franklin Street, Fifth Floor    Fax:    +1-617-542-2652       *
  * Boston, MA  02110-1301,  USA       gnu@gnu.org                   *
  ********************************************************************/
+#include <glib.h>
+
 extern "C"
 {
 #include <config.h>
 #include <string.h>
-#include <glib.h>
 #include <unittest-support.h>
 /* Add specific headers for this class */
 #include "../Transaction.h"
@@ -86,7 +87,7 @@ class TransMockBackend : public QofBackend
 public:
     TransMockBackend() : QofBackend(), m_last_call{"Constructor"},
                     m_result_err{ERR_BACKEND_NO_ERR} {}
-    void session_begin(QofSession*, const char*, bool, bool, bool) override {
+    void session_begin(QofSession*, const char*, SessionOpenMode) override {
         m_last_call = "session_begin";
     }
     void session_end() override {
@@ -136,16 +137,16 @@ setup (Fixture *fixture, gconstpointer pData)
     xaccAccountSetCommodity (fixture->acc2, fixture->curr);
     txn->date_posted = posted;
     txn->date_entered = entered;
-    split1->memo = static_cast<char*>(CACHE_INSERT ("foo"));
-    split1->action = static_cast<char*>(CACHE_INSERT ("bar"));
+    split1->memo = CACHE_INSERT ("foo");
+    split1->action = CACHE_INSERT ("bar");
     split1->amount = gnc_numeric_create (100000, 1000);
     split1->value = gnc_numeric_create (3200, 240);
     split2->amount = gnc_numeric_create (-3200, 240);
     split2->value = gnc_numeric_create (-3200, 240);
     split1->acc = fixture->acc1;
     split2->acc = fixture->acc2;
-    txn->num = static_cast<char*>(CACHE_INSERT ("123"));
-    txn->description = static_cast<char*>(CACHE_INSERT ("Waldo Pepper"));
+    txn->num = CACHE_INSERT ("123");
+    txn->description = CACHE_INSERT ("Waldo Pepper");
     xaccTransBeginEdit (txn);
     {
         xaccTransSetCurrency (txn, fixture->curr);
@@ -721,7 +722,7 @@ test_xaccFreeTransaction (Fixture *fixture, gconstpointer pData)
     /* so the "free" doesn't, leaving the structure for us to test */
     g_object_ref (txn);
     g_object_ref (orig);
-    orig->num = static_cast<char*>(CACHE_INSERT (txn_num));
+    orig->num = CACHE_INSERT (txn_num);
     txn->orig = orig;
 
     fixture->func->xaccFreeTransaction (txn);
@@ -848,17 +849,17 @@ test_xaccTransEqual (Fixture *fixture, gconstpointer pData)
     g_assert (xaccTransEqual (txn1, clone, TRUE, FALSE, TRUE, TRUE));
     g_assert_cmpint (check->hits, ==, 5);
 
-    txn1->num = g_strdup("321");
+    txn1->num = CACHE_INSERT("321");
     g_free (check->msg);
     check->msg = g_strdup ("[xaccTransEqual] num differs: 321 vs 123");
     g_assert (!xaccTransEqual (txn1, txn0, TRUE, FALSE, TRUE, TRUE));
     g_assert_cmpint (check->hits, ==, 6);
 
-    g_free(clone->num);
-    clone->num = static_cast<char*>(CACHE_INSERT("123"));
-    g_free(txn1->num);
+    g_free ((char*)clone->num);
+    clone->num = CACHE_INSERT("123");
+    CACHE_REMOVE(txn1->num);
     txn1->num = g_strdup("123");
-    clone->description = g_strdup("salt pork");
+    clone->description = CACHE_INSERT("salt pork");
     g_free (check->msg);
     check->msg = g_strdup ("[xaccTransEqual] descriptions differ: salt pork vs Waldo Pepper");
     g_assert (!xaccTransEqual (clone, txn0, TRUE, FALSE, TRUE, TRUE));
@@ -870,8 +871,8 @@ test_xaccTransEqual (Fixture *fixture, gconstpointer pData)
 
     xaccTransBeginEdit (clone);
     cleanup->msg = g_strdup_printf (cleanup_fmt, clone->orig);
-    g_free(clone->description);
-    clone->description = static_cast<char*>(CACHE_INSERT ("Waldo Pepper"));
+    CACHE_REMOVE(clone->description);
+    clone->description = CACHE_INSERT ("Waldo Pepper");
     auto frame = qof_instance_get_slots (QOF_INSTANCE (clone));
     frame->set({"qux", "quux", "corge"}, new KvpValue(654.321));
     xaccTransCommitEdit (clone);
@@ -884,7 +885,7 @@ test_xaccTransEqual (Fixture *fixture, gconstpointer pData)
     g_assert_cmpint (check->hits, ==, 9);
     xaccTransBeginEdit (clone);
     cleanup->msg = g_strdup_printf (cleanup_fmt, clone->orig);
-    clone->description = static_cast<char*>(CACHE_INSERT ("Waldo Pepper"));
+    clone->description = CACHE_INSERT ("Waldo Pepper");
     frame->set({"qux", "quux", "corge"}, new KvpValue(123.456));
     xaccTransCommitEdit (clone);
     g_free (cleanup->msg);
@@ -901,7 +902,6 @@ test_xaccTransEqual (Fixture *fixture, gconstpointer pData)
     g_assert_cmpint (check->hits, ==, 10);
     g_assert_cmpint (check2->hits, ==, 1);
 
-    g_free (check->msg);
     g_free (check2->msg);
     check2->msg = g_strdup_printf (
                      "[xaccTransEqual] splits %s and %s differ", split_guid0, split_guid0);
@@ -924,6 +924,7 @@ test_xaccTransEqual (Fixture *fixture, gconstpointer pData)
         auto bal01 = gnc_numeric_to_string (split01->balance);
         auto bal10 = gnc_numeric_to_string (split10->balance);
         auto bal11 = gnc_numeric_to_string (split11->balance);
+        g_free (check->msg);
         check->msg = g_strdup_printf("[xaccSplitEqualCheckBal] balances differ: %s vs %s", bal10, bal00);
         check3->msg = g_strdup_printf("[xaccSplitEqualCheckBal] balances differ: %s vs %s", bal11, bal01);
 
@@ -974,8 +975,8 @@ test_xaccTransGetImbalanceValue (Fixture *fixture, gconstpointer pData)
     g_assert (gnc_numeric_equal (xaccTransGetImbalanceValue (fixture->txn),
                                  gnc_numeric_zero ()));
     split1->acc = fixture->acc1;
-    split1->memo = static_cast<char*>(CACHE_INSERT ("foo"));
-    split1->action = static_cast<char*>(CACHE_INSERT ("bar"));
+    split1->memo = CACHE_INSERT ("foo");
+    split1->action = CACHE_INSERT ("bar");
     split1->amount = gnc_numeric_create (100000, 1000);
     split1->value = gnc_numeric_create (3200, 240);
     xaccTransBeginEdit (fixture->txn);
@@ -1000,8 +1001,8 @@ test_xaccTransGetImbalance (Fixture *fixture, gconstpointer pData)
     g_assert_cmpint (g_list_length (mlist), ==, 0);
 
     split1->acc = fixture->acc1;
-    split1->memo = static_cast<char*>(CACHE_INSERT ("foo"));
-    split1->action = static_cast<char*>(CACHE_INSERT ("bar"));
+    split1->memo = CACHE_INSERT ("foo");
+    split1->action = CACHE_INSERT ("bar");
     split1->amount = gnc_numeric_create (100000, 1000);
     split1->value = gnc_numeric_create (3200, 240);
     xaccTransBeginEdit (fixture->txn);
@@ -1042,13 +1043,13 @@ test_xaccTransGetImbalance_trading (Fixture *fixture,
     g_assert (!xaccTransIsBalanced (fixture->txn));
     /* Make it look like a proper trading accounts transactionm */
     split1->acc = acc1;
-    split1->memo = static_cast<char*>(CACHE_INSERT ("foo"));
-    split1->action = static_cast<char*>(CACHE_INSERT ("bar"));
+    split1->memo = CACHE_INSERT ("foo");
+    split1->action = CACHE_INSERT ("bar");
     split1->amount = gnc_numeric_create (-10000, 100);
     split1->value = gnc_numeric_create (-3200, 240);
     split2->acc = acc2;
-    split2->memo = static_cast<char*>(CACHE_INSERT ("foo"));
-    split2->action = static_cast<char*>(CACHE_INSERT ("bar"));
+    split2->memo = CACHE_INSERT ("foo");
+    split2->action = CACHE_INSERT ("bar");
     split2->amount = gnc_numeric_create (3000, 240);
     split2->value = gnc_numeric_create (3200, 240);
     xaccTransBeginEdit (fixture->txn);
@@ -1090,8 +1091,8 @@ test_xaccTransIsBalanced (Fixture *fixture, gconstpointer pData)
     g_assert (xaccTransIsBalanced (fixture->txn));
 
     split1->acc = fixture->acc1;
-    split1->memo = static_cast<char*>(CACHE_INSERT ("foo"));
-    split1->action = static_cast<char*>(CACHE_INSERT ("bar"));
+    split1->memo = CACHE_INSERT ("foo");
+    split1->action = CACHE_INSERT ("bar");
     split1->amount = gnc_numeric_create (100000, 1000);
     split1->value = gnc_numeric_create (3200, 240);
     xaccTransBeginEdit (fixture->txn);
@@ -1123,13 +1124,13 @@ test_xaccTransIsBalanced_trading (Fixture *fixture, gconstpointer pData)
     /* The setup transaction is unbalanced in a trading-accounts environment. */
     g_assert (!xaccTransIsBalanced (fixture->txn));
     split1->acc = acc1;
-    split1->memo = static_cast<char*>(CACHE_INSERT ("foo"));
-    split1->action = static_cast<char*>(CACHE_INSERT ("bar"));
+    split1->memo = CACHE_INSERT ("foo");
+    split1->action = CACHE_INSERT ("bar");
     split1->amount = gnc_numeric_create (3200, 240);
     split1->value = gnc_numeric_create (3200, 240);
     split2->acc = acc2;
-    split2->memo = static_cast<char*>(CACHE_INSERT ("foo"));
-    split2->action = static_cast<char*>(CACHE_INSERT ("bar"));
+    split2->memo = CACHE_INSERT ("foo");
+    split2->action = CACHE_INSERT ("bar");
     split2->amount = gnc_numeric_create (-10000, 100);
     split2->value = gnc_numeric_create (-3000, 240);
     xaccTransBeginEdit (fixture->txn);
@@ -1591,8 +1592,8 @@ test_xaccTransCommitEdit (void)
     xaccAccountSetCommodity (acc1, comm);
     xaccAccountSetCommodity (acc2, curr);
     txn->date_posted = posted;
-    split1->memo = static_cast<char*>(CACHE_INSERT ("foo"));
-    split1->action = static_cast<char*>(CACHE_INSERT ("bar"));
+    split1->memo = CACHE_INSERT ("foo");
+    split1->action = CACHE_INSERT ("bar");
     split1->amount = gnc_numeric_create (100000, 1000);
     split1->value = gnc_numeric_create (3200, 240);
     /* Note, deliberately imblanced to force xaccTransScrubImbalance
@@ -1602,8 +1603,8 @@ test_xaccTransCommitEdit (void)
     split2->value = gnc_numeric_create (-3000, 240);
     split1->acc = acc1;
     split2->acc = acc2;
-    txn->num = static_cast<char*>(CACHE_INSERT ("123"));
-    txn->description = static_cast<char*>(CACHE_INSERT ("Waldo Pepper"));
+    txn->num = CACHE_INSERT ("123");
+    txn->description = CACHE_INSERT ("Waldo Pepper");
     xaccTransBeginEdit (txn);
     {
         xaccTransSetCurrency (txn, curr);
@@ -1663,8 +1664,8 @@ test_xaccTransRollbackEdit (Fixture *fixture, gconstpointer pData)
     orig = txn->orig;
     base_frame = orig->inst.kvp_data; /* DupeTransaction copies the kvp_frame */
     g_object_ref (orig); /* Keep rollback from actually freeing it */
-    txn->num = static_cast<char*>(CACHE_INSERT("321"));
-    txn->description = static_cast<char*>(CACHE_INSERT("salt peanuts"));
+    txn->num = CACHE_INSERT("321");
+    txn->description = CACHE_INSERT("salt peanuts");
     txn->common_currency = NULL;
     txn->inst.kvp_data = NULL;
     txn->date_entered = new_entered;
@@ -1756,14 +1757,20 @@ test_xaccTransOrder_num_action (Fixture *fixture, gconstpointer pData)
     g_assert_cmpint (xaccTransOrder_num_action (NULL, NULL, NULL, NULL), ==, 0);
     g_assert_cmpint (xaccTransOrder_num_action (txnA, NULL, txnB, NULL), ==,
                      qof_instance_guid_compare (txnA, txnB));
-    txnB->description = static_cast<char*>(CACHE_INSERT ("Salt Peanuts"));
+    txnB->description = CACHE_INSERT ("Salt Peanuts");
     g_assert_cmpint (xaccTransOrder_num_action (txnA, NULL, txnB, NULL), >=, 1);
     txnB->date_entered += 1;
     g_assert_cmpint (xaccTransOrder_num_action (txnA, NULL, txnB, NULL), ==, -1);
-    txnB->num = static_cast<char*>(CACHE_INSERT ("101"));
+    txnB->num = CACHE_INSERT ("101");
     g_assert_cmpint (xaccTransOrder_num_action (txnA, NULL, txnB, NULL), ==, 1);
-    txnB->num = static_cast<char*>(CACHE_INSERT ("one-oh-one"));
+    txnA->num = CACHE_INSERT ("12a");
+    g_assert_cmpint (xaccTransOrder_num_action (txnA, NULL, txnB, NULL), ==, -1);
+    txnB->num = CACHE_INSERT ("12c");
+    g_assert_cmpint (xaccTransOrder_num_action (txnA, NULL, txnB, NULL), ==, -1);
+    txnB->num = CACHE_INSERT ("12");
     g_assert_cmpint (xaccTransOrder_num_action (txnA, NULL, txnB, NULL), ==, 1);
+    txnB->num = CACHE_INSERT ("one-oh-one");
+    g_assert_cmpint (xaccTransOrder_num_action (txnA, NULL, txnB, NULL), ==, -1);
     g_assert_cmpint (xaccTransOrder_num_action (txnA, "24", txnB, "42"), ==, -1);
     txnB->date_posted -= 1;
     g_assert_cmpint (xaccTransOrder_num_action (txnA, "24", txnB, "42"), ==, 1);
@@ -1835,6 +1842,26 @@ xaccTransVoid(Transaction *trans, const char *reason)// C: 1 SCM: 2 in 2 Local: 
 void
 xaccTransUnvoid (Transaction *trans)// C: 1  Local: 0:0:0
 */
+
+static void
+test_xaccTransSetDocLink (Fixture *fixture, gconstpointer pData)
+{
+    auto trans = fixture->txn;
+
+    g_assert_cmpstr (xaccTransGetDocLink (trans), ==, NULL);
+
+    xaccTransSetDocLink (trans, "doclink");
+    g_assert_cmpstr (xaccTransGetDocLink (trans), ==, "doclink");
+
+    xaccTransSetDocLink (trans, "unset");
+    g_assert_cmpstr (xaccTransGetDocLink (trans), ==, "unset");
+
+    xaccTransSetDocLink (trans, "");
+    g_assert_cmpstr (xaccTransGetDocLink (trans), ==, NULL);
+
+    xaccTransSetDocLink (trans, NULL);
+    g_assert_cmpstr (xaccTransGetDocLink (trans), ==, NULL);
+}
 
 static void
 test_xaccTransVoid (Fixture *fixture, gconstpointer pData)
@@ -1920,7 +1947,7 @@ test_xaccTransReverse (Fixture *fixture, gconstpointer pData)
  * Trivial getter.
  */
 /* xaccTransScrubSplits  C: 1  Local: 0:0:0
- * Trival pass-through.
+ * Trivial pass-through.
  */
 /* xaccTransScrubGainsDate
 static void
@@ -2038,6 +2065,7 @@ test_suite_transaction (void)
     GNC_TEST_ADD (suitename, "xaccTransRollbackEdit - Backend Errors", Fixture, NULL, setup, test_xaccTransRollbackEdit_BackendErrors, teardown);
     GNC_TEST_ADD (suitename, "xaccTransOrder_num_action", Fixture, NULL, setup, test_xaccTransOrder_num_action, teardown);
     GNC_TEST_ADD (suitename, "xaccTransGetTxnType", Fixture, NULL, setup, test_xaccTransGetTxnType, teardown);
+    GNC_TEST_ADD (suitename, "xaccTransSetDocLink", Fixture, NULL, setup, test_xaccTransSetDocLink, teardown);
     GNC_TEST_ADD (suitename, "xaccTransVoid", Fixture, NULL, setup, test_xaccTransVoid, teardown);
     GNC_TEST_ADD (suitename, "xaccTransReverse", Fixture, NULL, setup, test_xaccTransReverse, teardown);
     GNC_TEST_ADD (suitename, "xaccTransScrubGainsDate_no_dirty", GainsFixture, NULL, setup_with_gains, test_xaccTransScrubGainsDate_no_dirty, teardown_with_gains);

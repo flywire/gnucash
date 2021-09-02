@@ -1,25 +1,31 @@
 # Vietnamese Translation for GNUCash Glossary.
 # Copyright © 2005 Free Software Foundation, Inc.
 # Clytie Siddall <clytie@riverland.net.au>, 2005.
-#
+# bruh <quangtrung02hn16@gmail.com>, 2021.
 msgid ""
 msgstr ""
 "Project-Id-Version: gnucash-glossary-1.9.1\n"
-"Report-Msgid-Bugs-To: bug-gnucash@gnu.org\n"
-"POT-Creation-Date: 2020-03-27 21:58+0100\n"
-"PO-Revision-Date: 2006-03-09 22:30+1030\n"
-"Last-Translator: Clytie Siddall <clytie@riverland.net.au>\n"
-"Language-Team: Vietnamese <gnomevi-list@lists.sourceforge.net>\n"
+"Report-Msgid-Bugs-To: https://bugs.gnucash.org/enter_bug."
+"cgi?product=GnuCash&component=Translations\n"
+"POT-Creation-Date: 2021-01-10 08:00+0100\n"
+"PO-Revision-Date: 2021-03-01 14:50+0000\n"
+"Last-Translator: bruh <quangtrung02hn16@gmail.com>\n"
+"Language-Team: Vietnamese <https://hosted.weblate.org/projects/gnucash/"
+"glossary/vi/>\n"
 "Language: vi\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=1; plural=0\n"
-"X-Generator: LocFactoryEditor 1.6b36\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Weblate 4.5\n"
 
 #. "English Definition (Dear translator: This file will never be visible to the user! It should only serve as a tool for you, the translator. Nothing more.)"
 msgid "Term (Dear translator: This file will never be visible to the user!)"
 msgstr "Thuật ngữ"
+
+#. "Opening and closing quote symbols and optionally their key combos like [altgr]+[Y]/[X]. Define the preferred style of quotation, see https://en.wikipedia.org/wiki/Quotation_mark#Summary_table"
+msgid "\"\""
+msgstr ""
 
 #. "A detailed record of money spent and received"
 msgid "account"
@@ -237,9 +243,8 @@ msgid "bill"
 msgstr "hoá đơn nhận"
 
 #. "see invoice owner"
-#, fuzzy
 msgid "bill owner"
-msgstr "điều kiện hóa đơn"
+msgstr "người sở hữu hoá đơn"
 
 #. "Conditions on paying a bill. Both an invoice and a bill have billing terms. For example, you can have 'terms' of 'Net-30', where the bill is due in full in 30 days."
 msgid "billing terms"
@@ -335,6 +340,10 @@ msgstr "tiền tệ"
 msgid "Custom"
 msgstr "Tự chọn"
 
+#. "Compact, well-structured presentation of informations. See https://en.wikipedia.org/wiki/Dashboard_(business)"
+msgid "dashboard"
+msgstr ""
+
 #. "The backend where the data is stored."
 msgid "database"
 msgstr "cơ sở dữ liệu"
@@ -380,6 +389,14 @@ msgstr "tài khoản"
 msgid "double entry"
 msgstr "kế toán kép"
 
+#. "Transactions or bills/invoices can contain a document link which links either to some file on the local disk or to some arbitrary URL."
+msgid "document link"
+msgstr ""
+
+#. "Electronic mail. Some languages allow different writings, but each team should use only one. https://en.wikipedia.org/wiki/Email"
+msgid "email"
+msgstr ""
+
 #. "a person who works for somebody or a company in return for wages"
 msgid "employee"
 msgstr "nhân viên"
@@ -420,6 +437,16 @@ msgstr "máy tính tài chính: lãi xuất"
 msgid "financial calculator: payments"
 msgstr "máy tính tài chính: số tiền trả"
 
+#. "formal records of the financial activities and position of a business, person, or other entity. See https://en.wikipedia.org/wiki/Financial_statement for a list."
+#, fuzzy
+#| msgid "income statement"
+msgid "financial statement"
+msgstr "lời tuyên bố thu nhập"
+
+#. "Free software is a matter of liberty, not price … see https://en.wikipedia.org/wiki/Free_software"
+msgid "free software"
+msgstr ""
+
 #. "An increase in wealth; profit; advantage (See also: capital gains)"
 msgid "gain"
 msgstr "lợi"
@@ -456,8 +483,14 @@ msgstr "sổ cái"
 msgid "liabilities/equity"
 msgstr "nợ/cổ phần"
 
-#. "A sum of money that is lent (by a bank)"
+#. "A sum of money that is lent (by a bank), see also: financial calculator, Mortgage"
 msgid "loan"
+msgstr "sự cho vay"
+
+#. "Annual Percentage Rate, includes in contrast to the Nominal Rate some of the various costs to obtain a loan."
+#, fuzzy
+#| msgid "loan"
+msgid "loan: APR"
 msgstr "sự cho vay"
 
 #. "The money lost in business activity"
@@ -495,6 +528,18 @@ msgstr "Ghi nhớ"
 
 #. "(a) An agreement by which money is lent by a bank for buying a house or other property, the property being the security. (b) A sum of money lent in this way."
 msgid "Mortgage"
+msgstr "Thế chấp"
+
+#. "Adjustable Rate Mortgage"
+#, fuzzy
+#| msgid "Mortgage"
+msgid "mortgage: ARM"
+msgstr "Thế chấp"
+
+#. "Fixed Rate Mortgage"
+#, fuzzy
+#| msgid "Mortgage"
+msgid "mortgage: FRM"
 msgstr "Thế chấp"
 
 #. "e.g. USD, DEM, see Currency."
@@ -707,7 +752,7 @@ msgstr "Chứng khoán còn lại (sổ mục)"
 msgid "shares"
 msgstr "cổ phiếu"
 
-#. "(of a price) A place wfrom which sth comes or is obtained"
+#. "(often: of a quote) A place from which something comes or is obtained."
 msgid "source"
 msgstr "nguồn"
 
@@ -732,7 +777,25 @@ msgstr "thông tin thuế"
 msgid "tax info"
 msgstr "thông tin thuế"
 
-#. "if you create a new e.g. style sheet, you can start from a template"
+#. "Amost everybody has to declare and probably pay it. See https://en.wikipedia.org/wiki/Income_tax"
+#, fuzzy
+#| msgid "account type: Income"
+msgid "tax type: income tax"
+msgstr "kiểu tài khoản: thu nhập"
+
+#. "Usually only business users have to handle it, see https://en.wikipedia.org/wiki/Sales_tax."
+msgid "tax type: sales tax"
+msgstr ""
+
+#. "'Goods and Service Tax' is one form of sales tax."
+msgid "tax type: GST"
+msgstr ""
+
+#. "'Value Added Tax' is the other form of sales tax."
+msgid "tax type: VAT"
+msgstr ""
+
+#. "If you create a new e.g. style sheet, you can start from a template."
 msgid "template"
 msgstr "mẫu"
 
@@ -792,7 +855,7 @@ msgstr "kiểu"
 msgid "units"
 msgstr "đơn vị"
 
-#. "-"
+#. "Uniform Resource Locator, https://en.wikipedia.org/wiki/URL"
 msgid "URL"
 msgstr "Địa chỉ Mạng"
 

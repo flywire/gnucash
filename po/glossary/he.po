@@ -2,23 +2,33 @@
 # Copyright (C) 2008 Free Software Foundation, Inc.
 # Ori Hoch <ori@uumpa.com>, 2008
 # http://www.uumpa.com/gnucash-he/
-#
+# Yaron Shahrabani <sh.yaron@gmail.com>, 2020.
+# Avi Markovitz <avi.markovitz@gmail.com>, 2021.
 msgid ""
 msgstr ""
 "Project-Id-Version: gnucash 3.6\n"
-"POT-Creation-Date: 2020-03-27 21:58+0100\n"
-"PO-Revision-Date: 2019-08-12 17:55+0300\n"
+"Report-Msgid-Bugs-To: https://bugs.gnucash.org/enter_bug."
+"cgi?product=GnuCash&component=Translations\n"
+"POT-Creation-Date: 2021-01-10 08:00+0100\n"
+"PO-Revision-Date: 2021-08-22 08:35+0000\n"
 "Last-Translator: Avi Markovitz <avi.markovitz@gmail.com>\n"
-"Language-Team: HE\n"
+"Language-Team: Hebrew <https://hosted.weblate.org/projects/gnucash/glossary/"
+"he/>\n"
 "Language: he\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"X-Generator: Poedit 2.2.1\n"
+"Plural-Forms: nplurals=4; plural=(n == 1) ? 0 : ((n == 2) ? 1 : ((n > 10 && "
+"n % 10 == 0) ? 2 : 3));\n"
+"X-Generator: Weblate 4.8.1-dev\n"
 
 #. "English Definition (Dear translator: This file will never be visible to the user! It should only serve as a tool for you, the translator. Nothing more.)"
 msgid "Term (Dear translator: This file will never be visible to the user!)"
 msgstr "מונח"
+
+#. "Opening and closing quote symbols and optionally their key combos like [altgr]+[Y]/[X]. Define the preferred style of quotation, see https://en.wikipedia.org/wiki/Quotation_mark#Summary_table"
+msgid "\"\""
+msgstr "\"\""
 
 #. "A detailed record of money spent and received"
 msgid "account"
@@ -70,7 +80,7 @@ msgstr "סוג חשבון: הכנסות"
 
 #. "A debt, a financial obligation, but see also 'account type: Passive'"
 msgid "account type: Liability"
-msgstr "סוג חשבון: הצחיבויות"
+msgstr "סוג חשבון: התחיבויות"
 
 #. "-"
 msgid "account type: money-market"
@@ -190,7 +200,7 @@ msgstr "פעולה: משיכה"
 
 #. "As in: payable aging, or: receivable aging. The aging report categorizes payables or receivables based on time buckets. This gives an overview of which bills or invoices are overdue at which time in the future. "
 msgid "aging"
-msgstr ""
+msgstr "גיול"
 
 #. "A sum of money"
 msgid "amount"
@@ -205,14 +215,12 @@ msgid "balance (noun)"
 msgstr "מאזן (שם עצם)"
 
 #. "Balance brought forward - usually the first entry of an account statement containing the 'balance c/f' of the previous billing period or page"
-#, fuzzy
 msgid "balance b/f"
-msgstr "לאזן, ל"
+msgstr "יתרה שהועברה קדימה"
 
 #. "Balance carried forward - usually the last entry of an account statement to be used as 'balance b/f' on the next billing period or page"
-#, fuzzy
 msgid "balance c/f"
-msgstr "לאזן, ל"
+msgstr "יתרה שהועברה אל"
 
 #. "A written record of money received and paid out, showing the difference between the two total amounts"
 msgid "balance sheet"
@@ -324,7 +332,11 @@ msgstr "מטבע"
 
 #. "Custom print format (i.e. according to the user's wishes) as opposed to a template choice."
 msgid "Custom"
-msgstr "מותאם אישית"
+msgstr "מותאם"
+
+#. "Compact, well-structured presentation of informations. See https://en.wikipedia.org/wiki/Dashboard_(business)"
+msgid "dashboard"
+msgstr "לוּחַ מַחווָנִים"
 
 #. "The backend where the data is stored."
 msgid "database"
@@ -370,6 +382,14 @@ msgstr "הנחה"
 msgid "double entry"
 msgstr "הכנסה כפולה"
 
+#. "Transactions or bills/invoices can contain a document link which links either to some file on the local disk or to some arbitrary URL."
+msgid "document link"
+msgstr "קישור למסמך"
+
+#. "Electronic mail. Some languages allow different writings, but each team should use only one. https://en.wikipedia.org/wiki/Email"
+msgid "email"
+msgstr "דוא״ל"
+
 #. "a person who works for somebody or a company in return for wages"
 msgid "employee"
 msgstr "עובד"
@@ -410,6 +430,14 @@ msgstr "מחשבון פיננסי: שער ריבית"
 msgid "financial calculator: payments"
 msgstr "מחשבון פיננסי: תשלומים"
 
+#. "formal records of the financial activities and position of a business, person, or other entity. See https://en.wikipedia.org/wiki/Financial_statement for a list."
+msgid "financial statement"
+msgstr "דוחות כספיים"
+
+#. "Free software is a matter of liberty, not price … see https://en.wikipedia.org/wiki/Free_software"
+msgid "free software"
+msgstr "תוכנה חינמית"
+
 #. "An increase in wealth; profit; advantage (See also: capital gains)"
 msgid "gain"
 msgstr "רווח"
@@ -432,7 +460,7 @@ msgstr "ריבית"
 
 #. "A list of goods sold or services provided together with the prices charged; see also: a bill. In Gnucash, an 'invoice' is a statement that we sent out (to a customer), whereas a 'bill' is one that we received (from a vendor)."
 msgid "invoice"
-msgstr "קבלה"
+msgstr "חשבונית לקוח"
 
 #. "In business accounting: Jobs are a mechanism by which you can group multiple invoices or bills that belong to the same customer or vendor. The job describes a (larger) piece of work or a task undertaken on order, for which one or many invoices or bills will be issued."
 msgid "job"
@@ -440,15 +468,19 @@ msgstr "ריכוז"
 
 #. "A book in which a bank, business firm, etc. records its financial accounts"
 msgid "ledger"
-msgstr "ספר חשבונות"
+msgstr "כרטסת חשבונות"
 
 #. "The heading for the right side of the balance sheet. See also: Equity."
 msgid "liabilities/equity"
 msgstr "התחייבויות/הון"
 
-#. "A sum of money that is lent (by a bank)"
+#. "A sum of money that is lent (by a bank), see also: financial calculator, Mortgage"
 msgid "loan"
 msgstr "הלוואה"
+
+#. "Annual Percentage Rate, includes in contrast to the Nominal Rate some of the various costs to obtain a loan."
+msgid "loan: APR"
+msgstr "הלוואה: ריבית אפקטיבית שנתית"
 
 #. "The money lost in business activity"
 msgid "loss"
@@ -480,11 +512,19 @@ msgstr "מנגנון הצגת חלונות מרובים"
 
 #. "One textfield per split that should help you remember what this split was about."
 msgid "Memo"
-msgstr "תזכיר"
+msgstr "מזכר"
 
 #. "(a) An agreement by which money is lent by a bank for buying a house or other property, the property being the security. (b) A sum of money lent in this way."
 msgid "Mortgage"
 msgstr "משכנתה"
+
+#. "Adjustable Rate Mortgage"
+msgid "mortgage: ARM"
+msgstr "משכנתא: משכנתא בריבית משתנה"
+
+#. "Fixed Rate Mortgage"
+msgid "mortgage: FRM"
+msgstr "משכנתא: משכנתא בריבית קבועה"
 
 #. "e.g. USD, DEM, see Currency."
 msgid "national currency"
@@ -568,7 +608,7 @@ msgstr "תיק השקעות"
 
 #. "Register invoice, voucher in account register"
 msgid "post, to"
-msgstr "רישום, ל"
+msgstr "רישום, ל־"
 
 #. "A menu choice in many graphical user interface applications that allows the user to specify how the application will act each time it is used. "
 msgid "preferences"
@@ -644,7 +684,7 @@ msgstr "יומן: כרטסת חשבונות"
 
 #. "another form of register"
 msgid "register: transaction journal"
-msgstr "יומן: יומן תנועות"
+msgstr "רישום יומן: יומן תנועות"
 
 #. "reload the current document"
 msgid "reload, to"
@@ -660,7 +700,7 @@ msgstr "טופס דוח: חשבון אנכי"
 
 #. "name of an equity account (?); to be distinguished from the opening balance."
 msgid "Retained Earnings"
-msgstr "Retained Earnings"
+msgstr "רווחים מיועדים"
 
 #. "Create a new transaction that is the inverse of the old one.  When you add the two together they completely cancel out.  Accounts use this instead of voiding transactions, usually because the prior month has been closed and can no longer be changed, or the entire accounting system is 'write only'."
 msgid "reverse transaction, to (Action in the register)"
@@ -694,9 +734,9 @@ msgstr "איזון מניות (יומן)"
 msgid "shares"
 msgstr "מניות"
 
-#. "(of a price) A place wfrom which sth comes or is obtained"
+#. "(often: of a quote) A place from which something comes or is obtained."
 msgid "source"
-msgstr "מקור:"
+msgstr "מקור"
 
 #. "One of the two or several parts a transaction is divided into"
 msgid "split"
@@ -718,7 +758,23 @@ msgstr "קוד מס"
 msgid "tax info"
 msgstr "מידע מס"
 
-#. "if you create a new e.g. style sheet, you can start from a template"
+#. "Amost everybody has to declare and probably pay it. See https://en.wikipedia.org/wiki/Income_tax"
+msgid "tax type: income tax"
+msgstr "סוג מס: מס הכנסה"
+
+#. "Usually only business users have to handle it, see https://en.wikipedia.org/wiki/Sales_tax."
+msgid "tax type: sales tax"
+msgstr "סוג מס: מס מכירה"
+
+#. "'Goods and Service Tax' is one form of sales tax."
+msgid "tax type: GST"
+msgstr "סוג מס: מס קנייה (טובין ושירותים)"
+
+#. "'Value Added Tax' is the other form of sales tax."
+msgid "tax type: VAT"
+msgstr "סוג מס: מע״מ"
+
+#. "If you create a new e.g. style sheet, you can start from a template."
 msgid "template"
 msgstr "תבנית"
 
@@ -778,9 +834,9 @@ msgstr "סוג"
 msgid "units"
 msgstr "יחידות"
 
-#. "-"
+#. "Uniform Resource Locator, https://en.wikipedia.org/wiki/URL"
 msgid "URL"
-msgstr "כתובת אינטרנט (‏‪URL‬‏)‏"
+msgstr "מען URL"
 
 #. "The worth of sth in terms of money or other commodities for which it can be exchanged"
 msgid "value (in a split)"
@@ -801,3 +857,6 @@ msgstr "משיכה (בתיבת דו שיח התאמות)"
 #, fuzzy
 #~ msgid "invoice owner"
 #~ msgstr "קבלה"
+
+msgid "ticker"
+msgstr "חַלּוֹן־מִבְזָקִים"

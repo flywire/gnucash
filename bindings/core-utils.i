@@ -28,7 +28,10 @@
 #include <gnc-filepath-utils.h>
 #include <gnc-locale-utils.h>
 #include <glib.h>
+#include <glib/gi18n.h>
 #include <gnc-version.h>
+#include <libintl.h>
+
 %}
 #if defined(SWIGGUILE)
 %{
@@ -57,6 +60,12 @@ gchar * gnc_path_get_scmdir(void);
 %newobject gnc_path_get_reportsdir;
 gchar * gnc_path_get_reportsdir(void);
 
+%newobject gnc_path_get_localedir;
+gchar * gnc_path_get_localedir(void);
+
+/* Name of our gettext-domain (defined in config.h) */
+%constant char* GETTEXT_PACKAGE = GETTEXT_PACKAGE;
+
 %newobject gnc_path_get_stdreportsdir;
 gchar * gnc_path_get_stdreportsdir(void);
 
@@ -69,9 +78,16 @@ gchar * gnc_build_userdata_path(const gchar *);
 %newobject gnc_file_path_absolute;
 gchar *gnc_file_path_absolute (const gchar *, const gchar *);
 
+%newobject gnc_build_scm_path;
 gchar * gnc_build_scm_path(const gchar *);
+
+%newobject gnc_build_report_path;
 gchar * gnc_build_report_path(const gchar *);
+
+%newobject gnc_build_stdreports_path;
 gchar * gnc_build_stdreports_path(const gchar *);
+
+%newobject gnc_build_reports_path;
 gchar * gnc_build_reports_path(const gchar *);
 
 void gnc_scm_log_warn(const gchar *);
@@ -148,6 +164,25 @@ gchar *gnc_locale_name (void);
 
 }
 
+%rename ("gnc:ngettext") ngettext;
+extern const char* ngettext (const char *msgid1, const char *msgid2,
+                             unsigned long int n);
+%rename ("gnc:gettext") gettext;
+extern const char* gettext(const char*);
+%rename ("gnc:C_gettext") wrap_C_;
+%inline %{
+    /* This helper function wraps the C_() macro in to a function.
+       Direct wrapping results in a compiler error on direct string concatenation
+       inside the macro expansion, so I'm making a detour via g_strconcat */
+    const char* wrap_C_(const char* context, const char* msg);
+    const char* wrap_C_(const char* context, const char* msg)
+    {
+        gchar* combo = g_strconcat (context, "\004", msg, NULL);
+        const gchar* translated = g_dpgettext (NULL, combo, strlen (context) + 1);
+        g_free (combo);
+        return translated;
+    }
+%}
 %rename ("gnc-utf8?") wrap_gnc_utf8_validate;
 %inline %{
   /* This helper function wraps gnc_utf8_validate() into a predicate. */
@@ -156,6 +191,7 @@ gchar *gnc_locale_name (void);
   {
     return gnc_utf8_validate(str, -1, 0);
   }
+
 %}
 #elif defined(SWIGPYTHON)
 gboolean gnc_utf8_validate(const gchar *, gssize, const gchar**);

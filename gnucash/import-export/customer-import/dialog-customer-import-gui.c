@@ -153,6 +153,7 @@ gnc_plugin_customer_import_showGUI(GtkWindow *parent)
     /* Setup signals */
     gtk_builder_connect_signals_full (builder, gnc_builder_connect_full_func, gui);
     gtk_widget_show_all ( gui->dialog );
+    g_object_unref (G_OBJECT (builder));
     return gui;
 }
 
@@ -228,7 +229,8 @@ gnc_customer_import_gui_cancel_cb (GtkWidget *widget, gpointer data)
 void
 gnc_customer_import_gui_help_cb (GtkWidget *widget, gpointer data)
 {
-    gnc_gnome_help(HF_HELP, HL_USAGE_BSNSS);
+    CustomerImportGui *gui = data;
+    gnc_gnome_help (GTK_WINDOW(gui->dialog), HF_GUIDE, HL_IMPORT_CUST);
 }
 
 static void

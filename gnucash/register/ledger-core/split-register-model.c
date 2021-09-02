@@ -27,12 +27,14 @@
 
 #include "datecell.h"
 #include "dialog-utils.h"
+#include "dialog-doclink-utils.h"
 #include "gnc-engine.h"
 #include "gnc-prefs.h"
 #include "gnc-ui.h"
 #include "gnc-uri-utils.h"
 #include "gnc-filepath-utils.h"
 #include "gnc-warnings.h"
+#include "doclinkcell.h"
 #include "pricecell.h"
 #include "recncell.h"
 #include "split-register.h"
@@ -326,10 +328,10 @@ gnc_split_register_get_action_label (VirtualLocation virt_loc,
 }
 
 static const char*
-gnc_split_register_get_associate_label (VirtualLocation virt_loc,
-                                        gpointer user_data)
+gnc_split_register_get_doclink_label (VirtualLocation virt_loc,
+                                      gpointer user_data)
 {
-    return C_ ("Column header for 'Associate'", "A");
+    return C_ ("Column header for 'Document Link'", "L");
 }
 
 static const char*
@@ -543,8 +545,8 @@ gnc_split_register_get_recn_tooltip (VirtualLocation virt_loc,
 }
 
 static char*
-gnc_split_register_get_associate_tooltip (VirtualLocation virt_loc,
-                                          gpointer user_data)
+gnc_split_register_get_doclink_tooltip (VirtualLocation virt_loc,
+                                        gpointer user_data)
 {
     SplitRegister* reg = user_data;
     Transaction* trans;
@@ -555,48 +557,11 @@ gnc_split_register_get_associate_tooltip (VirtualLocation virt_loc,
         return NULL;
 
     // get the existing uri
-    uri = xaccTransGetAssociation (trans);
+    uri = xaccTransGetDocLink (trans);
 
     // Check for uri is empty or NULL
-    if (uri && *uri != '\0')
-    {
-        gchar* scheme = gnc_uri_get_scheme (uri);
-        gchar* file_path = NULL;
-
-        if (!scheme) // relative path
-        {
-            gchar* path_head = gnc_prefs_get_string (GNC_PREFS_GROUP_GENERAL,
-                                                     "assoc-head");
-
-            if (path_head && *path_head != '\0') // not default entry
-                file_path = gnc_file_path_absolute (gnc_uri_get_path (path_head), uri);
-            else
-                file_path = gnc_file_path_absolute (NULL, uri);
-
-            g_free (path_head);
-        }
-
-        if (gnc_uri_is_file_scheme (scheme)) // absolute path
-            file_path = gnc_uri_get_path (uri);
-
-#ifdef G_OS_WIN32 // make path look like a traditional windows path
-        if (file_path)
-            file_path = g_strdelimit (file_path, "/", '\\');
-#endif
-
-        g_free (scheme);
-
-        if (!file_path)
-            return g_uri_unescape_string (uri, NULL);
-        else
-        {
-            gchar* file_uri_u = g_uri_unescape_string (file_path, NULL);
-            const gchar* filename = gnc_uri_get_path (file_uri_u);
-            g_free (file_uri_u);
-            g_free (file_path);
-            return g_strdup (filename);
-        }
-    }
+    if (uri && *uri)
+        return gnc_doclink_get_unescaped_just_uri (uri);
     else
         return NULL;
 }
@@ -832,58 +797,80 @@ gnc_split_register_get_border (VirtualLocation virt_loc,
 }
 
 static const char*
-gnc_split_register_get_associate_entry (VirtualLocation virt_loc,
-                                        gboolean translate,
-                                        gboolean* conditionally_changed,
-                                        gpointer user_data)
+gnc_split_register_get_doclink_entry (VirtualLocation virt_loc,
+                                      gboolean translate,
+                                      gboolean* conditionally_changed,
+                                      gpointer user_data)
 {
     SplitRegister* reg = user_data;
     Transaction* trans;
-    char associate;
-    static char s[2];
+    char link_flag;
     const char* uri;
+    Doclinkcell *cell;
+
+    cell = (Doclinkcell *)gnc_table_layout_get_cell (reg->table->layout, DOCLINK_CELL);
+
+    if (!cell)
+        return NULL;
 
     trans = gnc_split_register_get_trans (reg, virt_loc.vcell_loc);
     if (!trans)
         return NULL;
 
     // get the existing uri
-    uri = xaccTransGetAssociation (trans);
+    uri = xaccTransGetDocLink (trans);
 
     // Check for uri is empty or NULL
-    if (uri && g_strcmp0 (uri, "") != 0)
+    if (uri && *uri)
     {
         gchar* scheme = gnc_uri_get_scheme (uri);
 
         if (!scheme || g_strcmp0 (scheme, "file") == 0)
-            associate = 'f';
+            link_flag = FLINK;
         else
-            associate = 'w';
+            link_flag = WLINK;
 
         g_free (scheme);
     }
     else
-        associate = ' ';
+        link_flag = ' ';
 
-    s[0] = associate;
-    s[1] = '\0';
+    if (gnc_doclink_get_use_glyphs (cell))
+        return gnc_doclink_get_glyph_from_flag (link_flag);
 
-    return s;
+    if (translate)
+        return gnc_get_doclink_str (link_flag);
+    else
+    {
+        static char s[2];
+
+        s[0] = link_flag;
+        s[1] = '\0';
+        return s;
+    }
+}
+
+static char *
+gnc_split_register_get_doclink_help (VirtualLocation virt_loc,
+                                     gpointer user_data)
+{
+    // do not want contents displayed as help so return space
+    return g_strdup (" ");
 }
 
 #if 0
 // this code is not used yet
 static char
-gnc_split_register_get_associate_value (SplitRegister* reg,
-                                        VirtualLocation virt_loc)
+gnc_split_register_get_doclink_value (SplitRegister* reg,
+                                      VirtualLocation virt_loc)
 {
-    RecnCell* cell;
+    Doclinkcell *cell;
 
-    cell = (RecnCell*)gnc_table_layout_get_cell (reg->table->layout, ASSOC_CELL);
+    cell = (Doclinkcell *)gnc_table_layout_get_cell (reg->table->layout, DOCLINK_CELL);
     if (!cell)
         return '\0';
 
-    return gnc_recn_cell_get_flag (cell);
+    return gnc_doclink_cell_get_flag (cell);
 }
 #endif
 
@@ -937,6 +924,7 @@ gnc_split_register_get_due_date_entry (VirtualLocation virt_loc,
     Split* split;
     gboolean is_current;
     char type;
+    static gchar dateBuff [MAX_DATE_LENGTH+1];
 
     is_current = virt_cell_loc_equal (reg->table->current_cursor_loc.vcell_loc,
                                       virt_loc.vcell_loc);
@@ -973,7 +961,9 @@ gnc_split_register_get_due_date_entry (VirtualLocation virt_loc,
 
     //PWARN ("returning valid due_date entry");
 
-    return qof_print_date (xaccTransRetDateDue (trans));
+    memset (dateBuff, 0, sizeof (dateBuff));
+    qof_print_date_buff (dateBuff, MAX_DATE_LENGTH, xaccTransRetDateDue (trans));
+    return dateBuff;
 }
 
 static const char*
@@ -985,12 +975,16 @@ gnc_split_register_get_date_entry (VirtualLocation virt_loc,
     SplitRegister* reg = user_data;
     Transaction* trans;
     Split* split;
+    static gchar dateBuff [MAX_DATE_LENGTH+1];
 
     split = gnc_split_register_get_split (reg, virt_loc.vcell_loc);
     trans = xaccSplitGetParent (split);
     if (!trans)
         return NULL;
-    return qof_print_date (xaccTransRetDatePosted (trans));
+
+    memset (dateBuff, 0, sizeof (dateBuff));
+    qof_print_date_buff (dateBuff, MAX_DATE_LENGTH, xaccTransRetDatePosted (trans));
+    return dateBuff;
 }
 
 static char*
@@ -999,7 +993,6 @@ gnc_split_register_get_date_help (VirtualLocation virt_loc,
 {
     SplitRegister* reg = user_data;
     BasicCell* cell;
-    const char* date_string;
     time64 cell_time;
 
     cell = gnc_table_get_cell (reg->table, virt_loc);
@@ -1010,9 +1003,7 @@ gnc_split_register_get_date_help (VirtualLocation virt_loc,
 
     /* Translators: This is a date format, see i.e.
        https://www.gnu.org/software/libc/manual/html_node/Formatting-Calendar-Time.html */
-    date_string = gnc_print_time64 (cell_time, _ ("%A %d %B %Y"));
-
-    return g_strdup (date_string);
+    return gnc_print_time64 (cell_time, _("%A %d %B %Y"));
 }
 
 static const char*
@@ -2028,6 +2019,16 @@ gnc_split_register_get_recn_io_flags (VirtualLocation virt_loc,
 }
 
 static CellIOFlags
+gnc_split_register_get_doclink_io_flags (VirtualLocation virt_loc,
+                                         gpointer user_data)
+{
+    if (gnc_split_register_cursor_is_readonly (virt_loc, user_data))
+        return XACC_CELL_ALLOW_READ_ONLY;
+
+    return XACC_CELL_ALLOW_ALL | XACC_CELL_ALLOW_EXACT_ONLY;
+}
+
+static CellIOFlags
 gnc_split_register_get_ddue_io_flags (VirtualLocation virt_loc,
                                       gpointer user_data)
 {
@@ -2218,7 +2219,7 @@ gnc_split_register_confirm (VirtualLocation virt_loc, gpointer user_data)
         title = _ ("Change transaction containing a reconciled split?");
         message_format =
             _ ("The transaction you are about to change contains reconciled splits in the following accounts:\n%s"
-               "\n\nAre you sure you want to continue with this change ?");
+               "\n\nAre you sure you want to continue with this change?");
 
         message = g_strdup_printf (message_format, acc_list);
         g_free (acc_list);
@@ -2585,8 +2586,8 @@ gnc_split_register_model_new (void)
                                        TCRED_CELL);
 
     gnc_table_model_set_entry_handler (model,
-                                       gnc_split_register_get_associate_entry,
-                                       ASSOC_CELL);
+                                       gnc_split_register_get_doclink_entry,
+                                       DOCLINK_CELL);
 
     gnc_table_model_set_entry_handler (model,
                                        gnc_split_register_get_type_entry,
@@ -2686,8 +2687,8 @@ gnc_split_register_model_new (void)
                                        TBALN_CELL);
 
     gnc_table_model_set_label_handler (model,
-                                       gnc_split_register_get_associate_label,
-                                       ASSOC_CELL);
+                                       gnc_split_register_get_doclink_label,
+                                       DOCLINK_CELL);
 
     gnc_table_model_set_label_handler (model,
                                        gnc_split_register_get_type_label,
@@ -2718,8 +2719,8 @@ gnc_split_register_model_new (void)
                                          RECN_CELL);
 
     gnc_table_model_set_tooltip_handler (model,
-                                         gnc_split_register_get_associate_tooltip,
-                                         ASSOC_CELL);
+                                         gnc_split_register_get_doclink_tooltip,
+                                         DOCLINK_CELL);
 
 
     // help handlers
@@ -2786,6 +2787,10 @@ gnc_split_register_model_new (void)
                                       gnc_split_register_get_fdebt_help,
                                       FDEBT_CELL);
 
+    gnc_table_model_set_help_handler (model,
+                                      gnc_split_register_get_doclink_help,
+                                      DOCLINK_CELL);
+
     // io flag handlers
     gnc_table_model_set_io_flags_handler (
         model, gnc_split_register_get_standard_io_flags, DATE_CELL);
@@ -2838,7 +2843,7 @@ gnc_split_register_model_new (void)
         model, gnc_split_register_get_recn_io_flags, RECN_CELL);
 
     gnc_table_model_set_io_flags_handler (
-        model, gnc_split_register_get_recn_io_flags, ASSOC_CELL);
+        model, gnc_split_register_get_doclink_io_flags, DOCLINK_CELL);
 
     gnc_table_model_set_io_flags_handler (
         model, gnc_split_register_get_recn_io_flags, TYPE_CELL);

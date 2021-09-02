@@ -265,9 +265,9 @@ gnc_g_list_map(GList* list, GncGMapFunc fn, gpointer user_data)
     GList *rtn = NULL;
     for (; list != NULL; list = list->next)
     {
-        rtn = g_list_append(rtn, (*fn)(list->data, user_data));
+        rtn = g_list_prepend (rtn, (*fn)(list->data, user_data));
     }
-    return rtn;
+    return g_list_reverse (rtn);
 }
 
 void
@@ -326,4 +326,36 @@ void gnc_gpid_kill(GPid pid)
         g_warning("Could not kill child process: %s", g_strerror(errno));
     }
 #endif /* G_OS_WIN32 */
+}
+
+static inline char*
+gnc_strcat (char* dest, const char* src)
+{
+    while (*dest) dest++;
+    while ((*dest++ = *src++));
+    return --dest;
+}
+
+gchar *
+gnc_g_list_stringjoin (GList *list_of_strings, const gchar *sep)
+{
+    gint seplen = sep ? strlen(sep) : 0;
+    gint length = -seplen;
+    gchar *retval, *p;
+
+    if (!list_of_strings)
+        return NULL;
+
+    for (GList *n = list_of_strings; n; n = n->next)
+        length += strlen ((gchar*)n->data) + seplen;
+
+    p = retval = (gchar*) g_malloc0 (length * sizeof (gchar) + 1);
+    for (GList *n = list_of_strings; n; n = n->next)
+    {
+        p = gnc_strcat (p, (gchar*)n->data);
+        if (n->next && sep)
+            p = gnc_strcat (p, sep);
+    }
+
+    return retval;
 }

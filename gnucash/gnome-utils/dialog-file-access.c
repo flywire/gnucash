@@ -125,7 +125,7 @@ gnc_ui_file_access_response_cb(GtkDialog *dialog, gint response, GtkDialog *unus
     switch ( response )
     {
     case GTK_RESPONSE_HELP:
-        gnc_gnome_help( HF_HELP, HL_GLOBPREFS );
+        gnc_gnome_help (GTK_WINDOW(dialog), HF_HELP, HL_GLOBPREFS );
         break;
 
     case GTK_RESPONSE_OK:
@@ -161,6 +161,7 @@ gnc_ui_file_access_response_cb(GtkDialog *dialog, gint response, GtkDialog *unus
         break;
 
     case GTK_RESPONSE_CANCEL:
+    case GTK_RESPONSE_DELETE_EVENT:
         break;
 
     default:
@@ -343,6 +344,7 @@ gnc_ui_file_access (GtkWindow *parent, int type)
             faw->starting_dir = g_path_get_dirname( filepath );
             g_free ( filepath );
         }
+        g_free (last);
     }
     if (!faw->starting_dir)
         faw->starting_dir = gnc_get_default_directory(settings_section);

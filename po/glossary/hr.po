@@ -1,27 +1,33 @@
 # Croatian translation of GNUCash glossary.
 # Copyright (C) 2019 Free Software Foundation, Inc.
-# Milo Ivir <mail@milotype.de>, 2019., 2020.
-#
+# Milo Ivir <mail@milotype.de>, 2019., 2020, 2021.
 msgid ""
 msgstr ""
-"Project-Id-Version: GnuCash Glossary 3.10\n"
-"POT-Creation-Date: 2020-03-27 21:58+0100\n"
-"PO-Revision-Date: 2020-04-17 17:25+0200\n"
+"Project-Id-Version: GnuCash Glossary\n"
+"Report-Msgid-Bugs-To: https://bugs.gnucash.org/enter_bug."
+"cgi?product=GnuCash&component=Translations\n"
+"POT-Creation-Date: 2021-01-10 08:00+0100\n"
+"PO-Revision-Date: 2021-07-07 15:33+0000\n"
 "Last-Translator: Milo Ivir <mail@milotype.de>\n"
-"Language-Team: \n"
+"Language-Team: Croatian <https://hosted.weblate.org/projects/gnucash/"
+"glossary/hr/>\n"
 "Language: hr\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
-"%10<=4 && (n%100<12 || n%100>14) ? 1 : 2);\n"
-"X-Generator: Poedit 2.3\n"
+"Plural-Forms: nplurals=3; plural=n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
+"%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2;\n"
+"X-Generator: Weblate 4.8-dev\n"
 
 #. "English Definition (Dear translator: This file will never be visible to the user! It should only serve as a tool for you, the translator. Nothing more.)"
 msgid "Term (Dear translator: This file will never be visible to the user!)"
 msgstr ""
-"Izraz (Napomena za prevodioce: ova datoteka služi isključivo kao pomoć pri "
+"Pojam (Napomena za prevodioce: ova datoteka služi isključivo kao pomoć pri "
 "prevođenju i nikada se neće prikazati korisniku programa!)"
+
+#. "Opening and closing quote symbols and optionally their key combos like [altgr]+[Y]/[X]. Define the preferred style of quotation, see https://en.wikipedia.org/wiki/Quotation_mark#Summary_table"
+msgid "\"\""
+msgstr "„“"
 
 #. "A detailed record of money spent and received"
 msgid "account"
@@ -327,6 +333,10 @@ msgstr "valuta"
 msgid "Custom"
 msgstr "Prilagođeno"
 
+#. "Compact, well-structured presentation of informations. See https://en.wikipedia.org/wiki/Dashboard_(business)"
+msgid "dashboard"
+msgstr "pregledna ploča"
+
 #. "The backend where the data is stored."
 msgid "database"
 msgstr "baza podataka"
@@ -349,7 +359,7 @@ msgstr "Duguje (stupac u registru)"
 
 #. "Each option has a default setting that it is shipped with, until the user changes the setting."
 msgid "default"
-msgstr "zadano"
+msgstr "standardno"
 
 #. "see credit"
 msgid "deposit (in the reconcile dialog)"
@@ -371,9 +381,17 @@ msgstr "skonto"
 msgid "double entry"
 msgstr "dvojno knjigovodstvo"
 
+#. "Transactions or bills/invoices can contain a document link which links either to some file on the local disk or to some arbitrary URL."
+msgid "document link"
+msgstr "poveznica na dokument"
+
+#. "Electronic mail. Some languages allow different writings, but each team should use only one. https://en.wikipedia.org/wiki/Email"
+msgid "email"
+msgstr "E-mail"
+
 #. "a person who works for somebody or a company in return for wages"
 msgid "employee"
-msgstr "radnik"
+msgstr "zaposlenik"
 
 #. "1. The money value of a property after all charges on it have been paid. Equity isn't debt, it's a representation of long-term capital (So combining it with liability isn't really very meaningful, except in the balance sheet. 2. (a) The value of the shares issued by  a company. (b) Ordinary stocks and shares that carry no fixed interest."
 msgid "equity"
@@ -411,6 +429,14 @@ msgstr "financijski kalkulator: kamatna stopa"
 msgid "financial calculator: payments"
 msgstr "financijski kalkulator: rate"
 
+#. "formal records of the financial activities and position of a business, person, or other entity. See https://en.wikipedia.org/wiki/Financial_statement for a list."
+msgid "financial statement"
+msgstr "financijsko stanje"
+
+#. "Free software is a matter of liberty, not price … see https://en.wikipedia.org/wiki/Free_software"
+msgid "free software"
+msgstr "slobodan softver"
+
 #. "An increase in wealth; profit; advantage (See also: capital gains)"
 msgid "gain"
 msgstr "dobit"
@@ -447,9 +473,13 @@ msgstr "glavna knjiga"
 msgid "liabilities/equity"
 msgstr "obveze/kapital"
 
-#. "A sum of money that is lent (by a bank)"
+#. "A sum of money that is lent (by a bank), see also: financial calculator, Mortgage"
 msgid "loan"
 msgstr "kredit/zajam"
+
+#. "Annual Percentage Rate, includes in contrast to the Nominal Rate some of the various costs to obtain a loan."
+msgid "loan: APR"
+msgstr "kredit: EKS"
 
 #. "The money lost in business activity"
 msgid "loss"
@@ -457,7 +487,7 @@ msgstr "gubitak"
 
 #. "name of an automatically created account"
 msgid "Lost Accounts"
-msgstr "Izgubljeni konti"
+msgstr "Konta gubitka"
 
 #. "A particular collection of items that were bought in one transaction. A lot is typically formed when the item is bought, and is closed when the item is sold out. Needed e.g. for U.S. tax purposes."
 msgid "Lot"
@@ -481,11 +511,19 @@ msgstr "Prikaz višestrukih prozora"
 
 #. "One textfield per split that should help you remember what this split was about."
 msgid "Memo"
-msgstr "Zabilješka"
+msgstr "Bilješka"
 
 #. "(a) An agreement by which money is lent by a bank for buying a house or other property, the property being the security. (b) A sum of money lent in this way."
 msgid "Mortgage"
 msgstr "Hipoteka"
+
+#. "Adjustable Rate Mortgage"
+msgid "mortgage: ARM"
+msgstr "hipoteka: promijenjiva stopa"
+
+#. "Fixed Rate Mortgage"
+msgid "mortgage: FRM"
+msgstr "hipoteka: fiksna stopa"
 
 #. "e.g. USD, DEM, see Currency."
 msgid "national currency"
@@ -695,7 +733,7 @@ msgstr "Saldo dionica (registar)"
 msgid "shares"
 msgstr "dionice"
 
-#. "(of a price) A place wfrom which sth comes or is obtained"
+#. "(often: of a quote) A place from which something comes or is obtained."
 msgid "source"
 msgstr "izvor"
 
@@ -717,9 +755,25 @@ msgstr "šifra poreza"
 
 #. "field of an account"
 msgid "tax info"
-msgstr "porezne informacije"
+msgstr "podaci poreza"
 
-#. "if you create a new e.g. style sheet, you can start from a template"
+#. "Amost everybody has to declare and probably pay it. See https://en.wikipedia.org/wiki/Income_tax"
+msgid "tax type: income tax"
+msgstr "porez na dohodak"
+
+#. "Usually only business users have to handle it, see https://en.wikipedia.org/wiki/Sales_tax."
+msgid "tax type: sales tax"
+msgstr "porez na promet"
+
+#. "'Goods and Service Tax' is one form of sales tax."
+msgid "tax type: GST"
+msgstr "porez na robu i usluge"
+
+#. "'Value Added Tax' is the other form of sales tax."
+msgid "tax type: VAT"
+msgstr "PDV"
+
+#. "If you create a new e.g. style sheet, you can start from a template."
 msgid "template"
 msgstr "predložak"
 
@@ -779,7 +833,7 @@ msgstr "vrsta"
 msgid "units"
 msgstr "jedinice"
 
-#. "-"
+#. "Uniform Resource Locator, https://en.wikipedia.org/wiki/URL"
 msgid "URL"
 msgstr "URL"
 

@@ -184,6 +184,9 @@ find_by_query (gpointer find_data, gpointer user_data)
     Query* q = find_data;
     GNCLedgerDisplay* ld = user_data;
 
+    if (ld->reg->type != SEARCH_LEDGER)
+        return FALSE;
+
     if (!q || !ld)
         return FALSE;
 
@@ -445,6 +448,8 @@ gnc_ledger_display_gl (void)
     ld = gnc_ledger_display_internal (NULL, query, LD_GL, GENERAL_JOURNAL,
                                       REG_STYLE_JOURNAL, FALSE, FALSE, FALSE);
     LEAVE ("%p", ld);
+
+    qof_query_destroy (query);
     return ld;
 }
 

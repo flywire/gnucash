@@ -180,6 +180,8 @@ static void handle_menu_signals(GOOptionMenu *option_menu, gboolean connect)
 
         }
     }
+
+    g_list_free (children);
 }
 
 void go_option_menu_set_menu(GOOptionMenu *option_menu, GtkWidget *menu)
@@ -233,8 +235,9 @@ void go_option_menu_set_history(GOOptionMenu *option_menu, GSList *selection)
         while (1)
         {
             int n = GPOINTER_TO_INT(selection->data);
-            GtkMenuItem *item = g_list_nth_data(
-                    gtk_container_get_children(GTK_CONTAINER(menu)), n);
+            GList *children = gtk_container_get_children (GTK_CONTAINER(menu));
+            GtkMenuItem *item = g_list_nth_data (children, n);
+            g_list_free (children);
             selection = selection->next;
             if (selection)
                 menu = GTK_MENU_SHELL(gtk_menu_item_get_submenu(item));
@@ -354,7 +357,7 @@ static void go_option_menu_init(GOOptionMenu *option_menu)
 
     option_menu->button_label = GTK_LABEL(gtk_label_new(""));
     gtk_box_pack_start(GTK_BOX(box), GTK_WIDGET(option_menu->button_label), FALSE, TRUE, 0);
-    arrow = gtk_image_new_from_icon_name ("go-down", GTK_ICON_SIZE_BUTTON);
+    arrow = gtk_image_new_from_icon_name ("pan-down-symbolic", GTK_ICON_SIZE_BUTTON);
     gtk_widget_set_margin_start (GTK_WIDGET(arrow), 5);
 
     gtk_box_pack_end(GTK_BOX(box), arrow, FALSE, FALSE, 0);

@@ -7,6 +7,7 @@ set (gnc_gnome_noinst_HEADERS
   business-options-gnome.h
   business-urls.h
   business-gnome-utils.h
+  dialog-doclink.h
   dialog-billterms.h
   dialog-choose-owner.h
   dialog-customer.h
@@ -32,7 +33,6 @@ set (gnc_gnome_noinst_HEADERS
   dialog-sx-editor2.h
   dialog-sx-from-trans.h
   dialog-sx-since-last-run.h
-  dialog-trans-assoc.h
   dialog-vendor.h
   gnc-budget-view.h
   gnc-plugin-account-tree.h
@@ -75,6 +75,7 @@ set (gnc_gnome_SOURCES
   business-options-gnome.c
   business-urls.c
   business-gnome-utils.c
+  dialog-doclink.c
   dialog-billterms.c
   dialog-choose-owner.c
   dialog-commodities.c
@@ -104,7 +105,6 @@ set (gnc_gnome_SOURCES
   dialog-sx-from-trans.c
   dialog-sx-since-last-run.c
   dialog-tax-info.c
-  dialog-trans-assoc.c
   dialog-vendor.c
   gnc-budget-view.c
   gnc-plugin-account-tree.c
@@ -196,7 +196,7 @@ endif()
 
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/gnucash.appdata.xml
-    DEPENDS ${GNC_APPDATA_IN} ${VCS_INFO_FILE} ${CMAKE_CURRENT_SOURCE_DIR}/gnucash.releases.xml
+    DEPENDS ${GNC_APPDATA_IN} gnc-vcs-info ${CMAKE_CURRENT_SOURCE_DIR}/gnucash.releases.xml
     COMMAND ${CMAKE_COMMAND} -D SRC=${GNC_APPDATA_IN}
                              -D DST=${CMAKE_CURRENT_BINARY_DIR}/gnucash.appdata.xml
                              -D VCS_INFO_FILE=${VCS_INFO_FILE}
@@ -223,7 +223,7 @@ add_custom_command (
 
 add_custom_command (
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/gnucash.desktop
-    DEPENDS ${GNC_DESKTOP_IN} ${VCS_INFO_FILE}
+    DEPENDS ${GNC_DESKTOP_IN} gnc-vcs-info
     COMMAND ${CMAKE_COMMAND} -D SRC=${GNC_DESKTOP_IN}
                              -D DST=${CMAKE_CURRENT_BINARY_DIR}/gnucash.desktop
                              -D VCS_INFO_FILE=${VCS_INFO_FILE}
@@ -242,7 +242,7 @@ set(gnome_SCHEME
 )
 
 set(GUILE_DEPENDS
-    gnc-gnome-utils
+    gnc-gnome
     scm-engine
     scm-core-utils
     scm-gnome-utils

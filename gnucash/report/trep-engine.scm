@@ -39,10 +39,28 @@
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(define-module (gnucash report trep-engine))
+
 (use-modules (gnucash core-utils))
+(use-modules (gnucash engine))
+(use-modules (gnucash app-utils))
+(use-modules (gnucash utilities))
+(use-modules (gnucash report report-core)
+             (gnucash report report-utilities)
+             (gnucash report options-utilities)
+             (gnucash report commodity-utilities)
+             (gnucash report html-document)
+             (gnucash report html-style-info)
+             (gnucash report html-utilities)
+             (gnucash report html-table)
+             (gnucash report html-text))
 (use-modules (srfi srfi-11))
 (use-modules (srfi srfi-1))
 (use-modules (ice-9 match))
+
+(export gnc:trep-options-generator)
+(export gnc:trep-renderer)
+(export gnc:lists->csv)
 
 ;; Define the strings here to avoid typos and make changes easier.
 
@@ -77,10 +95,14 @@
 (define optname-startdate (N_ "Start Date"))
 (define optname-enddate (N_ "End Date"))
 (define optname-table-export (N_ "Table for Exporting"))
+(define optname-infobox-display (N_ "Add options summary"))
+
+;; Currency
+(define pagename-currency (N_ "Currency"))
+(define optname-price-source (N_ "Price Source"))
 (define optname-common-currency (N_ "Common Currency"))
 (define optname-orig-currency (N_ "Show original currency amount"))
 (define optname-currency (N_ "Report's currency"))
-(define optname-infobox-display (N_ "Add options summary"))
 
 ;;Filtering
 (define pagename-filter (N_ "Filter"))
@@ -94,7 +116,7 @@
   (N_ "Transaction Filter excludes matched strings"))
 (define optname-transaction-matcher-caseinsensitive
   (N_ "Transaction Filter is case insensitive"))
-(define optname-reconcile-status (N_ "Reconcile Status"))
+(define optname-reconcile-status (N_ "Reconciled Status"))
 (define optname-void-transactions (N_ "Void Transactions"))
 (define optname-closing-transactions (N_ "Closing transactions"))
 
@@ -105,8 +127,8 @@
 (define def:primary-subtotal-style "primary-subheading")
 (define def:secondary-subtotal-style "secondary-subheading")
 
-(define NO-MATCHING-TRANS-HEADER (_ "No matching transactions found"))
-(define NO-MATCHING-TRANS-TEXT (_ "No transactions were found that \
+(define NO-MATCHING-TRANS-HEADER (G_ "No matching transactions found"))
+(define NO-MATCHING-TRANS-TEXT (G_ "No transactions were found that \
 match the time interval and account selection specified \
 in the Options panel."))
 
@@ -121,11 +143,11 @@ in the Options panel."))
   (list 'account-name 'account-code))
 
 (define reconcile-list
-  (list (cons #\n (_ "Unreconciled"))
-        (cons #\c (_ "Cleared"))
-        (cons #\y (_ "Reconciled"))
-        (cons #\f (_ "Frozen"))
-        (cons #\v (_ "Voided"))))
+  (list (cons #\n (G_ "Unreconciled"))
+        (cons #\c (G_ "Cleared"))
+        (cons #\y (G_ "Reconciled"))
+        (cons #\f (G_ "Frozen"))
+        (cons #\v (G_ "Voided"))))
 
 (define (sortkey-list split-action?)
   ;; Defines the different sorting keys, as an association-list
@@ -133,7 +155,6 @@ in the Options panel."))
   ;;  'sortkey             - sort parameter sent via qof-query
   ;;  'split-sortvalue     - function retrieves number/string for comparing splits
   ;;  'text                - text displayed in Display tab
-  ;;  'tip                 - tooltip displayed in Display tab
   ;;  'renderer-fn         - helper function to select subtotal/subheading renderer
   ;;       behaviour varies according to sortkey.
   ;;       account-types converts split->account
@@ -144,29 +165,25 @@ in the Options panel."))
               (cons 'sortkey (list SPLIT-ACCT-FULLNAME))
               (cons 'split-sortvalue
                     (compose gnc-account-get-full-name xaccSplitGetAccount))
-              (cons 'text (_ "Account Name"))
-              (cons 'tip (_ "Sort & subtotal by account name."))
+              (cons 'text (G_ "Account Name"))
               (cons 'renderer-fn xaccSplitGetAccount))
 
         (list 'account-code
               (cons 'sortkey (list SPLIT-ACCOUNT ACCOUNT-CODE-))
               (cons 'split-sortvalue (compose xaccAccountGetCode xaccSplitGetAccount))
-              (cons 'text (_ "Account Code"))
-              (cons 'tip (_ "Sort & subtotal by account code."))
+              (cons 'text (G_ "Account Code"))
               (cons 'renderer-fn xaccSplitGetAccount))
 
         (list 'date
               (cons 'sortkey (list SPLIT-TRANS TRANS-DATE-POSTED))
               (cons 'split-sortvalue (compose xaccTransGetDate xaccSplitGetParent))
-              (cons 'text (_ "Date"))
-              (cons 'tip (_ "Sort by date."))
+              (cons 'text (G_ "Date"))
               (cons 'renderer-fn #f))
 
         (list 'reconciled-date
               (cons 'sortkey (list SPLIT-DATE-RECONCILED))
               (cons 'split-sortvalue xaccSplitGetDateReconciled)
-              (cons 'text (_ "Reconciled Date"))
-              (cons 'tip (_ "Sort by the Reconciled Date."))
+              (cons 'text (G_ "Reconciled Date"))
               (cons 'renderer-fn #f))
 
         (list 'reconciled-status
@@ -174,8 +191,7 @@ in the Options panel."))
               (cons 'split-sortvalue (lambda (s)
                                        (length (memv (xaccSplitGetReconcile s)
                                                      (map car reconcile-list)))))
-              (cons 'text (_ "Reconciled Status"))
-              (cons 'tip (_ "Sort by the Reconciled Status"))
+              (cons 'text (G_ "Reconciled Status"))
               (cons 'renderer-fn (lambda (s)
                                    (assv-ref reconcile-list
                                              (xaccSplitGetReconcile s)))))
@@ -183,80 +199,69 @@ in the Options panel."))
         (list 'register-order
               (cons 'sortkey (list QUERY-DEFAULT-SORT))
               (cons 'split-sortvalue #f)
-              (cons 'text (_ "Register Order"))
-              (cons 'tip (_ "Sort as in the register."))
+              (cons 'text (G_ "Register Order"))
               (cons 'renderer-fn #f))
 
         (list 'corresponding-acc-name
               (cons 'sortkey (list SPLIT-CORR-ACCT-NAME))
               (cons 'split-sortvalue xaccSplitGetCorrAccountFullName)
-              (cons 'text (_ "Other Account Name"))
-              (cons 'tip (_ "Sort by account transferred from/to's name."))
+              (cons 'text (G_ "Other Account Name"))
               (cons 'renderer-fn (compose xaccSplitGetAccount xaccSplitGetOtherSplit)))
 
         (list 'corresponding-acc-code
               (cons 'sortkey (list SPLIT-CORR-ACCT-CODE))
               (cons 'split-sortvalue xaccSplitGetCorrAccountCode)
-              (cons 'text (_ "Other Account Code"))
-              (cons 'tip (_ "Sort by account transferred from/to's code."))
+              (cons 'text (G_ "Other Account Code"))
               (cons 'renderer-fn (compose xaccSplitGetAccount xaccSplitGetOtherSplit)))
 
         (list 'amount
               (cons 'sortkey (list SPLIT-VALUE))
               (cons 'split-sortvalue xaccSplitGetValue)
-              (cons 'text (_ "Amount"))
-              (cons 'tip (_ "Sort by amount."))
+              (cons 'text (G_ "Amount"))
               (cons 'renderer-fn #f))
 
         (list 'description
               (cons 'sortkey (list SPLIT-TRANS TRANS-DESCRIPTION))
               (cons 'split-sortvalue (compose xaccTransGetDescription
                                               xaccSplitGetParent))
-              (cons 'text (_ "Description"))
-              (cons 'tip (_ "Sort by description."))
+              (cons 'text (G_ "Description"))
               (cons 'renderer-fn (compose xaccTransGetDescription xaccSplitGetParent)))
 
         (if split-action?
             (list 'number
                   (cons 'sortkey (list SPLIT-ACTION))
                   (cons 'split-sortvalue xaccSplitGetAction)
-                  (cons 'text (_ "Number/Action"))
-                  (cons 'tip (_ "Sort by check number/action."))
+                  (cons 'text (G_ "Number/Action"))
                   (cons 'renderer-fn #f))
 
             (list 'number
                   (cons 'sortkey (list SPLIT-TRANS TRANS-NUM))
                   (cons 'split-sortvalue (compose xaccTransGetNum xaccSplitGetParent))
-                  (cons 'text (_ "Number"))
-                  (cons 'tip (_ "Sort by check/transaction number."))
+                  (cons 'text (G_ "Number"))
                   (cons 'renderer-fn #f)))
 
         (list 't-number
               (cons 'sortkey (list SPLIT-TRANS TRANS-NUM))
               (cons 'split-sortvalue (compose xaccTransGetNum xaccSplitGetParent))
-              (cons 'text (_ "Transaction Number"))
-              (cons 'tip (_ "Sort by transaction number."))
+              (cons 'text (G_ "Transaction Number"))
               (cons 'renderer-fn #f))
 
         (list 'memo
               (cons 'sortkey (list SPLIT-MEMO))
               (cons 'split-sortvalue xaccSplitGetMemo)
-              (cons 'text (_ "Memo"))
-              (cons 'tip (_ "Sort by memo."))
+              (cons 'text (G_ "Memo"))
               (cons 'renderer-fn xaccSplitGetMemo))
 
         (list 'notes
               (cons 'sortkey #f)
               (cons 'split-sortvalue (compose xaccTransGetNotes xaccSplitGetParent))
-              (cons 'text (_ "Notes"))
-              (cons 'tip (_ "Sort by transaction notes."))
+              (cons 'text (G_ "Notes"))
               (cons 'renderer-fn (compose xaccTransGetNotes xaccSplitGetParent)))
 
         (list 'none
               (cons 'sortkey '())
               (cons 'split-sortvalue #f)
-              (cons 'text (_ "None"))
-              (cons 'tip (_ "Do not sort."))
+              (cons 'text (G_ "None"))
               (cons 'renderer-fn #f))))
 
 (define (time64-year t64)
@@ -280,7 +285,6 @@ in the Options panel."))
   ;; Defines the different date sorting keys, as an association-list. Each entry:
   ;;  'split-sortvalue     - func retrieves number/string used for comparing splits
   ;;  'text                - text displayed in Display tab
-  ;;  'tip                 - tooltip displayed in Display tab
   ;;  'renderer-fn         - func retrieves string for subtotal/subheading renderer
   ;;         #f means the date sortkey is not grouped
   ;;         otherwise it converts split->string
@@ -288,22 +292,19 @@ in the Options panel."))
    (list 'none
          (cons 'split-sortvalue #f)
          (cons 'date-sortvalue #f)
-         (cons 'text (_ "None"))
-         (cons 'tip (_ "None."))
+         (cons 'text (G_ "None"))
          (cons 'renderer-fn #f))
 
    (list 'daily
          (cons 'split-sortvalue (lambda (s) (time64-day (split->time64 s))))
          (cons 'date-sortvalue time64-day)
-         (cons 'text (_ "Daily"))
-         (cons 'tip (_ "Daily."))
+         (cons 'text (G_ "Daily"))
          (cons 'renderer-fn (lambda (s) (qof-print-date (split->time64 s)))))
 
    (list 'weekly
          (cons 'split-sortvalue (lambda (s) (time64-week (split->time64 s))))
          (cons 'date-sortvalue time64-week)
-         (cons 'text (_ "Weekly"))
-         (cons 'tip (_ "Weekly."))
+         (cons 'text (G_ "Weekly"))
          (cons 'renderer-fn (compose gnc:date-get-week-year-string
                                      gnc-localtime
                                      split->time64)))
@@ -311,8 +312,7 @@ in the Options panel."))
    (list 'monthly
          (cons 'split-sortvalue (lambda (s) (time64-month (split->time64 s))))
          (cons 'date-sortvalue time64-month)
-         (cons 'text (_ "Monthly"))
-         (cons 'tip (_ "Monthly."))
+         (cons 'text (G_ "Monthly"))
          (cons 'renderer-fn (compose gnc:date-get-month-year-string
                                      gnc-localtime
                                      split->time64)))
@@ -320,8 +320,7 @@ in the Options panel."))
    (list 'quarterly
          (cons 'split-sortvalue (lambda (s) (time64-quarter (split->time64 s))))
          (cons 'date-sortvalue time64-quarter)
-         (cons 'text (_ "Quarterly"))
-         (cons 'tip (_ "Quarterly."))
+         (cons 'text (G_ "Quarterly"))
          (cons 'renderer-fn (compose gnc:date-get-quarter-year-string
                                      gnc-localtime
                                      split->time64)))
@@ -329,8 +328,7 @@ in the Options panel."))
    (list 'yearly
          (cons 'split-sortvalue (lambda (s) (time64-year (split->time64 s))))
          (cons 'date-sortvalue time64-year)
-         (cons 'text (_ "Yearly"))
-         (cons 'tip (_ "Yearly."))
+         (cons 'text (G_ "Yearly"))
          (cons 'renderer-fn (compose gnc:date-get-year-string
                                      gnc-localtime
                                      split->time64)))))
@@ -338,46 +336,40 @@ in the Options panel."))
 (define filter-list
   (list
    (list 'none
-         (cons 'text (_ "None"))
-         (cons 'tip (_ "Do not do any filtering.")))
+         (cons 'text (G_ "Do not do any filtering")))
 
    (list 'include
-         (cons 'text (_ "Include Transactions to/from Filter Accounts"))
-         (cons 'tip (_ "Include transactions to/from filter accounts only.")))
+         (cons 'text (G_ "Include Transactions to/from Filter Accounts")))
 
    (list 'exclude
-         (cons 'text (_ "Exclude Transactions to/from Filter Accounts"))
-         (cons 'tip (_ "Exclude transactions to/from all filter accounts.")))))
+         (cons 'text (G_ "Exclude Transactions to/from Filter Accounts")))))
 
 (define show-void-list
   (list
    (list 'non-void-only
-         (cons 'text (_ "Non-void only"))
-         (cons 'tip (_ "Show only non-voided transactions.")))
+         (cons 'how (logand CLEARED-ALL (lognot CLEARED-VOIDED)))
+         (cons 'text (G_ "Non-void only")))
 
    (list 'void-only
-         (cons 'text (_ "Void only"))
-         (cons 'tip (_ "Show only voided transactions.")))
+         (cons 'how CLEARED-VOIDED)
+         (cons 'text (G_ "Void only")))
 
    (list 'both
-         (cons 'text (_ "Both"))
-         (cons 'tip (_ "Show both (and include void transactions in totals).")))))
+         (cons 'how CLEARED-ALL)
+         (cons 'text (G_ "Both (and include void transactions in totals)")))))
 
 (define show-closing-list
   (list
    (list 'exclude-closing
-         (cons 'text (_ "Exclude closing transactions"))
-         (cons 'tip (_ "Exclude closing transactions from report."))
+         (cons 'text (G_ "Exclude closing transactions"))
          (cons 'closing-match #f))
 
    (list 'include-both
-         (cons 'text (_ "Show both closing and regular transactions"))
-         (cons 'tip (_ "Show both (and include closing transactions in totals)."))
+         (cons 'text (G_ "Show both closing and regular transactions"))
          (cons 'closing-match 'both))
 
    (list 'closing-only
-         (cons 'text (_ "Show closing transactions only"))
-         (cons 'tip (_ "Show only closing transactions."))
+         (cons 'text (G_ "Show closing transactions only"))
          (cons 'closing-match #t))))
 
 (define reconcile-status-list
@@ -387,53 +379,42 @@ in the Options panel."))
   ;;      (logior CLEARED-NO CLEARED-CLEARED) for unreconciled & cleared
   (list
    (list 'all
-         (cons 'text (_ "All"))
-         (cons 'tip (_ "Show All Transactions"))
-         (cons 'filter-types #f))
+         (cons 'text (G_ "Show All Transactions"))
+         (cons 'filter-types CLEARED-ALL))
 
    (list 'unreconciled
-         (cons 'text (_ "Unreconciled"))
-         (cons 'tip (_ "Unreconciled only"))
+         (cons 'text (G_ "Unreconciled only"))
          (cons 'filter-types CLEARED-NO))
 
    (list 'cleared
-         (cons 'text (_ "Cleared"))
-         (cons 'tip (_ "Cleared only"))
+         (cons 'text (G_ "Cleared only"))
          (cons 'filter-types CLEARED-CLEARED))
 
    (list 'reconciled
-         (cons 'text (_ "Reconciled"))
-         (cons 'tip (_ "Reconciled only"))
+         (cons 'text (G_ "Reconciled only"))
          (cons 'filter-types CLEARED-RECONCILED))))
 
 
 (define ascending-list
   (list
    (list 'ascend
-         (cons 'text (_ "Ascending"))
-         (cons 'tip (_ "Smallest to largest, earliest to latest.")))
+         (cons 'text (G_ "Ascending")))
    (list 'descend
-         (cons 'text (_ "Descending"))
-         (cons 'tip (_ "Largest to smallest, latest to earliest.")))))
+         (cons 'text (G_ "Descending")))))
 
 (define sign-reverse-list
   (list
    (list 'global
-         (cons 'text (_ "Use Global Preference"))
-         (cons 'tip (_ "Use reversing option specified in global preference."))
+         (cons 'text (G_ "Use Global Preference"))
          (cons 'acct-types #f))
    (list 'none
-         (cons 'text (_ "None"))
-         (cons 'tip (_ "Don't change any displayed amounts."))
+         (cons 'text (G_ "Don't change any displayed amounts"))
          (cons 'acct-types '()))
    (list 'income-expense
-         (cons 'text (_ "Income and Expense"))
-         (cons 'tip (_ "Reverse amount display for Income and Expense Accounts."))
+         (cons 'text (G_ "Income and Expense"))
          (cons 'acct-types (list ACCT-TYPE-INCOME ACCT-TYPE-EXPENSE)))
    (list 'credit-accounts
-         (cons 'text (_ "Credit Accounts"))
-         (cons 'tip (_ "Reverse amount display for Liability, Payable, Equity, \
-Credit Card, and Income accounts."))
+         (cons 'text (G_ "Credit Accounts"))
          (cons 'acct-types (list ACCT-TYPE-LIABILITY ACCT-TYPE-PAYABLE
                                  ACCT-TYPE-EQUITY ACCT-TYPE-CREDIT
                                  ACCT-TYPE-INCOME)))))
@@ -446,8 +427,7 @@ Credit Card, and Income accounts."))
    (lambda (item)
      (vector
       (car item)
-      (keylist-get-info keylist (car item) 'text)
-      (keylist-get-info keylist (car item) 'tip)))
+      (keylist-get-info keylist (car item) 'text)))
    keylist))
 
 (define (SUBTOTAL-ENABLED? sortkey split-action?)
@@ -504,6 +484,8 @@ Credit Card, and Income accounts."))
 
   (string-join (map strify lst) "\n"))
 
+(define gnc:lists->csv lists->csv)
+
 
 ;;
 ;; Default Transaction Report
@@ -531,53 +513,51 @@ Credit Card, and Income accounts."))
 
   (gnc:register-trep-option
    (gnc:make-complex-boolean-option
-    gnc:pagename-general optname-common-currency
-    "e" (_ "Convert all transactions into a common currency.") #f
-    #f
+    pagename-currency optname-common-currency
+    "a" (G_ "Convert all transactions into a common currency.") #f #f
     (lambda (x)
       (gnc-option-db-set-option-selectable-by-name
-       options gnc:pagename-general optname-currency x)
+       options pagename-currency optname-currency x)
       (gnc-option-db-set-option-selectable-by-name
-       options gnc:pagename-general optname-orig-currency x))))
-
-  (gnc:options-add-currency!
-   options gnc:pagename-general optname-currency "f")
+       options pagename-currency optname-orig-currency x)
+      (gnc-option-db-set-option-selectable-by-name
+       options pagename-currency optname-price-source x))))
 
   (gnc:register-trep-option
    (gnc:make-simple-boolean-option
-    gnc:pagename-general optname-orig-currency
-    "f1" (_ "Also show original currency amounts") #f))
+    pagename-currency optname-orig-currency
+    "b" (G_ "Also show original currency amounts") #f))
+
+  (gnc:options-add-currency!
+   options pagename-currency optname-currency "c")
+
+  (gnc:options-add-price-source!
+   options pagename-currency optname-price-source "d" 'pricedb-nearest)
 
   (gnc:register-trep-option
    (gnc:make-simple-boolean-option
     gnc:pagename-general optname-table-export
-    "g" (_ "Formats the table suitable for cut & paste exporting with extra cells.")
+    "g" (G_ "Formats the table suitable for cut & paste exporting with extra cells.")
     #f))
 
   (gnc:register-trep-option
    (gnc:make-multichoice-option
     gnc:pagename-general optname-infobox-display
-    "h" (_ "Add summary of options.")
+    "h" (G_ "Add summary of options.")
     'no-match
     ;; This is an alist of conditions for displaying the infobox
     ;; 'no-match for empty-report
     ;; 'match for generated report
-    (list (vector 'no-match
-                  (_ "If no transactions matched")
-                  (_ "Display summary if no transactions were matched."))
-          (vector 'always
-                  (_ "Always")
-                  (_ "Always display summary."))
-          (vector 'never
-                  (_ "Never")
-                  (_ "Disable report summary.")))))
+    (list (vector 'no-match (G_ "If no transactions matched"))
+          (vector 'always (G_ "Always"))
+          (vector 'never (G_ "Never")))))
 
   ;; Filtering Options
 
   (gnc:register-trep-option
    (gnc:make-string-option
     pagename-filter optname-account-matcher
-    "a5" (_ "Show only accounts whose full name matches this filter e.g. ':Travel' will match \
+    "a5" (G_ "Show only accounts whose full name matches this filter e.g. ':Travel' will match \
 Expenses:Travel:Holiday and Expenses:Business:Travel. It can be left blank, which will \
 disable the filter.")
     ""))
@@ -586,7 +566,7 @@ disable the filter.")
    (gnc:make-simple-boolean-option
     pagename-filter optname-account-matcher-regex
     "a6"
-    (_ "By default the account filter will search substring only. Set this to true to \
+    (G_ "By default the account filter will search substring only. Set this to true to \
 enable full POSIX regular expressions capabilities. 'Car|Flights' will match both \
 Expenses:Car and Expenses:Flights. Use a period (.) to match a single character e.g. \
 '20../.' will match 'Travel 2017/1 London'. ")
@@ -595,7 +575,7 @@ Expenses:Car and Expenses:Flights. Use a period (.) to match a single character 
   (gnc:register-trep-option
    (gnc:make-string-option
     pagename-filter optname-transaction-matcher
-    "i1" (_ "Show only transactions where description, notes, or memo matches this filter.
+    "i1" (G_ "Show only transactions where description, notes, or memo matches this filter.
 e.g. '#gift' will find all transactions with #gift in description, notes or memo. It can be left \
 blank, which will disable the filter.")
     ""))
@@ -604,7 +584,7 @@ blank, which will disable the filter.")
    (gnc:make-simple-boolean-option
     pagename-filter optname-transaction-matcher-regex
     "i2"
-    (_ "By default the transaction filter will search substring only. Set this to true to \
+    (G_ "By default the transaction filter will search substring only. Set this to true to \
 enable full POSIX regular expressions capabilities. '#work|#family' will match both \
 tags within description, notes or memo. ")
     #f))
@@ -613,20 +593,20 @@ tags within description, notes or memo. ")
    (gnc:make-simple-boolean-option
     pagename-filter optname-transaction-matcher-exclude
     "i3"
-    (_ "If this option is selected, transactions matching filter are excluded.")
+    (G_ "If this option is selected, transactions matching filter are excluded.")
     #f))
 
   (gnc:register-trep-option
    (gnc:make-simple-boolean-option
     pagename-filter optname-transaction-matcher-caseinsensitive
     "i4"
-    (_ "If this option is selected, transactions matching filter is not case sensitive.")
+    (G_ "If this option is selected, transactions matching filter is not case sensitive.")
     #f))
 
   (gnc:register-trep-option
    (gnc:make-multichoice-option
     pagename-filter optname-reconcile-status
-    "j1" (_ "Filter by reconcile status.")
+    "j1" (G_ "Filter by reconcile status.")
     'all
     (keylist->vectorlist reconcile-status-list)))
 
@@ -640,7 +620,7 @@ tags within description, notes or memo. ")
   (gnc:register-trep-option
    (gnc:make-multichoice-option
     pagename-filter optname-closing-transactions
-    "l" (_ "By default most users should not include closing \
+    "l" (G_ "By default most users should not include closing \
 transactions in a transaction report. Closing transactions are \
 transfers from income and expense accounts to equity, and must usually \
 be excluded from periodic reporting.")
@@ -653,7 +633,7 @@ be excluded from periodic reporting.")
   (gnc:register-trep-option
    (gnc:make-account-list-option
     gnc:pagename-accounts optname-accounts
-    "a" (_ "Report on these accounts.")
+    "a" (G_ "Report on these accounts.")
     ;; select, by default, no accounts! Selecting all accounts will
     ;; always imply an insanely long waiting time upon opening, and it
     ;; is almost never useful. So we instead display the normal error
@@ -666,7 +646,7 @@ be excluded from periodic reporting.")
   (gnc:register-trep-option
    (gnc:make-account-list-option
     gnc:pagename-accounts optname-filterby
-    "c1" (_ "Filter on these accounts.")
+    "c1" (G_ "Filter on these accounts.")
     (lambda ()
       '())
     #f #t))
@@ -674,7 +654,7 @@ be excluded from periodic reporting.")
   (gnc:register-trep-option
    (gnc:make-multichoice-callback-option
     gnc:pagename-accounts optname-filtertype
-    "c" (_ "Filter account.")
+    "c" (G_ "Filter account.")
     'none
     (keylist->vectorlist filter-list)
     #f
@@ -767,7 +747,7 @@ be excluded from periodic reporting.")
     (gnc:register-trep-option
      (gnc:make-multichoice-callback-option
       pagename-sorting optname-prime-sortkey
-      "a" (_ "Sort by this criterion first.")
+      "a" (G_ "Sort by this criterion first.")
       prime-sortkey
       key-choice-list #f
       (lambda (x)
@@ -778,49 +758,49 @@ be excluded from periodic reporting.")
      (gnc:make-simple-boolean-option
       pagename-sorting optname-full-account-name
       "j1"
-      (_ "Show the full account name for subtotals and subheadings?")
+      (G_ "Show the full account name for subtotals and subheadings?")
       #f))
 
     (gnc:register-trep-option
      (gnc:make-simple-boolean-option
       pagename-sorting optname-show-account-code
       "j2"
-      (_ "Show the account code for subtotals and subheadings?")
+      (G_ "Show the account code for subtotals and subheadings?")
       #f))
 
     (gnc:register-trep-option
      (gnc:make-simple-boolean-option
       pagename-sorting optname-show-account-description
       "j3"
-      (_ "Show the account description for subheadings?")
+      (G_ "Show the account description for subheadings?")
       #f))
 
     (gnc:register-trep-option
      (gnc:make-simple-boolean-option
       pagename-sorting optname-show-informal-headers
       "j4"
-      (_ "Show the informal headers for debit/credit accounts?")
+      (G_ "Show the informal headers for debit/credit accounts?")
       #f))
 
     (gnc:register-trep-option
      (gnc:make-simple-boolean-option
       pagename-sorting optname-indenting
       "j5"
-      (_ "Add indenting columns with grouping and subtotals?")
+      (G_ "Add indenting columns with grouping and subtotals?")
       #t))
 
     (gnc:register-trep-option
      (gnc:make-simple-boolean-option
       pagename-sorting optname-show-subtotals-only
       "j6"
-      (_ "Show subtotals only, hiding transactional detail?")
+      (G_ "Show subtotals only, hiding transactional detail?")
       #f))
 
     (gnc:register-trep-option
      (gnc:make-complex-boolean-option
       pagename-sorting optname-prime-subtotal
       "e5"
-      (_ "Subtotal according to the primary key?")
+      (G_ "Subtotal according to the primary key?")
       prime-sortkey-subtotal-true #f
       (lambda (x)
         (set! prime-sortkey-subtotal-true x)
@@ -829,7 +809,7 @@ be excluded from periodic reporting.")
     (gnc:register-trep-option
      (gnc:make-multichoice-callback-option
       pagename-sorting optname-prime-date-subtotal
-      "e2" (_ "Do a date subtotal.")
+      "e2" (G_ "Do a date subtotal.")
       prime-date-subtotal
       date-subtotal-choice-list #f
       (lambda (x)
@@ -839,7 +819,7 @@ be excluded from periodic reporting.")
     (gnc:register-trep-option
      (gnc:make-multichoice-option
       pagename-sorting optname-prime-sortorder
-      "e" (_ "Order of primary sorting.")
+      "e" (G_ "Order of primary sorting.")
       'ascend
       ascending-choice-list))
 
@@ -848,7 +828,7 @@ be excluded from periodic reporting.")
      (gnc:make-multichoice-callback-option
       pagename-sorting optname-sec-sortkey
       "f"
-      (_ "Sort by this criterion second.")
+      (G_ "Sort by this criterion second.")
       sec-sortkey
       key-choice-list #f
       (lambda (x)
@@ -859,7 +839,7 @@ be excluded from periodic reporting.")
      (gnc:make-complex-boolean-option
       pagename-sorting optname-sec-subtotal
       "i5"
-      (_ "Subtotal according to the secondary key?")
+      (G_ "Subtotal according to the secondary key?")
       sec-sortkey-subtotal-true #f
       (lambda (x)
         (set! sec-sortkey-subtotal-true x)
@@ -868,7 +848,7 @@ be excluded from periodic reporting.")
     (gnc:register-trep-option
      (gnc:make-multichoice-callback-option
       pagename-sorting optname-sec-date-subtotal
-      "i2" (_ "Do a date subtotal.")
+      "i2" (G_ "Do a date subtotal.")
       sec-date-subtotal
       date-subtotal-choice-list #f
       (lambda (x)
@@ -878,19 +858,20 @@ be excluded from periodic reporting.")
     (gnc:register-trep-option
      (gnc:make-multichoice-option
       pagename-sorting optname-sec-sortorder
-      "i" (_ "Order of Secondary sorting.")
+      "i" (G_ "Order of Secondary sorting.")
       'ascend
       ascending-choice-list)))
 
   ;; Display options
 
   (let ((disp-memo? #t)
-        (disp-accname? #t)
-        (disp-other-accname? #f)
-        (detail-is-single? #t)
-        (amount-value 'single))
+        (disp-accname? #f)
+        (disp-other-accname? #t)
+        (disp-detail-level? 'single)
+        (amount-value 'double))
 
     (define (apply-selectable-by-name-display-options)
+      (define detail-is-single? (eq? disp-detail-level? 'single))
       (gnc-option-db-set-option-selectable-by-name
        options gnc:pagename-display (N_ "Use Full Account Name")
        disp-accname?)
@@ -905,10 +886,10 @@ be excluded from periodic reporting.")
 
       (gnc-option-db-set-option-selectable-by-name
        options gnc:pagename-display optname-grid
-       (eq? amount-value 'single))
+       (not (eq? amount-value 'none)))
 
       (gnc-option-db-set-option-selectable-by-name
-       options gnc:pagename-display "Enable links"
+       options gnc:pagename-display "Enable Links"
        (not (eq? amount-value 'none)))
 
       (gnc-option-db-set-option-selectable-by-name
@@ -931,38 +912,39 @@ be excluded from periodic reporting.")
      ;; One list per option here with: option-name, sort-tag,
      ;; help-string, default-value
      (list
-      (list (N_ "Date")                         "a"  (_ "Display the date?") #t)
-      (list (N_ "Reconciled Date")              "a2" (_ "Display the reconciled date?") #f)
+      (list (N_ "Date")                         "a"  (G_ "Display the date?") #t)
+      (list (N_ "Reconciled Date")              "a2" (G_ "Display the reconciled date?") #f)
       (if BOOK-SPLIT-ACTION
-          (list (N_ "Num/Action")               "b"  (_ "Display the check number?") #t)
-          (list (N_ "Num")                      "b"  (_ "Display the check number?") #t))
-      (list (N_ "Description")                  "c"  (_ "Display the description?") #t)
-      (list (N_ "Notes")                        "d2" (_ "Display the notes if the memo is unavailable?") #t)
+          (list (N_ "Num/Action")               "b"  (G_ "Display the check number?") #t)
+          (list (N_ "Num")                      "b"  (G_ "Display the check number?") #t))
+      (list (N_ "Description")                  "c"  (G_ "Display the description?") #t)
+      (list (N_ "Notes")                        "d2" (G_ "Display the notes if the memo is unavailable?") #t)
       ;; account name option appears here
-      (list (N_ "Use Full Account Name")        "f"  (_ "Display the full account name?") #t)
-      (list (N_ "Account Code")                 "g"  (_ "Display the account code?") #f)
+      (list (N_ "Use Full Account Name")        "f"  (G_ "Display the full account name?") #t)
+      (list (N_ "Account Code")                 "g"  (G_ "Display the account code?") #f)
       ;; other account name option appears here
-      (list (N_ "Use Full Other Account Name")  "i"  (_ "Display the full account name?") #f)
-      (list (N_ "Other Account Code")           "j"  (_ "Display the other account code?") #f)
-      (list (N_ "Shares")                       "k"  (_ "Display the number of shares?") #f)
-      (list (N_ "Price")                        "l"  (_ "Display the shares price?") #f)
+      (list (N_ "Use Full Other Account Name")  "i"  (G_ "Display the full account name?") #f)
+      (list (N_ "Other Account Code")           "j"  (G_ "Display the other account code?") #f)
+      (list (N_ "Shares")                       "k"  (G_ "Display the number of shares?") #f)
+      (list (N_ "Link")                         "l5" (G_ "Display the transaction linked document") #f)
+      (list (N_ "Price")                        "l"  (G_ "Display the shares price?") #f)
       ;; note the "Amount" multichoice option in between here
-      (list optname-grid                        "m5" (_ "Display a subtotal summary table. This requires Display/Amount being 'single") #f)
-      (list (N_ "Running Balance")              "n"  (_ "Display a running balance?") #f)
-      (list (N_ "Totals")                       "o"  (_ "Display the totals?") #t)))
+      (list optname-grid                        "m5" (G_ "Display a subtotal summary table.") #f)
+      (list (N_ "Running Balance")              "n"  (G_ "Display a running balance?") #f)
+      (list (N_ "Totals")                       "o"  (G_ "Display the totals?") #t)))
 
     (when BOOK-SPLIT-ACTION
       (gnc:register-trep-option
        (gnc:make-simple-boolean-option
         gnc:pagename-display (N_ "Trans Number")
-        "b2" (_ "Display the trans number?") #f)))
+        "b2" (G_ "Display the trans number?") #f)))
 
     ;; Add an option to display the memo, and disable the notes option
     ;; when memos are not included.
     (gnc:register-trep-option
      (gnc:make-complex-boolean-option
       gnc:pagename-display (N_ "Memo")
-      "d"  (_ "Display the memo?") #t
+      "d"  (G_ "Display the memo?") disp-memo?
       disp-memo?
       (lambda (x)
         (set! disp-memo? x)
@@ -972,7 +954,7 @@ be excluded from periodic reporting.")
     (gnc:register-trep-option
      (gnc:make-complex-boolean-option
       gnc:pagename-display (N_ "Account Name")
-      "e"  (_ "Display the account name?") #t
+      "e"  (G_ "Display the account name?") disp-accname?
       disp-accname?
       (lambda (x)
         (set! disp-accname? x)
@@ -982,7 +964,7 @@ be excluded from periodic reporting.")
     (gnc:register-trep-option
      (gnc:make-complex-boolean-option
       gnc:pagename-display (N_ "Other Account Name")
-      "h5"  (_ "Display the other account name? (if this is a split transaction, this parameter is guessed).") #f
+      "h5"  (G_ "Display the other account name? (if this is a split transaction, this parameter is guessed).") disp-other-accname?
       disp-other-accname?
       (lambda (x)
         (set! disp-other-accname? x)
@@ -991,28 +973,24 @@ be excluded from periodic reporting.")
     (gnc:register-trep-option
      (gnc:make-multichoice-callback-option
       gnc:pagename-display optname-detail-level
-      "h" (_ "Amount of detail to display per transaction.")
-      'single
-      (list (vector 'multi-line
-                    (_ "Multi-Line")
-                    (_ "Display all splits in a transaction on a separate line."))
-            (vector 'single
-                    (_ "Single")
-                    (_ "Display one line per transaction, merging multiple splits where required.")))
+      "h" (G_ "Amount of detail to display per transaction.")
+      disp-detail-level?
+      (list (vector 'multi-line (G_ "One split per line"))
+            (vector 'single (G_ "One transaction per line")))
       #f
       (lambda (x)
-        (set! detail-is-single? (eq? x 'single))
+        (set! disp-detail-level? x)
         (apply-selectable-by-name-display-options))))
 
     (gnc:register-trep-option
      (gnc:make-multichoice-callback-option
       gnc:pagename-display (N_ "Amount")
-      "m" (_ "Display the amount?")
+      "m" (G_ "Display the amount?")
       amount-value
       (list
-       (vector 'none   (_ "None") (_ "No amount display."))
-       (vector 'single (_ "Single") (_ "Single Column Display."))
-       (vector 'double (_ "Double") (_ "Two Column Display.")))
+       (vector 'none   (G_ "Hide"))
+       (vector 'single (G_ "Single Column"))
+       (vector 'double (G_ "Two Columns")))
       #f
       (lambda (x)
         (set! amount-value x)
@@ -1020,13 +998,13 @@ be excluded from periodic reporting.")
 
     (gnc:register-trep-option
      (gnc:make-simple-boolean-option
-      gnc:pagename-display (N_ "Enable links")
-      "m2" (_ "Enable hyperlinks in amounts.") #t))
+      gnc:pagename-display (N_ "Enable Links")
+      "m2" (G_ "Enable hyperlinks in amounts.") #t))
 
     (gnc:register-trep-option
      (gnc:make-multichoice-option
       gnc:pagename-display (N_ "Sign Reverses")
-      "m1" (_ "Reverse amount display for certain account types.")
+      "m1" (G_ "Reverse amount display for certain account types.")
       'global
       (keylist->vectorlist sign-reverse-list))))
 
@@ -1044,7 +1022,7 @@ be excluded from periodic reporting.")
 ;; Here comes the big function that builds the whole table.
 
 (define (make-split-table splits options custom-calculated-cells
-                          begindate)
+                          begindate enddate c_account_1)
 
   (define (opt-val section name)
     (let ((option (gnc:lookup-option options section name)))
@@ -1070,12 +1048,13 @@ be excluded from periodic reporting.")
                      (opt-val gnc:pagename-display (N_ "Other Account Name"))))
           (cons 'shares (opt-val gnc:pagename-display (N_ "Shares")))
           (cons 'price (opt-val gnc:pagename-display (N_ "Price")))
+          (cons 'link (opt-val gnc:pagename-display (N_ "Link")))
           (cons 'amount-single (eq? amount-setting 'single))
           (cons 'amount-double (eq? amount-setting 'double))
-          (cons 'common-currency (opt-val gnc:pagename-general optname-common-currency))
+          (cons 'common-currency (opt-val pagename-currency optname-common-currency))
           (cons 'amount-original-currency
-                (and (opt-val gnc:pagename-general optname-common-currency)
-                     (opt-val gnc:pagename-general optname-orig-currency)))
+                (and (opt-val pagename-currency optname-common-currency)
+                     (opt-val pagename-currency optname-orig-currency)))
           (cons 'indenting (opt-val pagename-sorting optname-indenting))
           (cons 'subtotals-only
                 (and (opt-val pagename-sorting optname-show-subtotals-only)
@@ -1122,7 +1101,7 @@ be excluded from periodic reporting.")
   (let* ((work-to-do (length splits))
          (table (gnc:make-html-table))
          (used-columns (build-columns-used))
-         (opt-use-links? (opt-val gnc:pagename-display "Enable links"))
+         (opt-use-links? (opt-val gnc:pagename-display "Enable Links"))
          (account-types-to-reverse
           (keylist-get-info sign-reverse-list
                             (opt-val gnc:pagename-display (N_ "Sign Reverses"))
@@ -1137,14 +1116,22 @@ be excluded from periodic reporting.")
           (gnc-reverse-balance acc)))
 
     (define (column-uses? param)
-      (cdr (assq param used-columns)))
+      (assq-ref used-columns param))
+
+    (define exchange-fn
+      (if (column-uses? 'common-currency)
+          (gnc:case-exchange-time-fn
+           (opt-val pagename-currency optname-price-source)
+           (opt-val pagename-currency optname-currency)
+           (gnc:accounts-get-commodities c_account_1 #f) enddate #f #f)
+          gnc:exchange-by-pricedb-nearest))
 
     (define left-columns
       (let* ((add-if (lambda (pred? . items) (if pred? items '())))
              (left-cols-list
               (append
                (add-if (column-uses? 'date)
-                       (vector (_ "Date")
+                       (vector (G_ "Date")
                                (lambda (split transaction-row?)
                                  (and transaction-row?
                                       (gnc:make-html-table-cell/markup
@@ -1154,7 +1141,7 @@ be excluded from periodic reporting.")
                                          (xaccSplitGetParent split))))))))
 
                (add-if (column-uses? 'reconciled-date)
-                       (vector (_ "Reconciled Date")
+                       (vector (G_ "Reconciled Date")
                                (lambda (split transaction-row?)
                                  (let ((reconcile-date
                                         (and (char=? (xaccSplitGetReconcile split) #\y)
@@ -1168,8 +1155,8 @@ be excluded from periodic reporting.")
                        (vector (if (and BOOK-SPLIT-ACTION
                                         (opt-val gnc:pagename-display
                                                  (N_ "Trans Number")))
-                                   (_ "Num/T-Num")
-                                   (_ "Num"))
+                                   (G_ "Num/T-Num")
+                                   (G_ "Num"))
                                (lambda (split transaction-row?)
                                  (let* ((trans (xaccSplitGetParent split))
                                         (num (gnc-get-num-action trans split))
@@ -1187,7 +1174,7 @@ be excluded from periodic reporting.")
                                          "text-cell" num-string))))))
 
                (add-if (column-uses? 'description)
-                       (vector (_ "Description")
+                       (vector (G_ "Description")
                                (lambda (split transaction-row?)
                                  (define trans (xaccSplitGetParent split))
                                  (and transaction-row?
@@ -1197,8 +1184,8 @@ be excluded from periodic reporting.")
 
                (add-if (column-uses? 'memo)
                        (vector (if (column-uses? 'notes)
-                                   (string-append (_ "Memo") "/" (_ "Notes"))
-                                   (_ "Memo"))
+                                   (string-append (G_ "Memo") "/" (G_ "Notes"))
+                                   (G_ "Memo"))
                                (lambda (split transaction-row?)
                                  (define trans (xaccSplitGetParent split))
                                  (define memo (xaccSplitGetMemo split))
@@ -1207,7 +1194,7 @@ be excluded from periodic reporting.")
                                      memo))))
 
                (add-if (or (column-uses? 'account-name) (column-uses? 'account-code))
-                       (vector (_ "Account")
+                       (vector (G_ "Account")
                                (lambda (split transaction-row?)
                                  (account-namestring
                                   (xaccSplitGetAccount split)
@@ -1217,7 +1204,7 @@ be excluded from periodic reporting.")
 
                (add-if (or (column-uses? 'other-account-name)
                            (column-uses? 'other-account-code))
-                       (vector (_ "Transfer from/to")
+                       (vector (G_ "Transfer from/to")
                                (lambda (split transaction-row?)
                                  (and (< 1 (xaccTransCountSplits
                                             (xaccSplitGetParent split)))
@@ -1229,14 +1216,29 @@ be excluded from periodic reporting.")
                                        (column-uses? 'other-account-full-name))))))
 
                (add-if (column-uses? 'shares)
-                       (vector (_ "Shares")
+                       (vector (G_ "Shares")
                                (lambda (split transaction-row?)
                                  (gnc:make-html-table-cell/markup
                                   "number-cell"
                                   (xaccSplitGetAmount split)))))
 
+               (add-if (column-uses? 'link)
+                       (vector ""
+                               (lambda (split transaction-row?)
+                                 (let ((url (xaccTransGetDocLink
+                                             (xaccSplitGetParent split))))
+                                   (and (not (string-null? url))
+                                        (gnc:make-html-table-cell/markup
+                                         "text-cell"
+                                         (if opt-use-links?
+                                             (gnc:html-transaction-doclink-anchor
+                                              (xaccSplitGetParent split)
+                                              ;; Translators: 'L' is short for Linked Document
+                                              (C_ "Column header for 'Document Link'" "L"))
+                                             (C_ "Column header for 'Document Link'" "L"))))))))
+
                (add-if (column-uses? 'price)
-                       (vector (_ "Price")
+                       (vector (G_ "Price")
                                (lambda (split transaction-row?)
                                  (gnc:make-html-table-cell/markup
                                   "number-cell"
@@ -1265,7 +1267,7 @@ be excluded from periodic reporting.")
                                          (xaccSplitGetAmount s))))
            (split-currency (compose xaccAccountGetCommodity xaccSplitGetAccount))
            (row-currency (lambda (s) (if (column-uses? 'common-currency)
-                                         (opt-val gnc:pagename-general optname-currency)
+                                         (opt-val pagename-currency optname-currency)
                                          (split-currency s))))
            (friendly-debit (lambda (a) (gnc-account-get-debit-string (xaccAccountGetType a))))
            (friendly-credit (lambda (a) (gnc-account-get-credit-string (xaccAccountGetType a))))
@@ -1275,7 +1277,7 @@ be excluded from periodic reporting.")
                                 (if (column-uses? 'common-currency)
                                     (format #f " (~a)"
                                             (gnc-commodity-get-mnemonic
-                                             (opt-val gnc:pagename-general
+                                             (opt-val pagename-currency
                                                       optname-currency)))
                                     ""))))
            ;; For conversion to row-currency. Use midday as the
@@ -1283,7 +1285,7 @@ be excluded from periodic reporting.")
            ;; Otherwise it uses midnight which will likely match a
            ;; price on the previous day
            (converted-amount (lambda (s)
-                               (gnc:exchange-by-pricedb-nearest
+                               (exchange-fn
                                 (gnc:make-gnc-monetary (split-currency s)
                                                        (split-amount s))
                                 (row-currency s)
@@ -1319,43 +1321,44 @@ be excluded from periodic reporting.")
          ;;         friendly-heading-fn (friendly-heading-fn account) to retrieve
          ;;                             friendly name for account debit/credit
          ;;                             or 'bal-bf for balance-brought-forward
+         ;;         start-dual-column?  #t: merge with next cell for subtotal table.
 
          (if (column-uses? 'amount-single)
-             (list (vector (header-commodity (_ "Amount"))
+             (list (vector (header-commodity (G_ "Amount"))
                            converted-amount #t #t #f
-                           (lambda (a) "")))
+                           (lambda (a) "") #f))
              '())
 
          (if (column-uses? 'amount-double)
-             (list (vector (header-commodity (_ "Debit"))
+             (list (vector (header-commodity (G_ "Debit"))
                            converted-debit-amount #f #t #t
-                           friendly-debit)
-                   (vector (header-commodity (_ "Credit"))
+                           friendly-debit #t)
+                   (vector (header-commodity (G_ "Credit"))
                            converted-credit-amount #f #t #f
-                           friendly-credit))
+                           friendly-credit #f))
              '())
 
          (if (and (column-uses? 'amount-original-currency)
                   (column-uses? 'amount-single))
-             (list (vector (_ "Amount")
+             (list (vector (G_ "Amount")
                            original-amount #t #t #f
-                           (lambda (a) "")))
+                           (lambda (a) "") #f))
              '())
 
          (if (and (column-uses? 'amount-original-currency)
                   (column-uses? 'amount-double))
-             (list (vector (_ "Debit")
+             (list (vector (G_ "Debit")
                            original-debit-amount #f #t #t
-                           friendly-debit)
-                   (vector (_ "Credit")
+                           friendly-debit #t)
+                   (vector (G_ "Credit")
                            original-credit-amount #f #t #f
-                           friendly-credit))
+                           friendly-credit #f))
              '())
 
          (if (column-uses? 'running-balance)
-             (list (vector (_ "Running Balance")
+             (list (vector (G_ "Running Balance")
                            running-balance #t #f #f
-                           'bal-bf))
+                           'bal-bf #f))
              '()))))
 
     (define calculated-cells
@@ -1402,7 +1405,7 @@ be excluded from periodic reporting.")
                             (memq sortkey ACCOUNT-SORTING-TYPES))
                        ;; Translators: Balance b/f stands for "Balance
                        ;; brought forward".
-                       (string-append data ": " (_ "Balance b/f"))
+                       (string-append data ": " (G_ "Balance b/f"))
                        data))
              (renderer-fn (keylist-get-info
                            (sortkey-list BOOK-SPLIT-ACTION)
@@ -1446,6 +1449,15 @@ be excluded from periodic reporting.")
                         (gnc:html-markup-b
                          (fn (xaccSplitGetAccount split))))))))
              calculated-cells))))))
+
+    ;; check first calculated-cell vector's 7th cell. originally these
+    ;; had only 6 cells. backward-compatible upgrade. useful for the
+    ;; next function, add-subtotal-row.
+    (define first-column-merge?
+      (let ((first-cell (and (pair? calculated-cells) (car calculated-cells))))
+        (and first-cell
+             (<= 7 (vector-length first-cell))
+             (vector-ref first-cell 6))))
 
     (define (add-subtotal-row subtotal-string subtotal-collectors
                               subtotal-style level row col)
@@ -1525,12 +1537,16 @@ be excluded from periodic reporting.")
                                  "total-number-cell" mon)
                                 result))))))))
 
-        ;; take the first column of each commodity, add onto the subtotal grid
+        (define (get-commodity-grid-amount commodity)
+          (define zero (gnc:make-gnc-monetary commodity 0))
+          (gnc:monetary+
+           (or (retrieve-commodity (car columns) commodity) zero)
+           (gnc:monetary-neg
+            (or (and first-column-merge? (retrieve-commodity (cadr columns) commodity))
+                zero))))
+
         (set! grid
-          (grid-add grid row col
-                    (map (lambda (commodity)
-                           (retrieve-commodity (car columns) commodity))
-                         list-of-commodities)))
+          (grid-add grid row col (map get-commodity-grid-amount list-of-commodities)))
 
         ;; each commodity subtotal gets a separate line in the html-table
         ;; each line comprises: indenting, first-column, data-columns
@@ -1545,7 +1561,7 @@ be excluded from periodic reporting.")
               (data-columns (car list-of-commodities))))
             (loop "" (cdr list-of-commodities))))))
 
-    (define (total-string str) (string-append (_ "Total For ") str))
+    (define (total-string str) (string-append (G_ "Total For ") str))
 
     ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; renderers
@@ -1556,7 +1572,7 @@ be excluded from periodic reporting.")
                                 show-account-name? show-account-full-name?)
       ;;# on multi-line splits we can get an empty ('()) account
       (if (null? account)
-          (_ "Split Transaction")
+          (G_ "Split Transaction")
           (with-output-to-string
             (lambda ()
               (when show-account-code?
@@ -1614,7 +1630,7 @@ be excluded from periodic reporting.")
           (render-generic sortkey split)))))
 
     (define (render-grand-total)
-      (_ "Grand Total"))
+      (G_ "Grand Total"))
 
     ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; add-split-row
@@ -1622,14 +1638,7 @@ be excluded from periodic reporting.")
 
     (define (add-split-row split cell-calculators row-style transaction-row?)
       (let* ((account (xaccSplitGetAccount split))
-             (reversible-account? (acc-reverse? account))
-             (cells (map (lambda (cell)
-                           (let ((split->monetary (vector-ref cell 1)))
-                             (vector (split->monetary split)
-                                     (vector-ref cell 2) ;reverse?
-                                     (vector-ref cell 3) ;subtotal?
-                                     )))
-                         cell-calculators)))
+             (reversible-account? (acc-reverse? account)))
 
         (unless (column-uses? 'subtotals-only)
           (gnc:html-table-append-row/markup!
@@ -1641,9 +1650,8 @@ be excluded from periodic reporting.")
                     split transaction-row?))
                  left-columns)
             (map (lambda (cell)
-                   (let* ((cell-monetary (vector-ref cell 0))
-                          (reverse? (and (vector-ref cell 1)
-                                         reversible-account?))
+                   (let* ((cell-monetary ((vector-ref cell 1) split))
+                          (reverse? (and (vector-ref cell 2) reversible-account?))
                           (cell-content (and cell-monetary
                                              (if reverse?
                                                  (gnc:monetary-neg cell-monetary)
@@ -1654,13 +1662,10 @@ be excluded from periodic reporting.")
                            (if opt-use-links?
                                (gnc:html-split-anchor split cell-content)
                                cell-content)))))
-                 cells))))
+                 cell-calculators))))
 
-        (map (lambda (cell)
-               (let ((cell-monetary (vector-ref cell 0))
-                     (subtotal? (vector-ref cell 2)))
-                 (and subtotal? cell-monetary)))
-             cells)))
+        (map (lambda (cell) (and (vector-ref cell 3) ((vector-ref cell 1) split)))
+             cell-calculators)))
 
     ;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -1884,7 +1889,7 @@ be excluded from periodic reporting.")
     (append
      (list (cond
             ((positive? commodity-idx) "")
-            ((eq? row 'row-total) (_ "Grand Total"))
+            ((eq? row 'row-total) (G_ "Grand Total"))
             (else (cdr row))))
      (map (lambda (col) (make-table-cell row col commodity-idx 1))
           list-of-cols)
@@ -1894,12 +1899,12 @@ be excluded from periodic reporting.")
                 row 'col-total commodity-idx (length list-of-cols)))
          '())))
   (let ((table (gnc:make-html-table)))
-    (gnc:html-table-set-caption! table optname-grid)
+    (gnc:html-table-set-caption! table (G_ optname-grid))
     (gnc:html-table-set-col-headers!
      table (append (list "")
                    (map cdr list-of-cols)
-                   (list (_ "Total"))
-                   (if row-average-enabled? (list (_ "Average")) '())))
+                   (list (G_ "Total"))
+                   (if row-average-enabled? (list (G_ "Average")) '())))
     (gnc:html-table-set-style!
      table "th"
      'attribute (list "class" "column-heading-right"))
@@ -1933,7 +1938,7 @@ be excluded from periodic reporting.")
   ;;     split->date returns #f. useful to include unreconciled splits in reconcile
   ;;     report. it can be useful for alternative date filtering, e.g. filter by
   ;;     transaction->invoice->payment date.
-  ;; #:export-type and #:filename - are provided for CSV export
+  ;; #:export-type - are provided for CSV export
   ;; #:custom-source-accounts - alternate list-of-accounts to retrieve splits from
 
   (define options (gnc:report-options report-obj))
@@ -1950,6 +1955,11 @@ be excluded from periodic reporting.")
         (((? same-split?) . rest) (lp rest))
         (((? from-account?) . _) #t)
         ((_ . rest) (lp rest)))))
+
+  (when filename
+    (issue-deprecation-warning "trep-renderer filename is obsolete, and not \
+supported for exports. please set html-document export-string instead. this \
+warning will be removed in GnuCash 5.0"))
 
   (gnc:report-starting (opt-val gnc:pagename-general gnc:optname-reportname))
 
@@ -1995,10 +2005,12 @@ be excluded from periodic reporting.")
                    'no-guile-regex-support)))
          (transaction-filter-exclude?
           (opt-val pagename-filter optname-transaction-matcher-exclude))
-         (reconcile-status-filter
-          (keylist-get-info reconcile-status-list
-                            (opt-val pagename-filter optname-reconcile-status)
-                            'filter-types))
+         (void-filter (opt-val pagename-filter optname-void-transactions))
+         (reconcile-filter (opt-val pagename-filter optname-reconcile-status))
+         (cleared-filter
+          (logand
+           (keylist-get-info reconcile-status-list reconcile-filter 'filter-types)
+           (keylist-get-info show-void-list void-filter 'how)))
          (report-title (opt-val gnc:pagename-general gnc:optname-reportname))
          (primary-key (opt-val pagename-sorting optname-prime-sortkey))
          (primary-order (opt-val pagename-sorting optname-prime-sortorder))
@@ -2006,7 +2018,6 @@ be excluded from periodic reporting.")
          (secondary-key (opt-val pagename-sorting optname-sec-sortkey))
          (secondary-order (opt-val pagename-sorting optname-sec-sortorder))
          (secondary-date-subtotal (opt-val pagename-sorting optname-sec-date-subtotal))
-         (void-status (opt-val pagename-filter optname-void-transactions))
          (closing-match (keylist-get-info
                          show-closing-list
                          (opt-val pagename-filter optname-closing-transactions)
@@ -2023,8 +2034,8 @@ be excluded from periodic reporting.")
                                    (keylist-get-info date-subtotal-list
                                                      primary-date-subtotal 'renderer-fn)
                                    (opt-val pagename-sorting optname-prime-subtotal))
-                               (eq? (opt-val gnc:pagename-display (N_ "Amount"))
-                                    'single)))
+                               (memq (opt-val gnc:pagename-display (N_ "Amount"))
+                                     '(single double))))
          (infobox-display (opt-val gnc:pagename-general optname-infobox-display))
          (query (qof-query-create-for-splits)))
 
@@ -2057,7 +2068,7 @@ be excluded from periodic reporting.")
              (value-of-X (comparator-function split-X))
              (value-of-Y (comparator-function split-Y))
              (op (if (string? value-of-X)
-                     (if ascend? string<? string>?)
+                     (if ascend? gnc:string-locale<? gnc:string-locale>?)
                      (if ascend? < >))))
         (and value-of-X (op value-of-X value-of-Y))))
 
@@ -2094,14 +2105,16 @@ be excluded from periodic reporting.")
         ((symbol? account-matcher-regexp)
          (gnc:html-make-generic-warning
           report-title (gnc:report-id report-obj)
-          (string-append (_ "Error") " " (symbol->string account-matcher-regexp))
+          (string-append (G_ "Error") " " (symbol->string account-matcher-regexp))
           ""))
 
         ((symbol? transaction-matcher-regexp)
          (gnc:html-make-generic-warning
           report-title (gnc:report-id report-obj)
-          (string-append (_ "Error") " " (symbol->string transaction-matcher-regexp))
+          (string-append (G_ "Error") " " (symbol->string transaction-matcher-regexp))
           ""))))
+
+      (gnc:html-document-set-export-error document "No accounts, or regexp error")
 
       ;; if an empty-report-message is passed by a derived report to
       ;; the renderer, display it here.
@@ -2118,16 +2131,9 @@ be excluded from periodic reporting.")
      (else
       (qof-query-set-book query (gnc-get-current-book))
       (xaccQueryAddAccountMatch query c_account_1 QOF-GUID-MATCH-ANY QOF-QUERY-AND)
+      (xaccQueryAddClearedMatch query cleared-filter QOF-QUERY-AND)
       (unless split->date
         (xaccQueryAddDateMatchTT query #t begindate #t enddate QOF-QUERY-AND))
-      (case void-status
-        ((non-void-only)
-         (gnc:query-set-match-non-voids-only! query (gnc-get-current-book)))
-        ((void-only)
-         (gnc:query-set-match-voids-only! query (gnc-get-current-book)))
-        (else #f))
-      (when reconcile-status-filter
-        (xaccQueryAddClearedMatch query reconcile-status-filter QOF-QUERY-AND))
       (when (boolean? closing-match)
         (xaccQueryAddClosingTransMatch query closing-match QOF-QUERY-AND))
       (unless custom-sort?
@@ -2186,6 +2192,8 @@ be excluded from periodic reporting.")
           report-title (gnc:report-id report-obj)
           NO-MATCHING-TRANS-HEADER NO-MATCHING-TRANS-TEXT))
 
+        (gnc:html-document-set-export-error document "No splits found")
+
         (when (memq infobox-display '(always no-match))
           (gnc:html-document-add-object!
            document
@@ -2194,7 +2202,7 @@ be excluded from periodic reporting.")
        (else
         (let-values (((table grid csvlist)
                       (make-split-table splits options custom-calculated-cells
-                                        begindate)))
+                                        begindate enddate c_account_1)))
 
           (gnc:html-document-set-title! document report-title)
 
@@ -2204,7 +2212,7 @@ be excluded from periodic reporting.")
             (gnc:html-markup-h3
              (format #f
                      ;; Translators: Both ~a's are dates
-                     (_ "From ~a to ~a")
+                     (G_ "From ~a to ~a")
                      (qof-print-date begindate)
                      (qof-print-date enddate)))))
 
@@ -2216,7 +2224,7 @@ be excluded from periodic reporting.")
           (when subtotal-table?
             (let* ((generic<?
                     (lambda (a b)
-                      (cond ((string? (car a)) (string<? (car a) (car b)))
+                      (cond ((string? (car a)) (gnc:string-locale<? (car a) (car b)))
                             ((number? (car a)) (< (car a) (car b)))
                             (else (gnc:error "unknown sortvalue")))))
                    (list-of-rows
@@ -2228,33 +2236,25 @@ be excluded from periodic reporting.")
               (gnc:html-document-add-object!
                document (grid->html-table grid list-of-rows list-of-cols))))
 
-          (cond
-           ((and (eq? export-type 'csv)
-                 (string? filename)
-                 (not (string-null? filename)))
-            (let ((old-date-fmt (qof-date-format-get))
-                  (dummy (qof-date-format-set QOF-DATE-FORMAT-ISO))
-                  (infolist
-                   (list
-                    (list "from" (qof-print-date begindate))
-                    (list "to" (qof-print-date enddate)))))
-              (qof-date-format-set old-date-fmt)
-              (if (list? csvlist)
-                  (catch #t
-                    (lambda ()
-                      (call-with-output-file filename
-                        (lambda (p)
-                          (display (lists->csv (append infolist csvlist)) p))))
-                    (lambda (key . args)
-                      ;; Translators: ~a error type, ~a filename, ~s error details
-                      (let ((fmt (N_ "error ~a during csv output to ~a: ~s")))
-                        (gnc:gui-error (format #f fmt key filename args)
-                                       (format #f (_ fmt) key filename args)))))
-                  (gnc:gui-error csvlist (_ csvlist))))))
-
           (unless (and subtotal-table?
                        (opt-val pagename-sorting optname-show-subtotals-only))
-            (gnc:html-document-add-object! document table)))))))
+            (gnc:html-document-add-object! document table))
+
+          (cond
+           ((eq? export-type 'csv)
+            (cond
+             ((pair? csvlist)
+              (let ((iso-date (qof-date-format-get-string QOF-DATE-FORMAT-ISO)))
+                (gnc:html-document-set-export-string
+                 document
+                 (lists->csv
+                  (cons*
+                   `("from" ,(gnc-print-time64 begindate iso-date))
+                   `("to" ,(gnc-print-time64 enddate iso-date))
+                   csvlist)))))
+
+             (else
+              (gnc:html-document-set-export-error document csvlist))))))))))
 
     (gnc:report-finished)
 

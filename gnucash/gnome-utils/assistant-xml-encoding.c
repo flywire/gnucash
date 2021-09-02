@@ -1005,8 +1005,8 @@ gxi_check_file (GncXmlImportData *data)
         }
 
         /* Translators: Please insert encodings here that are typically used in your
-         * locale, separated by spaces. No need for ASCII or UTF-8, check `locale -m`
-         * for assistance with spelling. */
+           locale, separated by spaces. No need for ASCII or UTF-8, check 'locale -m'
+           for assistance with spelling. */
         enc_array = g_strsplit (_("ISO-8859-1 KOI8-U"), " ", 0);
 
         /* loop through typical encodings */
@@ -1082,7 +1082,7 @@ gxi_parse_file (GncXmlImportData *data)
     gxi_session_destroy (data);
     session = qof_session_new (NULL);
     data->session = session;
-    qof_session_begin (session, data->filename, TRUE, FALSE, FALSE);
+    qof_session_begin (session, data->filename, SESSION_READ_ONLY);
     io_err = qof_session_get_error (session);
     if (io_err != ERR_BACKEND_NO_ERR)
     {

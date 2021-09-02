@@ -54,7 +54,7 @@
             (template (cdr item))
             (report-guid (gnc:report-template-report-guid template))
             (menu-tip (or (gnc:report-template-menu-tip template)
-                          (format #f (_ "Display the ~a report") (_ menu-name))))
+                          (format #f (G_ "Display the ~a report") (G_ menu-name))))
             (menu-path (append (list gnc:menuname-reports)
                                (or (gnc:report-template-menu-path template)
                                    '()))))
@@ -65,7 +65,7 @@
            (gnc-main-window-open-report
             (gnc:make-report report-guid) window))))))
    (sort (filter (compose gnc:report-template-in-menu? cdr) *template-items*)
-         (lambda (a b) (string>? (car a) (car b))))))
+         (lambda (a b) (gnc:string-locale>? (car a) (car b))))))
 
 (define (gnc:report-menu-setup)
   (define asset-liability-menu
@@ -116,6 +116,6 @@
     (N_ "Dashboard")
     "ad80271c890b11dfa79f2dcedfd72085"
     (N_ "A basic dashboard for your accounting data")
-    (list gnc:menuname-reports gnc:menuname-multicolumn "")
+    (list gnc:menuname-reports gnc:menuname-multicolumn)
     (lambda (window)
       (gnc-main-window-open-report (gnc:make-dashboard) window)))))

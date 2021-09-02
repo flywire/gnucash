@@ -175,7 +175,7 @@ const char *void_reason_str = "void-reason";
 const char *void_time_str = "void-time";
 const char *void_former_notes_str = "void-former-notes";
 const char *trans_is_closing_str = "book_closing";
-const char *assoc_uri_str = "assoc_uri";
+const char *doclink_uri_str = "assoc_uri"; // this is the old name for the document link, kept for compatibility
 
 /* KVP entry for date-due value */
 #define TRANS_DATE_DUE_KVP       "trans-date-due"
@@ -255,6 +255,9 @@ void gen_event_trans (Transaction *trans)
     }
 }
 
+static const char*
+is_unset = "unset";
+
 /* GObject Initialization */
 G_DEFINE_TYPE(Transaction, gnc_transaction, QOF_TYPE_INSTANCE)
 
@@ -274,6 +277,9 @@ gnc_transaction_init(Transaction* trans)
     trans->readonly_reason = NULL;
     trans->reason_cache_valid = FALSE;
     trans->isClosingTxn_cached = -1;
+    trans->notes = (char*) is_unset;
+    trans->doclink = (char*) is_unset;
+    trans->void_reason = (char*) is_unset;
     LEAVE (" ");
 }
 
@@ -569,7 +575,7 @@ xaccTransSortSplits (Transaction *trans)
         split = node->data;
         if (gnc_numeric_negative_p (xaccSplitGetValue(split)))
             continue;
-        new_list = g_list_append(new_list, split);
+        new_list = g_list_prepend (new_list, split);
     }
 
     /* then credits */
@@ -578,12 +584,12 @@ xaccTransSortSplits (Transaction *trans)
         split = node->data;
         if (!gnc_numeric_negative_p (xaccSplitGetValue(split)))
             continue;
-        new_list = g_list_append(new_list, split);
+        new_list = g_list_prepend (new_list, split);
     }
 
     /* install newly sorted list */
     g_list_free(trans->splits);
-    trans->splits = new_list;
+    trans->splits = g_list_reverse (new_list);
 }
 
 
@@ -602,8 +608,8 @@ dupe_trans (const Transaction *from)
 
     to = g_object_new (GNC_TYPE_TRANSACTION, NULL);
 
-    to->num         = CACHE_INSERT (from->num);
-    to->description = CACHE_INSERT (from->description);
+    CACHE_REPLACE (to->num, from->num);
+    CACHE_REPLACE (to->description, from->description);
 
     to->splits = g_list_copy (from->splits);
     for (node = to->splits; node; node = node->next)
@@ -647,8 +653,8 @@ xaccTransCloneNoKvp (const Transaction *from)
 
     to->date_entered    = from->date_entered;
     to->date_posted     = from->date_posted;
-    to->num             = CACHE_INSERT (from->num);
-    to->description     = CACHE_INSERT (from->description);
+    CACHE_REPLACE (to->num, from->num);
+    CACHE_REPLACE (to->description, from->description);
     to->common_currency = from->common_currency;
     qof_instance_copy_version(to, from);
     qof_instance_copy_version_check(to, from);
@@ -676,24 +682,20 @@ Transaction *
 xaccTransClone (const Transaction *from)
 {
     Transaction *to = xaccTransCloneNoKvp (from);
-    GList *lfrom, *lto;
+
+    if (g_list_length (to->splits) != g_list_length (from->splits))
+    {
+        PERR ("Cloned transaction has different number of splits from original");
+        xaccTransDestroy (to);
+        return NULL;
+    }
 
     xaccTransBeginEdit (to);
     qof_instance_copy_kvp (QOF_INSTANCE (to), QOF_INSTANCE (from));
-    g_return_val_if_fail (g_list_length (to->splits) == g_list_length (from->splits),
-                          NULL);
 
-    lfrom = from->splits;
-    lto = to->splits;
-
-    /* lfrom and lto are known to be of equal length via above
-       g_return_val_if_fail */
-    while (lfrom != NULL)
-    {
+    for (GList* lfrom = from->splits, *lto = to->splits; lfrom && lto;
+         lfrom = g_list_next (lfrom), lto = g_list_next (lto))
         xaccSplitCopyKvp (lfrom->data, lto->data);
-        lfrom = lfrom->next;
-        lto = lto->next;
-    }
 
     xaccTransCommitEdit (to);
     return to;
@@ -769,7 +771,7 @@ xaccTransCopyFromClipBoard(const Transaction *from_trans, Transaction *to_trans,
         xaccTransSetNum(to_trans, xaccTransGetNum(from_trans));
 
     xaccTransSetNotes(to_trans, xaccTransGetNotes(from_trans));
-    xaccTransSetAssociation(to_trans, xaccTransGetAssociation (from_trans));
+    xaccTransSetDocLink(to_trans, xaccTransGetDocLink (from_trans));
     if(!no_date)
     {
         xaccTransSetDatePostedSecs(to_trans, xaccTransRetDatePosted (from_trans));
@@ -817,6 +819,12 @@ xaccFreeTransaction (Transaction *trans)
     CACHE_REMOVE(trans->num);
     CACHE_REMOVE(trans->description);
     g_free (trans->readonly_reason);
+    if (trans->doclink != is_unset)
+        g_free (trans->doclink);
+    if (trans->void_reason != is_unset)
+        g_free (trans->void_reason);
+    if (trans->notes != is_unset)
+        g_free (trans->notes);
 
     /* Just in case someone looks up freed memory ... */
     trans->num         = (char *) 1;
@@ -825,6 +833,9 @@ xaccFreeTransaction (Transaction *trans)
     trans->date_posted = 0;
     trans->readonly_reason = NULL;
     trans->reason_cache_valid = FALSE;
+    trans->doclink = NULL;
+    trans->notes = NULL;
+    trans->void_reason = NULL;
     if (trans->orig)
     {
         xaccFreeTransaction (trans->orig);
@@ -1703,7 +1714,8 @@ xaccTransCommitEdit (Transaction *trans)
     LEAVE ("(trans=%p)", trans);
 }
 
-#define SWAP(a, b) do { gpointer tmp = (a); (a) = (b); (b) = tmp; } while (0);
+#define SWAP_STR(a, b) do { const char *tmp = (a); (a) = (b); (b) = tmp; } while (0);
+#define SWAP(a, b)     do { gpointer tmp = (a); (a) = (b); (b) = tmp; } while (0);
 
 /* Ughhh. The Rollback function is terribly complex, and, what's worse,
  * it only rolls back the basics.  The TransCommit functions did a bunch
@@ -1742,8 +1754,8 @@ xaccTransRollbackEdit (Transaction *trans)
     /* copy the original values back in. */
 
     orig = trans->orig;
-    SWAP(trans->num, orig->num);
-    SWAP(trans->description, orig->description);
+    SWAP_STR(trans->num, orig->num);
+    SWAP_STR(trans->description, orig->description);
     trans->date_entered = orig->date_entered;
     trans->date_posted = orig->date_posted;
     SWAP(trans->common_currency, orig->common_currency);
@@ -1770,8 +1782,8 @@ xaccTransRollbackEdit (Transaction *trans)
             Split *so = onode->data;
 
             xaccSplitRollbackEdit(s);
-            SWAP(s->action, so->action);
-            SWAP(s->memo, so->memo);
+            SWAP_STR(s->action, so->action);
+            SWAP_STR(s->memo, so->memo);
 	    qof_instance_copy_kvp (QOF_INSTANCE (s), QOF_INSTANCE (so));
             s->reconciled = so->reconciled;
             s->amount = so->amount;
@@ -1885,12 +1897,43 @@ xaccTransOrder (const Transaction *ta, const Transaction *tb)
     return xaccTransOrder_num_action (ta, NULL, tb, NULL);
 }
 
+/* Order a pair of potentially numeric string as numbers if both
+ * strings begin with numbers, ordering the remainder of the string
+ * lexically if the numeric parts are equal, and the whole strings
+ * lexically otherwise.
+ *
+ * Note that this won't work well for numbers > 10^18 and that
+ * negative numbers are treated as strings and will cause the pair to
+ * be ordered lexically.
+ */
+
+static int
+order_by_int64_or_string (const char* a, const char* b)
+{
+     char *end_a = NULL, *end_b = NULL;
+     int cmp = 0;
+     uint64_t na = strtoull(a, &end_a, 10);
+     uint64_t nb = strtoull(b, &end_b, 10);
+     if (na && nb)
+     {
+          if (na != nb)
+               return na < nb ? -1 : 1;
+          cmp = g_utf8_collate(end_a, end_b);
+     }
+     else
+     {
+          cmp = g_utf8_collate(a, b);
+     }
+     return cmp < 0 ? -1 : cmp > 0 ? 1 : 0;
+}
+
 int
 xaccTransOrder_num_action (const Transaction *ta, const char *actna,
                             const Transaction *tb, const char *actnb)
 {
-    char *da, *db;
-    int na, nb, retval;
+    const char *da, *db;
+    int retval;
+    int64_t na, nb;
 
     if ( ta && !tb ) return -1;
     if ( !ta && tb ) return +1;
@@ -1910,16 +1953,14 @@ xaccTransOrder_num_action (const Transaction *ta, const char *actna,
     /* otherwise, sort on number string */
     if (actna && actnb) /* split action string, if not NULL */
     {
-        na = atoi(actna);
-        nb = atoi(actnb);
+         retval = order_by_int64_or_string (actna, actnb);
     }
     else                /* else transaction num string */
     {
-        na = atoi(ta->num);
-        nb = atoi(tb->num);
+         retval = order_by_int64_or_string (ta->num, tb->num);
     }
-    if (na < nb) return -1;
-    if (na > nb) return +1;
+    if (retval)
+         return retval;
 
     if (ta->date_entered != tb->date_entered)
         return (ta->date_entered > tb->date_entered) - (ta->date_entered < tb->date_entered);
@@ -2001,6 +2042,7 @@ xaccTransSetDatePostedGDate (Transaction *trans, GDate date)
     g_value_init (&v, G_TYPE_DATE);
     g_value_set_boxed (&v, &date);
     qof_instance_set_kvp (QOF_INSTANCE(trans), &v, 1, TRANS_DATE_POSTED);
+    g_value_unset (&v);
     /* mark dirty and commit handled by SetDateInternal */
     xaccTransSetDateInternal(trans, &trans->date_posted,
                              gdate_to_time64(date));
@@ -2060,6 +2102,7 @@ xaccTransSetDateDue (Transaction * trans, time64 time)
     xaccTransBeginEdit(trans);
     qof_instance_set_kvp (QOF_INSTANCE (trans), &v, 1, TRANS_DATE_DUE_KVP);
     qof_instance_set_dirty(QOF_INSTANCE(trans));
+    g_value_unset (&v);
     xaccTransCommitEdit(trans);
 }
 
@@ -2074,6 +2117,7 @@ xaccTransSetTxnType (Transaction *trans, char type)
     xaccTransBeginEdit(trans);
     qof_instance_set_kvp (QOF_INSTANCE (trans), &v, 1, TRANS_TXN_TYPE_KVP);
     qof_instance_set_dirty(QOF_INSTANCE(trans));
+    g_value_unset (&v);
     xaccTransCommitEdit(trans);
 }
 
@@ -2103,6 +2147,7 @@ xaccTransSetReadOnly (Transaction *trans, const char *reason)
         xaccTransBeginEdit(trans);
         qof_instance_set_kvp (QOF_INSTANCE (trans), &v, 1, TRANS_READ_ONLY_REASON);
         qof_instance_set_dirty(QOF_INSTANCE(trans));
+        g_value_unset (&v);
         xaccTransCommitEdit(trans);
 
         g_free (trans->readonly_reason);
@@ -2156,18 +2201,31 @@ xaccTransSetDescription (Transaction *trans, const char *desc)
 }
 
 void
-xaccTransSetAssociation (Transaction *trans, const char *assoc)
+xaccTransSetDocLink (Transaction *trans, const char *doclink)
 {
-    if (!trans || !assoc) return;
+    if (!trans || !doclink) return;
+
+    if (trans->doclink != is_unset)
+    {
+        if (!g_strcmp0 (doclink, trans->doclink))
+            return;
+
+        g_free (trans->doclink);
+    }
     xaccTransBeginEdit(trans);
-    if (g_strcmp0 (assoc, "") == 0)
-        qof_instance_set_kvp (QOF_INSTANCE (trans), NULL, 1, assoc_uri_str);
+    if (doclink[0] == '\0')
+    {
+        trans->doclink = NULL;
+        qof_instance_set_kvp (QOF_INSTANCE (trans), NULL, 1, doclink_uri_str);
+    }
     else
     {
         GValue v = G_VALUE_INIT;
+        trans->doclink = g_strdup (doclink);
         g_value_init (&v, G_TYPE_STRING);
-        g_value_set_string (&v, assoc);
-        qof_instance_set_kvp (QOF_INSTANCE (trans), &v, 1, assoc_uri_str);
+        g_value_set_string (&v, doclink);
+        qof_instance_set_kvp (QOF_INSTANCE (trans), &v, 1, doclink_uri_str);
+        g_value_unset (&v);
     }
     qof_instance_set_dirty(QOF_INSTANCE(trans));
     xaccTransCommitEdit(trans);
@@ -2186,12 +2244,21 @@ xaccTransSetNotes (Transaction *trans, const char *notes)
 {
     GValue v = G_VALUE_INIT;
     if (!trans || !notes) return;
+    if (trans->notes != is_unset)
+    {
+        if (!g_strcmp0 (notes, trans->notes))
+            return;
+
+        g_free (trans->notes);
+    }
     g_value_init (&v, G_TYPE_STRING);
     g_value_set_string (&v, notes);
     xaccTransBeginEdit(trans);
 
+    trans->notes = g_strdup (notes);
     qof_instance_set_kvp (QOF_INSTANCE (trans), &v, 1, trans_notes_str);
     qof_instance_set_dirty(QOF_INSTANCE(trans));
+    g_value_unset (&v);
     xaccTransCommitEdit(trans);
 }
 
@@ -2207,6 +2274,7 @@ xaccTransSetIsClosingTxn (Transaction *trans, gboolean is_closing)
         g_value_init (&v, G_TYPE_INT64);
         g_value_set_int64 (&v, 1);
         qof_instance_set_kvp (QOF_INSTANCE (trans), &v, 1, trans_is_closing_str);
+        g_value_unset (&v);
         trans->isClosingTxn_cached = 1;
     }
     else
@@ -2266,6 +2334,8 @@ SplitList *
 xaccTransGetAPARAcctSplitList (const Transaction *trans, gboolean strict)
 {
     GList *apar_splits = NULL;
+    if (!trans) return NULL;
+
     FOR_EACH_SPLIT (trans,
                     const Account *account = xaccSplitGetAccount(s);
                     if (account && xaccAccountIsAPARType(xaccAccountGetType(account)))
@@ -2345,25 +2415,33 @@ xaccTransGetDescription (const Transaction *trans)
 }
 
 const char *
-xaccTransGetAssociation (const Transaction *trans)
+xaccTransGetDocLink (const Transaction *trans)
 {
-    GValue v = G_VALUE_INIT;
-    if (!trans) return NULL;
-    qof_instance_get_kvp (QOF_INSTANCE (trans), &v, 1, assoc_uri_str);
-    if (G_VALUE_HOLDS_STRING (&v))
-         return g_value_get_string (&v);
-    return NULL;
+    g_return_val_if_fail (trans, NULL);
+    if (trans->doclink == is_unset)
+    {
+        GValue v = G_VALUE_INIT;
+        Transaction *t = (Transaction*) trans;
+        qof_instance_get_kvp (QOF_INSTANCE (trans), &v, 1, doclink_uri_str);
+        t->doclink = G_VALUE_HOLDS_STRING (&v) ? g_value_dup_string (&v) : NULL;
+        g_value_unset (&v);
+    }
+    return trans->doclink;
 }
 
 const char *
 xaccTransGetNotes (const Transaction *trans)
 {
-    GValue v = G_VALUE_INIT;
-    if (!trans) return NULL;
-    qof_instance_get_kvp (QOF_INSTANCE (trans), &v, 1, trans_notes_str);
-    if (G_VALUE_HOLDS_STRING (&v))
-         return g_value_get_string (&v);
-    return NULL;
+    g_return_val_if_fail (trans, NULL);
+    if (trans->notes == is_unset)
+    {
+        GValue v = G_VALUE_INIT;
+        Transaction *t = (Transaction*) trans;
+        qof_instance_get_kvp (QOF_INSTANCE (trans), &v, 1, trans_notes_str);
+        t->notes = G_VALUE_HOLDS_STRING (&v) ? g_value_dup_string (&v) : NULL;
+        g_value_unset (&v);
+    }
+    return trans->notes;
 }
 
 gboolean
@@ -2379,6 +2457,7 @@ xaccTransGetIsClosingTxn (const Transaction *trans)
             trans_nonconst->isClosingTxn_cached = (g_value_get_int64 (&v) ? 1 : 0);
         else
             trans_nonconst->isClosingTxn_cached = 0;
+        g_value_unset (&v);
     }
     return (trans->isClosingTxn_cached == 1)
             ? TRUE
@@ -2422,6 +2501,7 @@ xaccTransGetDatePostedGDate (const Transaction *trans)
         qof_instance_get_kvp (QOF_INSTANCE (trans), &v, 1, TRANS_DATE_POSTED);
         if (G_VALUE_HOLDS_BOXED (&v))
              result = *(GDate*)g_value_get_boxed (&v);
+        g_value_unset (&v);
         if (! g_date_valid (&result) || gdate_to_time64 (result) == INT64_MAX)
         {
              /* Well, this txn doesn't have a valid GDate saved in a slot.
@@ -2470,15 +2550,18 @@ xaccTransGetTxnType (const Transaction *trans)
 {
     const char *s = NULL;
     GValue v = G_VALUE_INIT;
+    char ret = TXN_TYPE_NONE;
 
     if (!trans) return TXN_TYPE_NONE;
     qof_instance_get_kvp (QOF_INSTANCE (trans), &v, 1, TRANS_TXN_TYPE_KVP);
     if (G_VALUE_HOLDS_STRING (&v))
+    {
          s = g_value_get_string (&v);
-    if (s && strlen (s) == 1)
-        return *s;
-
-    return TXN_TYPE_NONE;
+         if (s && strlen (s) == 1)
+             ret = s[0];
+    }
+    g_value_unset (&v);
+    return ret;
 }
 
 const char *
@@ -2706,10 +2789,14 @@ xaccTransVoid(Transaction *trans, const char *reason)
     qof_instance_set_kvp (QOF_INSTANCE (trans), &v, 1, trans_notes_str);
     g_value_set_string (&v, reason);
     qof_instance_set_kvp (QOF_INSTANCE (trans), &v, 1, void_reason_str);
+    if (trans->void_reason != is_unset)
+        g_free (trans->void_reason);
+    trans->void_reason = g_strdup (reason);
 
     gnc_time64_to_iso8601_buff (gnc_time(NULL), iso8601_str);
     g_value_set_string (&v, iso8601_str);
     qof_instance_set_kvp (QOF_INSTANCE (trans), &v, 1, void_time_str);
+    g_value_unset (&v);
 
     FOR_EACH_SPLIT(trans, xaccSplitVoid(s));
 
@@ -2721,26 +2808,23 @@ xaccTransVoid(Transaction *trans, const char *reason)
 gboolean
 xaccTransGetVoidStatus(const Transaction *trans)
 {
-    const char *s = NULL;
-    GValue v = G_VALUE_INIT;
-    g_return_val_if_fail(trans, FALSE);
-
-    qof_instance_get_kvp (QOF_INSTANCE (trans), &v, 1, void_reason_str);
-    if (G_VALUE_HOLDS_STRING (&v))
-         s = g_value_get_string (&v);
-    return s && strlen(s);
+    const char *s = xaccTransGetVoidReason (trans);
+    return (s && *s);
 }
 
 const char *
 xaccTransGetVoidReason(const Transaction *trans)
 {
-    GValue v = G_VALUE_INIT;
-    g_return_val_if_fail(trans, FALSE);
-
-    qof_instance_get_kvp (QOF_INSTANCE (trans), &v, 1, void_reason_str);
-    if (G_VALUE_HOLDS_STRING (&v))
-         return g_value_get_string (&v);
-    return NULL;
+    g_return_val_if_fail (trans, NULL);
+    if (trans->void_reason == is_unset)
+    {
+        GValue v = G_VALUE_INIT;
+        Transaction *t = (Transaction*) trans;
+        qof_instance_get_kvp (QOF_INSTANCE (trans), &v, 1, void_reason_str);
+        t->void_reason = G_VALUE_HOLDS_STRING (&v) ? g_value_dup_string (&v) : NULL;
+        g_value_unset (&v);
+    }
+    return trans->void_reason;
 }
 
 time64
@@ -2753,9 +2837,12 @@ xaccTransGetVoidTime(const Transaction *tr)
     g_return_val_if_fail(tr, void_time);
     qof_instance_get_kvp (QOF_INSTANCE (tr), &v, 1, void_time_str);
     if (G_VALUE_HOLDS_STRING (&v))
+    {
         s = g_value_get_string (&v);
-    if (s)
-        return gnc_iso8601_to_time64_gmt (s);
+        if (s)
+            void_time = gnc_iso8601_to_time64_gmt (s);
+    }
+    g_value_unset (&v);
     return void_time;
 }
 
@@ -2766,9 +2853,7 @@ xaccTransUnvoid (Transaction *trans)
     const char *s = NULL;
     g_return_if_fail(trans);
 
-    qof_instance_get_kvp (QOF_INSTANCE (trans), &v, 1, void_reason_str);
-    if (G_VALUE_HOLDS_STRING (&v))
-        s = g_value_get_string (&v);
+    s = xaccTransGetVoidReason (trans);
     if (s == NULL) return; /* Transaction isn't voided. Bail. */
     xaccTransBeginEdit(trans);
 
@@ -2778,6 +2863,9 @@ xaccTransUnvoid (Transaction *trans)
     qof_instance_set_kvp (QOF_INSTANCE (trans), NULL, 1, void_former_notes_str);
     qof_instance_set_kvp (QOF_INSTANCE (trans), NULL, 1, void_reason_str);
     qof_instance_set_kvp (QOF_INSTANCE (trans), NULL, 1, void_time_str);
+    g_value_unset (&v);
+    g_free (trans->void_reason);
+    trans->void_reason = NULL;
 
     FOR_EACH_SPLIT(trans, xaccSplitUnvoid(s));
 
@@ -2793,7 +2881,15 @@ xaccTransReverse (Transaction *orig)
     GValue v = G_VALUE_INIT;
     g_return_val_if_fail(orig, NULL);
 
+    /* First edit, dirty, and commit orig to ensure that any trading
+     * splits are correctly balanced.
+     */
+    xaccTransBeginEdit (orig);
+    qof_instance_set_dirty (QOF_INSTANCE (orig));
+    xaccTransCommitEdit (orig);
+
     trans = xaccTransClone(orig);
+    g_return_val_if_fail (trans, NULL);
     xaccTransBeginEdit(trans);
 
     /* Reverse the values on each split. Clear per-split info. */
@@ -2808,6 +2904,7 @@ xaccTransReverse (Transaction *orig)
     g_value_init (&v, GNC_TYPE_GUID);
     g_value_set_boxed (&v, xaccTransGetGUID(trans));
     qof_instance_set_kvp (QOF_INSTANCE (orig), &v, 1, TRANS_REVERSED_BY);
+    g_value_unset (&v);
 
     /* Make sure the reverse transaction is not read-only */
     xaccTransClearReadOnly(trans);
@@ -2821,12 +2918,16 @@ Transaction *
 xaccTransGetReversedBy(const Transaction *trans)
 {
     GValue v = G_VALUE_INIT;
+    Transaction *retval = NULL;
     g_return_val_if_fail(trans, NULL);
     qof_instance_get_kvp (QOF_INSTANCE(trans), &v, 1, TRANS_REVERSED_BY);
     if (G_VALUE_HOLDS_BOXED (&v))
-        return xaccTransLookup((GncGUID*)g_value_get_boxed (&v),
-                               qof_instance_get_book(trans));
-    return NULL;
+    {
+        GncGUID* guid = g_value_get_boxed (&v);
+        retval = xaccTransLookup(guid, qof_instance_get_book (trans));
+    }
+    g_value_unset (&v);
+    return retval;
 }
 
 void
@@ -2936,6 +3037,103 @@ xaccTransFindSplitByAccount(const Transaction *trans, const Account *acc)
     return NULL;
 }
 
+static void
+record_price (Split *split,
+              PriceSource source)
+{
+    Transaction *trans;
+    Account *account;
+    QofBook* book;
+    GNCPriceDB* pricedb;
+    gnc_commodity* comm;
+    gnc_commodity* curr;
+    GNCPrice* price;
+    gnc_numeric price_value, value, amount;
+    int scu;
+    time64 time;
+    gboolean swap;
+
+    account = xaccSplitGetAccount (split);
+    if (!xaccAccountIsPriced (account))
+    {
+       return;
+    }
+    amount = xaccSplitGetAmount (split);
+    if (gnc_numeric_zero_p (amount))
+    {
+       return;
+    }
+    trans = xaccSplitGetParent (split);
+    value = gnc_numeric_div (xaccSplitGetValue (split), amount,
+                             GNC_DENOM_AUTO,
+                             GNC_HOW_DENOM_EXACT);
+    book = qof_instance_get_book (QOF_INSTANCE (account));
+    pricedb = gnc_pricedb_get_db (book);
+    comm = xaccAccountGetCommodity (account);
+    curr = xaccTransGetCurrency (trans);
+    scu = gnc_commodity_get_fraction (curr);
+    swap = FALSE;
+    time = xaccTransGetDate (trans);
+    price = gnc_pricedb_lookup_day_t64 (pricedb, comm, curr, time);
+    if (gnc_commodity_equiv (comm, gnc_price_get_currency (price)))
+        swap = TRUE;
+
+    if (price)
+    {
+        PriceSource oldsource = gnc_price_get_source (price);
+        price_value = gnc_price_get_value (price);
+        if (gnc_numeric_equal (swap ? gnc_numeric_invert (value) : value,
+                               price_value))
+        {
+            gnc_price_unref (price);
+            return;
+        }
+        if (oldsource < source &&
+            !(oldsource == PRICE_SOURCE_XFER_DLG_VAL &&
+             source == PRICE_SOURCE_SPLIT_REG))
+        {
+            /* Existing price is preferred over this one. */
+            gnc_price_unref (price);
+            return;
+        }
+        if (swap)
+        {
+            value = gnc_numeric_invert (value);
+            scu = gnc_commodity_get_fraction (comm);
+        }
+        value = gnc_numeric_convert (value, scu * COMMODITY_DENOM_MULT,
+                                     GNC_HOW_RND_ROUND_HALF_UP);
+        gnc_price_begin_edit (price);
+        gnc_price_set_time64 (price, time);
+        gnc_price_set_source (price, source);
+        gnc_price_set_typestr (price, PRICE_TYPE_TRN);
+        gnc_price_set_value (price, value);
+        gnc_price_commit_edit (price);
+        gnc_price_unref (price);
+        return;
+    }
+
+    value = gnc_numeric_convert (value, scu * COMMODITY_DENOM_MULT,
+                                 GNC_HOW_RND_ROUND_HALF_UP);
+    price = gnc_price_create (book);
+    gnc_price_begin_edit (price);
+    gnc_price_set_commodity (price, comm);
+    gnc_price_set_currency (price, curr);
+    gnc_price_set_time64 (price, time);
+    gnc_price_set_source (price, source);
+    gnc_price_set_typestr (price, PRICE_TYPE_TRN);
+    gnc_price_set_value (price, value);
+    gnc_pricedb_add_price (pricedb, price);
+    gnc_price_commit_edit (price);
+}
+
+void
+xaccTransRecordPrice (Transaction *trans, PriceSource source)
+{
+   /* XXX: This should have been part of xaccSplitCommitEdit. */
+   for (GList *n = xaccTransGetSplitList (trans); n; n = n->next)
+      record_price (n->data, source);
+}
 
 /********************************************************************\
 \********************************************************************/
@@ -3031,9 +3229,9 @@ gboolean xaccTransRegister (void)
                 (QofSetterFunc)qofTransSetNotes
             },
             {
-                TRANS_ASSOCIATION, QOF_TYPE_STRING,
-                (QofAccessFunc)xaccTransGetAssociation,
-                (QofSetterFunc)xaccTransSetAssociation
+                TRANS_DOCLINK, QOF_TYPE_STRING,
+                (QofAccessFunc)xaccTransGetDocLink,
+                (QofSetterFunc)xaccTransSetDocLink
             },
             {
                 TRANS_IS_CLOSING, QOF_TYPE_BOOLEAN,

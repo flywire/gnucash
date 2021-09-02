@@ -22,6 +22,8 @@
 ;; Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
 ;; 02111-1307 USA
 
+(define-module (gnucash eguile eguile-utilities))
+
 (use-modules (ice-9 match))
 ; using all of these seems like overkill -- 
 ; not sure which are really required
@@ -36,11 +38,12 @@
   (number->string (if (integer? n) (inexact->exact n) n)))
 
 ;; Format gnc-numeric n with as many decimal places as required
-(define-public fmtnumeric fmtnumber)
+(define-public fmtnumeric
+  (compose fmtnumber exact->inexact))
 
 (define-public (gnc-monetary-neg? monetary)
   ;; return true if the monetary value is negative
-  (issue-deprecated-warning "gnc-monetary-neg? is deprecated")
+  (issue-deprecation-warning "gnc-monetary-neg? is deprecated")
   (negative? (gnc:gnc-monetary-amount monetary)))
 
 ;; 'Safe' versions of cdr and cadr that don't crash
@@ -66,7 +69,7 @@
   (let* ((stylesheetpath (find-stylesheet fname))
          (templatepath  (find-template fname)))
     ; make sure there's a trailing delimiter
-      (issue-deprecation-warning "find-file is deprecated. Please use find-stylesheet or find-template instead.")
+      (issue-deprecation-warning "find-file is deprecated in 4.x. Please use find-stylesheet or find-template instead.")
       (cond
        ((access? stylesheetpath R_OK) stylesheetpath)
        ((access? templatepath R_OK) templatepath)
@@ -78,30 +81,31 @@
   ;; Then look in Gnucash' gnucash/reports/'ftype' directory.
   ;; If no file is found, returns just 'fname' for use in error messages.
   (let* ((userpath (gnc-build-userdata-path fname))
-         (frelpath (string-join (list (symbol->string ftype) fname) "/"))
-         (syspath  (gnc-build-reports-path frelpath)))
-        (if (access? userpath R_OK)
-          userpath
-          (if (access? syspath R_OK)
-            syspath
-            fname))))
+         (syspath  (gnc-build-reports-path (string-append ftype "/" fname))))
+    (cond
+     ((access? userpath R_OK) userpath)
+     ((access? syspath R_OK) syspath)
+     (else fname))))
 
 (define-public (find-stylesheet fname)
   ;; Find the stylesheet 'fname', and return its full path.
   ;; First look in the user's .config/gnucash directory.
   ;; Then look in Gnucash' gnucash/reports/stylesheets directory.
   ;; If no file is found, returns just 'fname' for use in error messages.
-  (find-internal 'stylesheets fname))
+  (find-internal "stylesheets" fname))
 
 (define-public (find-template fname)
   ;; Find the template 'ftype'/'fname', and return its full path.
   ;; First look in the user's .config/gnucash directory.
   ;; Then look in Gnucash' gnucash/reports/templates directory.
   ;; If no file is found, returns just 'fname' for use in error messages.
-  (find-internal 'templates fname))
+  (find-internal "templates" fname))
 
-; Define syntax for more readable for loops (the built-in for-each requires an
-; explicit lambda and has the list expression all the way at the end).
+;; Define syntax for more readable for loops (the built-in for-each
+;; requires an explicit lambda and has the list expression all the way
+;; at the end).  Note: deprecated in 4.x, removal in 5.x. this syntax
+;; is pythonic rather than lispy, is not recognized by code
+;; highlighters, and is not necessary to seasoned schemers.
 (export for)
 (define-syntax for
   (syntax-rules (for in do)
@@ -111,8 +115,12 @@
     ;; Note that this template must be defined before the
     ;; next one, since the template are evaluated in-order.
     ((for (<var> ...) in (<list> ...) do <expr> ...)
-     (for-each (lambda (<var> ...) <expr> ...) <list> ...))
+     (begin
+       (issue-deprecation-warning "for loops are deprecated. use for-each instead.")
+       (for-each (lambda (<var> ...) <expr> ...) <list> ...)))
 
     ;; Single variable and list. e.g.: (for a in lst do (display a))
     ((for <var> in <list> do <expr> ...)
-     (for-each (lambda (<var>) <expr> ...) <list>))))
+     (begin
+       (issue-deprecation-warning "for loops are deprecated. use for-each instead.")
+       (for-each (lambda (<var>) <expr> ...) <list>)))))

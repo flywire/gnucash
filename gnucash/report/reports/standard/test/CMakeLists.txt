@@ -17,6 +17,7 @@ set(scm_test_with_srfi64_SOURCES
   test-trial-balance.scm
   test-equity-statement.scm
   test-average-balance.scm
+  test-ifrs-cost-basis.scm
   test-invoice.scm
   test-new-owner-report.scm
   test-owner-report.scm
@@ -34,6 +35,7 @@ set(GUILE_DEPENDS
   scm-core-utils
   scm-test-report
   scm-reports
+  scm-reports-standard-with-exposed-generator
   scm-report-stylesheets
   )
 

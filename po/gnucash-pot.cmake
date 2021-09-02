@@ -22,7 +22,9 @@ execute_process(
                         --flag=g_scanner_warn:2:c-format
                         --keyword=_
                         --keyword=Q_:1g
+                        --keyword=G_
                         --keyword=N_
+                        --keyword=NG_:1,2
                         --keyword=C_:1c,2
                         --keyword=NC_:1c,2
                         --keyword=translate:1,1t
@@ -31,6 +33,7 @@ execute_process(
                         --keyword=translate:1c,2,3,4t
                         --package-name=${PACKAGE_NAME}
                         --package-version=${PROJECT_VERSION}
+                        --copyright-holder=by\ the\ GnuCash\ developers\ and\ the\ translators\ listed\ below.
                         --msgid-bugs-address=https://bugs.gnucash.org/enter_bug.cgi?product=GnuCash&component=Translations
   WORKING_DIRECTORY ${PO_BIN_DIR}
   RESULT_VARIABLE GNUCASH_POT_RESULT

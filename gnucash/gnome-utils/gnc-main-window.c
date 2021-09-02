@@ -67,6 +67,7 @@
 #include "gnc-ui-util.h"
 #include "gnc-uri-utils.h"
 #include "gnc-version.h"
+#include "gnc-warnings.h"
 #include "gnc-window.h"
 #include "gnc-prefs.h"
 #include "option-util.h"
@@ -108,6 +109,7 @@ enum
 #define GNC_PREF_TAB_COLOR            "show-account-color-tabs"
 #define GNC_PREF_SAVE_CLOSE_EXPIRES   "save-on-close-expires"
 #define GNC_PREF_SAVE_CLOSE_WAIT_TIME "save-on-close-wait-time"
+#define GNC_PREF_TAB_OPEN_ADJACENT    "tab-open-adjacent"
 
 #define GNC_MAIN_WINDOW_NAME "GncMainWindow"
 
@@ -231,6 +233,8 @@ typedef struct GncMainWindowPrivate
      *  group, the values are structures of type
      *  MergedActionEntry. */
     GHashTable *merged_actions_table;
+    /** Set when restoring plugin pages */
+    gboolean restoring_pages;
 } GncMainWindowPrivate;
 
 GNC_DEFINE_TYPE_WITH_CODE(GncMainWindow, gnc_main_window, GTK_TYPE_WINDOW,
@@ -527,6 +531,14 @@ typedef struct
     gint page_num;
     gint page_offset;
 } GncMainWindowSaveData;
+
+
+gboolean
+gnc_main_window_is_restoring_pages (GncMainWindow *window)
+{
+    GncMainWindowPrivate *priv = GNC_MAIN_WINDOW_GET_PRIVATE(window);
+    return priv->restoring_pages;
+}
 
 
 /*  Iterator function to walk all pages in all windows, calling the
@@ -853,7 +865,7 @@ gnc_main_window_restore_window (GncMainWindow *window, GncMainWindowSaveData *da
     {
         gtk_toggle_action_set_active(GTK_TOGGLE_ACTION(action), desired_visibility);
     }
-
+    priv->restoring_pages = TRUE;
     /* Now populate the window with pages. */
     for (i = 0; i < page_count; i++)
     {
@@ -865,7 +877,7 @@ gnc_main_window_restore_window (GncMainWindow *window, GncMainWindowSaveData *da
         while (gtk_events_pending ())
             gtk_main_iteration ();
     }
-
+    priv->restoring_pages = FALSE;
     /* Restore page ordering within the notebook. Use +1 notation so the
      * numbers in the page order match the page sections, at least for
      * the one window case. */
@@ -899,6 +911,9 @@ gnc_main_window_restore_window (GncMainWindow *window, GncMainWindowSaveData *da
         }
         gtk_notebook_set_current_page (GTK_NOTEBOOK(priv->notebook),
                                        order[0] - 1);
+
+        g_signal_emit_by_name (window, "page_changed",
+                               g_list_nth_data (priv->usage_order, 0));
     }
     if (order)
     {
@@ -910,7 +925,8 @@ cleanup:
     if (error)
         g_error_free(error);
     g_free(window_group);
-    gtk_widget_show(GTK_WIDGET(window));
+    if (window)
+        gtk_widget_show (GTK_WIDGET(window));
 }
 
 void
@@ -1145,6 +1161,11 @@ gnc_main_window_all_finish_pending (void)
         {
             return FALSE;
         }
+    }
+    if (gnc_gui_refresh_suspended ())
+    {
+        gnc_warning_dialog (NULL, "%s", "An operation is still running, wait for it to complete before quitting.");
+        return FALSE;
     }
     return TRUE;
 }
@@ -1386,8 +1407,28 @@ gnc_main_window_quit(GncMainWindow *window)
     }
     if (do_shutdown)
     {
+        GList *w, *next;
+
+        /* This is not a typical list iteration. There is a possability
+         * that the window maybe removed from the active_windows list so
+         * we have to cache the 'next' pointer before executing any code
+         * in the loop. */
+        for (w = active_windows; w; w = next)
+        {
+            GncMainWindowPrivate *priv;
+            GncMainWindow *wind = w->data;
+
+            next = g_list_next (w);
+
+            wind->window_quitting = TRUE; // set window_quitting on all windows
+
+            priv = GNC_MAIN_WINDOW_GET_PRIVATE(wind);
+
+            // if there are no pages destroy window
+            if (priv->installed_pages == NULL)
+                gtk_widget_destroy (GTK_WIDGET(wind));
+        }
         /* remove the preference callbacks from the main window */
-        window->window_quitting = TRUE;
         gnc_main_window_remove_prefs (window);
         g_timeout_add(250, gnc_main_window_timed_quit, NULL);
         return TRUE;
@@ -1404,6 +1445,32 @@ gnc_main_window_delete_event (GtkWidget *window,
 
     if (already_dead)
         return TRUE;
+
+    if (g_list_length (active_windows) > 1)
+    {
+        gint response;
+        GtkWidget *dialog;
+        gchar *message = _("This window is closing and will not be restored.");
+
+        dialog = gtk_message_dialog_new (GTK_WINDOW (window),
+                                         GTK_DIALOG_DESTROY_WITH_PARENT,
+                                         GTK_MESSAGE_QUESTION,
+                                         GTK_BUTTONS_NONE,
+                                         "%s", _("Close Window?"));
+        gtk_message_dialog_format_secondary_text (GTK_MESSAGE_DIALOG(dialog),
+                                                  "%s", message);
+
+        gtk_dialog_add_buttons (GTK_DIALOG(dialog),
+                              _("_Cancel"), GTK_RESPONSE_CANCEL,
+                              _("_OK"), GTK_RESPONSE_YES,
+                               (gchar *)NULL);
+        gtk_dialog_set_default_response (GTK_DIALOG(dialog), GTK_RESPONSE_YES);
+        response = gnc_dialog_run (GTK_DIALOG(dialog), GNC_PREF_WARN_CLOSING_WINDOW_QUESTION);
+        gtk_widget_destroy (dialog);
+
+        if (response == GTK_RESPONSE_CANCEL)
+            return TRUE;
+    }
 
     if (!gnc_main_window_finish_pending(GNC_MAIN_WINDOW(window)))
     {
@@ -1471,6 +1538,10 @@ gnc_main_window_event_handler (QofInstance *entity,  QofEventId event_type,
         if (gnc_plugin_page_has_book (page, (QofBook *)entity))
             gnc_main_window_close_page (page);
     }
+
+    if (GTK_IS_WIDGET(window) && window->window_quitting)
+        gtk_widget_destroy (GTK_WIDGET(window));
+
     LEAVE(" ");
 }
 
@@ -1499,7 +1570,7 @@ gnc_main_window_generate_title (GncMainWindow *window)
     QofBook *book;
     gboolean immutable;
     gchar *filename = NULL;
-    const gchar *book_id = NULL;
+    const gchar *uri = NULL;
     const gchar *dirty = "";
     const gchar *readonly_text = NULL;
     gchar *readonly;
@@ -1507,7 +1578,7 @@ gnc_main_window_generate_title (GncMainWindow *window)
 
     if (gnc_current_session_exist())
     {
-        book_id = qof_session_get_url (gnc_get_current_session ());
+        uri = qof_session_get_url (gnc_get_current_session ());
         book = gnc_get_current_book();
         if (qof_book_session_not_saved (book))
             dirty = "*";
@@ -1522,23 +1593,23 @@ gnc_main_window_generate_title (GncMainWindow *window)
                ? g_strdup_printf(" %s", readonly_text)
                : g_strdup("");
 
-    if (!book_id || g_strcmp0 (book_id, "") == 0)
+    if (!uri || g_strcmp0 (uri, "") == 0)
         filename = g_strdup(_("Unsaved Book"));
     else
     {
-        if (gnc_uri_targets_local_fs (book_id))
+        if (gnc_uri_targets_local_fs (uri))
         {
             /* The filename is a true file.
-             * The Gnome HIG 2.0 recommends only the file name (no path) be used. (p15) */
-            gchar *path = gnc_uri_get_path ( book_id );
+               The Gnome HIG 2.0 recommends only the file name (no path) be used. (p15) */
+            gchar *path = gnc_uri_get_path ( uri );
             filename = g_path_get_basename ( path );
             g_free ( path );
         }
         else
         {
             /* The filename is composed of database connection parameters.
-             * For this we will show access_method://username@database[:port] */
-            filename = gnc_uri_normalize_uri (book_id, FALSE);
+               For this we will show access_method://username@database[:port] */
+            filename = gnc_uri_normalize_uri (uri, FALSE);
         }
     }
 
@@ -1547,7 +1618,7 @@ gnc_main_window_generate_title (GncMainWindow *window)
     if (page)
     {
         /* The Gnome HIG 2.0 recommends the application name not be used. (p16)
-         * but several developers prefer to use it anyway. */
+           but several developers prefer to use it anyway. */
         title = g_strdup_printf("%s%s%s - %s - GnuCash", dirty, filename, readonly,
                                 gnc_plugin_page_get_page_name(page));
     }
@@ -1654,53 +1725,54 @@ static gboolean statusbar_notification_off(gpointer user_data_unused)
 static gchar *generate_statusbar_lastmodified_message()
 {
     gchar *message = NULL;
-    const gchar *book_id = NULL;
+    const gchar *uri = NULL;
 
     if (gnc_current_session_exist())
     {
-        book_id = qof_session_get_url (gnc_get_current_session ());
+        uri = qof_session_get_url (gnc_get_current_session ());
     }
 
-    if (!(book_id && strlen (book_id)))
+    if (!(uri && strlen (uri)))
         return NULL;
     else
     {
-        if (gnc_uri_targets_local_fs (book_id))
+        if (gnc_uri_targets_local_fs (uri))
         {
-#ifdef HAVE_SYS_STAT_H
             /* The filename is a true file. */
-            gchar *filepath = gnc_uri_get_path ( book_id );
+            gchar *filepath = gnc_uri_get_path ( uri );
             gchar *filename = g_path_get_basename ( filepath );
+            GFile *file = g_file_new_for_uri (uri);
+            GFileInfo *info = g_file_query_info (file,
+                                                 G_FILE_ATTRIBUTE_TIME_MODIFIED,
+                                                 G_FILE_QUERY_INFO_NONE,
+                                                 NULL, NULL);
+
+            if (info && g_file_info_has_attribute (info, G_FILE_ATTRIBUTE_TIME_MODIFIED))
             {
-                // Access the mtime information through stat(2)
-                struct stat statbuf;
-                int r = stat(filepath, &statbuf);
-                if (r == 0)
-                {
-                    /* Translators: This is the date and time that is shown in
-                    the status bar after opening a file: The date and time of
-                    last modification. The string is a format string using
-                    boost::date_time's format flags, see the boost docs for an
-                    explanation of the modifiers. */
-                    char *time_string = gnc_print_time64(statbuf.st_mtime,
-                     _("Last modified on %a, %b %d, %Y at %I:%M %p"));
-                    //g_warning("got time %ld, str=%s\n", mtime, time_string);
-                    /* Translators: This message appears in the status bar after opening the file. */
-                    message = g_strdup_printf(_("File %s opened. %s"),
-                                              filename, time_string);
-                    free(time_string);
-                }
-                else
-                {
-                    g_warning("Unable to read mtime for file %s\n", filepath);
-                    // message is still NULL
-                }
+                guint64 modtime = g_file_info_get_attribute_uint64 (info, G_FILE_ATTRIBUTE_TIME_MODIFIED);
+
+                /* Translators: This is the date and time that is shown in
+                the status bar after opening a file: The date and time of
+                last modification. The string is a format string using
+                boost::date_time's format flags, see the boost docs for an
+                explanation of the modifiers. */
+                char *time_string = gnc_print_time64 (modtime,
+                 _("Last modified on %a, %b %d, %Y at %I:%M %p"));
+                //g_warning("got time %ld, str=%s\n", mtime, time_string);
+                /* Translators: This message appears in the status bar after opening the file. */
+                message = g_strdup_printf(_("File %s opened. %s"),
+                                          filename, time_string);
+                free(time_string);
+            }
+            else
+            {
+                g_warning("Unable to read mtime for file %s\n", filepath);
+                // message is still NULL
             }
             g_free(filename);
             g_free(filepath);
-#else
-            return NULL;
-#endif
+            g_object_unref (info);
+            g_object_unref (file);
         }
         // If the URI is not a file but a database, we can maybe also show
         // something useful, but I have no idea how to obtain this information.
@@ -2391,6 +2463,78 @@ main_window_update_page_color (GncPluginPage *page,
 }
 
 
+void
+main_window_update_page_set_read_only_icon (GncPluginPage *page,
+                                            gboolean read_only)
+{
+    GncMainWindow *window;
+    GncMainWindowPrivate *priv;
+    GtkWidget *tab_widget;
+    GtkWidget *image = NULL;
+    GList *children;
+    gchar *image_name = NULL;
+    const gchar *icon_name;
+
+    ENTER(" ");
+
+    g_return_if_fail(page && page->window && GNC_IS_MAIN_WINDOW(page->window));
+    window = GNC_MAIN_WINDOW(page->window);
+
+    /* Get the notebook tab widget */
+    main_window_find_tab_widget (window, page, &tab_widget);
+    priv = GNC_MAIN_WINDOW_GET_PRIVATE(window);
+
+    if (!tab_widget)
+    {
+        LEAVE("no tab widget");
+        return;
+    }
+
+    if (GTK_IS_EVENT_BOX(tab_widget))
+        tab_widget = gtk_bin_get_child (GTK_BIN(tab_widget));
+
+    children = gtk_container_get_children (GTK_CONTAINER(tab_widget));
+    /* For each, walk the list of container children to get image widget */
+    for (GList *child = children; child; child = g_list_next (child))
+    {
+        GtkWidget *widget = child->data;
+        if (GTK_IS_IMAGE(widget))
+            image = widget;
+    }
+    g_list_free (children);
+
+    if (!image)
+    {
+        LEAVE("no image to replace");
+        return;
+    }
+
+    g_object_get (image, "icon-name", &image_name, NULL);
+
+    if (read_only)
+        icon_name = "changes-prevent-symbolic";
+    else
+        icon_name = GNC_PLUGIN_PAGE_GET_CLASS(page)->tab_icon;
+
+    if (g_strcmp0 (icon_name, image_name) == 0)
+    {
+        LEAVE("page icon the same, no need to replace");
+        g_free (image_name);
+        return;
+    }
+    gtk_container_remove (GTK_CONTAINER(tab_widget), image);
+    image = gtk_image_new_from_icon_name (icon_name, GTK_ICON_SIZE_MENU);
+    gtk_widget_show (image);
+
+    gtk_container_add (GTK_CONTAINER(tab_widget), image);
+    gtk_widget_set_margin_start (GTK_WIDGET(image), 5);
+    gtk_box_reorder_child (GTK_BOX(tab_widget), image, 0);
+
+    g_free (image_name);
+    LEAVE("done");
+}
+
+
 static void
 gnc_main_window_tab_entry_activate (GtkWidget *entry,
                                     GncPluginPage *page)
@@ -2576,6 +2720,8 @@ gnc_main_window_init (GncMainWindow *window, void *data)
     priv->event_handler_id =
         qof_event_register_handler(gnc_main_window_event_handler, window);
 
+    priv->restoring_pages = FALSE;
+
     /* Get the show_color_tabs value preference */
     priv->show_color_tabs = gnc_prefs_get_bool(GNC_PREFS_GROUP_GENERAL, GNC_PREF_TAB_COLOR);
 
@@ -2723,6 +2869,58 @@ gnc_main_window_destroy (GtkWidget *widget)
 }
 
 
+static gboolean
+gnc_main_window_key_press_event (GtkWidget *widget, GdkEventKey *event, gpointer user_data)
+{
+    GncMainWindowPrivate *priv;
+    GdkModifierType modifiers;
+
+    g_return_val_if_fail (GNC_IS_MAIN_WINDOW(widget), FALSE);
+
+    priv = GNC_MAIN_WINDOW_GET_PRIVATE(widget);
+
+    modifiers = gtk_accelerator_get_default_mod_mask ();
+
+    if ((event->state & modifiers) == (GDK_CONTROL_MASK | GDK_MOD1_MASK)) // Ctrl+Alt+
+    {
+        const gchar *account_key = C_ ("lower case key for short cut to 'Accounts'", "a");
+        guint account_keyval = gdk_keyval_from_name (account_key);
+
+        if ((account_keyval == event->keyval) || (account_keyval == gdk_keyval_to_lower (event->keyval)))
+        {
+            gint page = 0;
+
+            for (GList *item = priv->installed_pages; item; item = g_list_next (item))
+            {
+                 const gchar *pname = gnc_plugin_page_get_plugin_name (GNC_PLUGIN_PAGE(item->data));
+
+                 if (g_strcmp0 (pname, "GncPluginPageAccountTree") == 0)
+                 {
+                     gtk_notebook_set_current_page (GTK_NOTEBOOK(priv->notebook), page);
+                     return TRUE;
+                 }
+                 page++;
+            }
+        }
+        else if ((GDK_KEY_Menu == event->keyval) || (GDK_KEY_space == event->keyval))
+        {
+            GList *menu = gtk_menu_get_for_attach_widget (GTK_WIDGET(priv->notebook));
+
+            if (menu)
+            {
+                gtk_menu_popup_at_widget (GTK_MENU(menu->data),
+                                          GTK_WIDGET(priv->notebook),
+                                          GDK_GRAVITY_SOUTH,
+                                          GDK_GRAVITY_SOUTH,
+                                          NULL);
+                return TRUE;
+            }
+        }
+    }
+    return FALSE;
+}
+
+
 /*  Create a new gnc main window plugin.
  */
 GncMainWindow *
@@ -2756,6 +2954,11 @@ gnc_main_window_new (void)
     gnc_main_window_update_all_menu_items();
 #endif
     gnc_engine_add_commit_error_callback( gnc_main_window_engine_commit_error_callback, window );
+
+    // set up a callback for noteboook navigation
+    g_signal_connect (G_OBJECT(window), "key-press-event",
+                      G_CALLBACK(gnc_main_window_key_press_event),
+                      NULL);
 
     return window;
 }
@@ -2809,17 +3012,23 @@ gnc_main_window_connect (GncMainWindow *window,
 {
     GncMainWindowPrivate *priv;
     GtkNotebook *notebook;
+    gint current_position = -1;
 
     page->window = GTK_WIDGET(window);
     priv = GNC_MAIN_WINDOW_GET_PRIVATE(window);
     notebook = GTK_NOTEBOOK (priv->notebook);
-    priv->installed_pages = g_list_append (priv->installed_pages, page);
+
+    if (gnc_prefs_get_bool (GNC_PREFS_GROUP_GENERAL, GNC_PREF_TAB_OPEN_ADJACENT))
+        current_position = g_list_index (priv->installed_pages, priv->current_page) + 1;
+
+    priv->installed_pages = g_list_insert (priv->installed_pages, page, current_position);
     priv->usage_order = g_list_prepend (priv->usage_order, page);
-    gtk_notebook_append_page_menu (notebook, page->notebook_page,
-                                   tab_hbox, menu_label);
+    gtk_notebook_insert_page_menu (notebook, page->notebook_page,
+                                   tab_hbox, menu_label, current_position);
     gtk_notebook_set_tab_reorderable (notebook, page->notebook_page, TRUE);
     gnc_plugin_page_inserted (page);
-    gtk_notebook_set_current_page (notebook, -1);
+    gtk_notebook_set_current_page (notebook, current_position);
+
     if (GNC_PLUGIN_PAGE_GET_CLASS(page)->window_changed)
         (GNC_PLUGIN_PAGE_GET_CLASS(page)->window_changed)(page, GTK_WIDGET(window));
     g_signal_emit (window, main_window_signals[PAGE_ADDED], 0, page);
@@ -3125,22 +3334,22 @@ gnc_main_window_close_page (GncPluginPage *page)
     priv = GNC_MAIN_WINDOW_GET_PRIVATE(window);
     if (priv->installed_pages == NULL)
     {
-        GncPluginManager *manager = gnc_plugin_manager_get ();
-        GList *plugins = gnc_plugin_manager_get_plugins (manager);
-
-        /* remove only the preference callbacks from the window plugins */
-        window->just_plugin_prefs = TRUE;
-        g_list_foreach (plugins, gnc_main_window_remove_plugin, window);
-        window->just_plugin_prefs = FALSE;
-        g_list_free (plugins);
-
-        /* remove the preference callbacks from the main window */
-        gnc_main_window_remove_prefs (window);
-
-        if (g_list_length(active_windows) > 1)
+        if (window->window_quitting)
         {
-            gtk_widget_destroy(GTK_WIDGET(window));
+            GncPluginManager *manager = gnc_plugin_manager_get ();
+            GList *plugins = gnc_plugin_manager_get_plugins (manager);
+
+            /* remove only the preference callbacks from the window plugins */
+            window->just_plugin_prefs = TRUE;
+            g_list_foreach (plugins, gnc_main_window_remove_plugin, window);
+            window->just_plugin_prefs = FALSE;
+            g_list_free (plugins);
+
+            /* remove the preference callbacks from the main window */
+            gnc_main_window_remove_prefs (window);
         }
+        if (window && g_list_length (active_windows) > 1)
+            gtk_widget_destroy (GTK_WIDGET(window));
     }
 }
 
@@ -3490,95 +3699,6 @@ gnc_main_window_init_menu_updaters (GncMainWindow *window)
                       G_CALLBACK (gnc_main_window_edit_menu_hide_cb), window);
 }
 
-/* CS: This callback functions will set the statusbar text to the
- * "tooltip" property of the currently selected GtkAction.
- *
- * This code is directly copied from gtk+/test/testmerge.c.
- * Thanks to (L)GPL! */
-typedef struct _ActionStatus ActionStatus;
-struct _ActionStatus
-{
-    GtkAction *action;
-    GtkWidget *statusbar;
-};
-
-static void
-action_status_destroy (gpointer data)
-{
-    ActionStatus *action_status = data;
-
-    g_object_unref (action_status->action);
-    g_object_unref (action_status->statusbar);
-
-    g_free (action_status);
-}
-
-static void
-set_tip (GtkWidget *widget)
-{
-    ActionStatus *data;
-    gchar *tooltip;
-
-    data = g_object_get_data (G_OBJECT (widget), "action-status");
-
-    if (data)
-    {
-        g_object_get (data->action, "tooltip", &tooltip, NULL);
-
-        gtk_statusbar_push (GTK_STATUSBAR (data->statusbar), 0,
-                            tooltip ? tooltip : " ");
-
-        g_free (tooltip);
-    }
-}
-
-static void
-unset_tip (GtkWidget *widget)
-{
-    ActionStatus *data;
-
-    data = g_object_get_data (G_OBJECT (widget), "action-status");
-
-    if (data)
-        gtk_statusbar_pop (GTK_STATUSBAR (data->statusbar), 0);
-}
-
-static void
-connect_proxy (GtkUIManager *merge,
-               GtkAction    *action,
-               GtkWidget    *proxy,
-               GtkWidget    *statusbar)
-{
-    if (GTK_IS_MENU_ITEM (proxy))
-    {
-        ActionStatus *data;
-
-        data = g_object_get_data (G_OBJECT (proxy), "action-status");
-        if (data)
-        {
-            g_object_unref (data->action);
-            g_object_unref (data->statusbar);
-
-            data->action = g_object_ref (action);
-            data->statusbar = g_object_ref (statusbar);
-        }
-        else
-        {
-            data = g_new0 (ActionStatus, 1);
-
-            data->action = g_object_ref (action);
-            data->statusbar = g_object_ref (statusbar);
-
-            g_object_set_data_full (G_OBJECT (proxy), "action-status",
-                                    data, action_status_destroy);
-
-            g_signal_connect (proxy, "select",  G_CALLBACK (set_tip), NULL);
-            g_signal_connect (proxy, "deselect", G_CALLBACK (unset_tip), NULL);
-        }
-    }
-}
-/* CS: end copied code from gtk+/test/testmerge.c */
-
 static void
 gnc_main_window_window_menu (GncMainWindow *window)
 {
@@ -3668,6 +3788,7 @@ gnc_main_window_setup_window (GncMainWindow *window)
                         FALSE, TRUE, 0);
 
     priv->progressbar = gtk_progress_bar_new ();
+    gtk_progress_bar_set_show_text (GTK_PROGRESS_BAR(priv->progressbar), TRUE);
     gtk_progress_bar_set_text(GTK_PROGRESS_BAR(priv->progressbar), " ");
     gtk_widget_show (priv->progressbar);
     gtk_box_pack_start (GTK_BOX (priv->statusbar), priv->progressbar,
@@ -3700,10 +3821,10 @@ gnc_main_window_setup_window (GncMainWindow *window)
 
     g_signal_connect (G_OBJECT (window->ui_merge), "add_widget",
                       G_CALLBACK (gnc_main_window_add_widget), window);
-    /* Use the "connect-proxy" signal for tooltip display in the
-       status bar */
+
+    /* Use the "connect-proxy" signal for tooltip display in the status bar */
     g_signal_connect (G_OBJECT (window->ui_merge), "connect-proxy",
-                      G_CALLBACK (connect_proxy), priv->statusbar);
+                      G_CALLBACK (gnc_window_connect_proxy), priv->statusbar);
 
     filename = gnc_filepath_locate_ui_file("gnc-main-window-ui.xml");
 
@@ -3786,14 +3907,17 @@ gnc_quartz_shutdown (GtkosxApplication *theApp, gpointer data)
 {
     /* Do Nothing. It's too late. */
 }
-/* Should quit responds to NSApplicationBlockTermination; returning
- * TRUE means "don't terminate", FALSE means "do terminate".
+/* Should quit responds to NSApplicationBlockTermination; returning TRUE means
+ * "don't terminate", FALSE means "do terminate". gnc_main_window_quit() queues
+ * a timer that starts an orderly shutdown in 250ms and if we tell macOS it's OK
+ * to quit GnuCash gets terminated instead of doing its orderly shutdown,
+ * leaving the book locked.
  */
 static gboolean
 gnc_quartz_should_quit (GtkosxApplication *theApp, GncMainWindow *window)
 {
     if (gnc_main_window_all_finish_pending())
-        return gnc_main_window_quit (window);
+        gnc_main_window_quit (window);
     return TRUE;
 }
 
@@ -4244,62 +4368,61 @@ gnc_main_window_cmd_file_quit (GtkAction *action, GncMainWindow *window)
 static void
 gnc_main_window_cmd_edit_cut (GtkAction *action, GncMainWindow *window)
 {
-    GtkWidget *widget = gtk_window_get_focus (GTK_WINDOW (window));
-    GtkTextBuffer *text_buffer;
-    GtkClipboard *clipboard;
-    gboolean editable;
+    GtkWidget *widget = gtk_window_get_focus (GTK_WINDOW(window));
 
-    if (GTK_IS_EDITABLE (widget))
+    if (GTK_IS_EDITABLE(widget))
     {
-        gtk_editable_cut_clipboard (GTK_EDITABLE (widget));
+        gtk_editable_cut_clipboard (GTK_EDITABLE(widget));
     }
-    else if (GTK_IS_TEXT_VIEW (widget))
+    else if (GTK_IS_TEXT_VIEW(widget))
     {
-        text_buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW(widget));
-        clipboard = gtk_widget_get_clipboard (GTK_WIDGET(text_buffer),
-                                              GDK_SELECTION_CLIPBOARD);
-        editable = gtk_text_view_get_editable (GTK_TEXT_VIEW (widget));
-        gtk_text_buffer_cut_clipboard (text_buffer, clipboard, editable);
+        GtkTextBuffer *text_buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW(widget));
+        GtkClipboard *clipboard = gtk_widget_get_clipboard (GTK_WIDGET(widget),
+                                                            GDK_SELECTION_CLIPBOARD);
+        gboolean editable = gtk_text_view_get_editable (GTK_TEXT_VIEW(widget));
+
+        if (clipboard)
+            gtk_text_buffer_cut_clipboard (text_buffer, clipboard, editable);
     }
 }
 
 static void
 gnc_main_window_cmd_edit_copy (GtkAction *action, GncMainWindow *window)
 {
-    GtkWidget *widget = gtk_window_get_focus (GTK_WINDOW (window));
-    GtkTextBuffer *text_buffer;
-    GtkClipboard *clipboard;
+    GtkWidget *widget = gtk_window_get_focus (GTK_WINDOW(window));
 
-    if (GTK_IS_EDITABLE (widget))
+    if (GTK_IS_EDITABLE(widget))
     {
-        gtk_editable_copy_clipboard (GTK_EDITABLE (widget));
+        gtk_editable_copy_clipboard (GTK_EDITABLE(widget));
     }
-    else if (GTK_IS_TEXT_VIEW (widget))
+    else if (GTK_IS_TEXT_VIEW(widget))
     {
-        text_buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW(widget));
-        clipboard = gtk_widget_get_clipboard (GTK_WIDGET(text_buffer),
-                                              GDK_SELECTION_CLIPBOARD);
-        gtk_text_buffer_copy_clipboard (text_buffer, clipboard);
+        GtkTextBuffer *text_buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW(widget));
+        GtkClipboard *clipboard = gtk_widget_get_clipboard (GTK_WIDGET(widget),
+                                                            GDK_SELECTION_CLIPBOARD);
+        if (clipboard)
+            gtk_text_buffer_copy_clipboard (text_buffer, clipboard);
     }
 }
 
 static void
 gnc_main_window_cmd_edit_paste (GtkAction *action, GncMainWindow *window)
 {
-    GtkWidget *widget = gtk_window_get_focus (GTK_WINDOW (window));
-    GtkTextBuffer *text_buffer;
-    GtkClipboard *clipboard;
+    GtkWidget *widget = gtk_window_get_focus (GTK_WINDOW(window));
 
-    if (GTK_IS_EDITABLE (widget))
+    if (GTK_IS_EDITABLE(widget))
     {
-        gtk_editable_paste_clipboard (GTK_EDITABLE (widget));
+        gtk_editable_paste_clipboard (GTK_EDITABLE(widget));
     }
-    else if (GTK_IS_TEXT_VIEW (widget))
+    else if (GTK_IS_TEXT_VIEW(widget))
     {
-        text_buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW(widget));
-        clipboard = gtk_widget_get_clipboard (GTK_WIDGET(text_buffer),
-                                              GDK_SELECTION_CLIPBOARD);
-        gtk_text_buffer_paste_clipboard (text_buffer, clipboard, NULL, FALSE);
+        GtkTextBuffer *text_buffer = gtk_text_view_get_buffer (GTK_TEXT_VIEW(widget));
+        GtkClipboard *clipboard = gtk_widget_get_clipboard (GTK_WIDGET(widget),
+                                                            GDK_SELECTION_CLIPBOARD);
+        gboolean editable = gtk_text_view_get_editable (GTK_TEXT_VIEW(widget));
+
+        if (clipboard)
+            gtk_text_buffer_paste_clipboard (text_buffer, clipboard, NULL, editable);
     }
 }
 
@@ -4497,13 +4620,13 @@ gnc_main_window_cmd_window_raise (GtkAction *action,
 static void
 gnc_main_window_cmd_help_tutorial (GtkAction *action, GncMainWindow *window)
 {
-    gnc_gnome_help (HF_GUIDE, NULL);
+    gnc_gnome_help (GTK_WINDOW(window), HF_GUIDE, NULL);
 }
 
 static void
 gnc_main_window_cmd_help_contents (GtkAction *action, GncMainWindow *window)
 {
-    gnc_gnome_help (HF_HELP, NULL);
+    gnc_gnome_help (GTK_WINDOW(window), HF_HELP, NULL);
 }
 
 /** This is a helper function to find a data file and suck it into
@@ -4567,7 +4690,7 @@ get_file_strsplit (const gchar *partial)
 static gboolean
 url_signal_cb (GtkAboutDialog *dialog, gchar *uri, gpointer data)
 {
-    gnc_launch_assoc (GTK_WINDOW(dialog), uri);
+    gnc_launch_doclink (GTK_WINDOW(dialog), uri);
     return TRUE;
 }
 
@@ -4608,9 +4731,9 @@ gnc_main_window_cmd_help_about (GtkAction *action, GncMainWindow *window)
                   "logo", logo,
                   "name", "GnuCash",
                   /* Translators: the following string will be shown in Help->About->Credits
-                   * Enter your name or that of your team and an email contact for feedback.
-                   * The string can have multiple rows, so you can also add a list of
-                   * contributors. */
+                     Enter your name or that of your team and an email contact for feedback.
+                     The string can have multiple rows, so you can also add a list of
+                     contributors. */
                   "translator-credits", _("translator-credits"),
                   "version", version,
                   "website", PACKAGE_URL,

@@ -97,6 +97,10 @@ enum
 
 };
 
+static const char * is_unset = "unset";
+static const char * split_type_normal = "normal";
+static const char * split_type_stock_split = "stock-split";
+
 /* GObject Initialization */
 G_DEFINE_TYPE(Split, gnc_split, QOF_TYPE_INSTANCE)
 
@@ -116,6 +120,7 @@ gnc_split_init(Split* split)
     split->value       = gnc_numeric_zero();
 
     split->date_reconciled  = 0;
+    split->split_type = is_unset;
 
     split->balance             = gnc_numeric_zero();
     split->cleared_balance     = gnc_numeric_zero();
@@ -564,8 +569,8 @@ xaccDupeSplit (const Split *s)
     split->orig_acc = s->orig_acc;
     split->lot = s->lot;
 
-    split->memo = CACHE_INSERT(s->memo);
-    split->action = CACHE_INSERT(s->action);
+    CACHE_REPLACE(split->memo, s->memo);
+    CACHE_REPLACE(split->action, s->action);
 
     qof_instance_copy_kvp (QOF_INSTANCE (split), QOF_INSTANCE (s));
 
@@ -714,6 +719,7 @@ xaccFreeSplit (Split *split)
     split->lot         = NULL;
     split->acc         = NULL;
     split->orig_acc    = NULL;
+    split->split_type  = NULL;
 
     split->date_reconciled = 0;
     G_OBJECT_CLASS (QOF_INSTANCE_GET_CLASS (&split->inst))->dispose(G_OBJECT (split));
@@ -893,21 +899,32 @@ xaccSplitEqual(const Split *sa, const Split *sb,
  * xaccSplitListGetUniqueTransactions
  ********************************************************************/
 GList *
-xaccSplitListGetUniqueTransactions(const GList *splits)
+xaccSplitListGetUniqueTransactionsReversed (const GList *splits)
 {
-    const GList *snode;
+    GHashTable *txn_hash = g_hash_table_new (NULL, NULL);
     GList *transList = NULL;
+    const GList *snode;
 
-    for(snode = splits; snode; snode = snode->next)
+    for (snode = splits; snode; snode = snode->next)
     {
         Transaction *trans = xaccSplitGetParent((Split *)(snode->data));
 
-        GList *item = g_list_find (transList, trans);
-        if (item == NULL)
-            transList = g_list_append (transList, trans);
+        if (g_hash_table_contains (txn_hash, trans))
+            continue;
+
+        g_hash_table_insert (txn_hash, trans, NULL);
+        transList = g_list_prepend (transList, trans);
     }
+    g_hash_table_destroy (txn_hash);
     return transList;
 }
+
+GList *
+xaccSplitListGetUniqueTransactions(const GList *splits)
+{
+    return g_list_reverse (xaccSplitListGetUniqueTransactionsReversed (splits));
+}
+
 /*################## Added for Reg2 #################*/
 
 
@@ -1104,6 +1121,7 @@ xaccSplitDetermineGainStatus (Split *split)
         other = (Split *) qof_collection_lookup_entity (col, guid);
         split->gains_split = other;
     }
+    g_value_unset (&v);
 }
 
 /********************************************************************\
@@ -1483,7 +1501,7 @@ xaccSplitOrder (const Split *sa, const Split *sb)
 {
     int retval;
     int comp;
-    char *da, *db;
+    const char *da, *db;
     gboolean action_for_num;
 
     if (sa == sb) return 0;
@@ -1956,14 +1974,26 @@ xaccSplitGetBook (const Split *split)
 const char *
 xaccSplitGetType(const Split *s)
 {
-    GValue v = G_VALUE_INIT;
-    const char *split_type = NULL;
-
     if (!s) return NULL;
-    qof_instance_get_kvp (QOF_INSTANCE (s), &v, 1, "split-type");
-    if (G_VALUE_HOLDS_STRING (&v))
-        split_type = g_value_get_string (&v);
-    return split_type ? split_type : "normal";
+    if (s->split_type == is_unset)
+    {
+        GValue v = G_VALUE_INIT;
+        Split *split = (Split*) s;
+        const char* type;
+        qof_instance_get_kvp (QOF_INSTANCE (s), &v, 1, "split-type");
+        type = G_VALUE_HOLDS_STRING (&v) ? g_value_get_string (&v) : NULL;
+        if (!type || !g_strcmp0 (type, split_type_normal))
+            split->split_type = (char*) split_type_normal;
+        else if (!g_strcmp0 (type, split_type_stock_split))
+            split->split_type = (char*) split_type_stock_split;
+        else
+        {
+            PERR ("unexpected split-type %s, reset to normal.", type);
+            split->split_type = split_type_normal;
+        }
+        g_value_unset (&v);
+    }
+    return s->split_type;
 }
 
 /* reconfigure a split to be a stock split - after this, you shouldn't
@@ -1976,12 +2006,14 @@ xaccSplitMakeStockSplit(Split *s)
 
     s->value = gnc_numeric_zero();
     g_value_init (&v, G_TYPE_STRING);
-    g_value_set_string (&v, "stock-split");
+    g_value_set_static_string (&v, split_type_stock_split);
+    s->split_type = split_type_stock_split;
     qof_instance_set_kvp (QOF_INSTANCE (s), &v, 1, "split-type");
     SET_GAINS_VDIRTY(s);
     mark_split(s);
     qof_instance_set_dirty(QOF_INSTANCE(s));
     xaccTransCommitEdit(s->parent);
+    g_value_unset (&v);
 }
 
 void
@@ -2064,45 +2096,27 @@ xaccSplitMergePeerSplits (Split *split, const Split *other_split)
 Split *
 xaccSplitGetOtherSplit (const Split *split)
 {
-    int i;
     Transaction *trans;
-    int count, num_splits;
     Split *other = NULL;
-    gboolean lot_split;
-    gboolean trading_accts;
 
     if (!split) return NULL;
     trans = split->parent;
     if (!trans) return NULL;
 
-    trading_accts = xaccTransUseTradingAccounts (trans);
-    num_splits = xaccTransCountSplits(trans);
-    count = num_splits;
-    lot_split = qof_instance_has_slot(QOF_INSTANCE (split), "lot-split");
-    if (!lot_split && !trading_accts && (2 != count)) return NULL;
-
-    for (i = 0; i < num_splits; i++)
+    for (GList *n = xaccTransGetSplitList (trans); n; n = n->next)
     {
-        Split *s = xaccTransGetSplit(trans, i);
-        if (s == split)
-        {
-            --count;
+        Split *s = n->data;
+        if ((s == split) ||
+            (xaccAccountGetType (xaccSplitGetAccount (s)) == ACCT_TYPE_TRADING) ||
+            (qof_instance_has_slot (QOF_INSTANCE (s), "lot-split")))
             continue;
-        }
-        if (qof_instance_has_slot (QOF_INSTANCE (s), "lot-split"))
-        {
-            --count;
-            continue;
-        }
-        if (trading_accts &&
-            xaccAccountGetType(xaccSplitGetAccount(s)) == ACCT_TYPE_TRADING)
-        {
-            --count;
-            continue;
-        }
+
+        if (other)
+            return NULL;
+
         other = s;
     }
-    return (1 == count) ? other : NULL;
+    return other;
 }
 
 /********************************************************************\
@@ -2113,11 +2127,14 @@ xaccSplitVoidFormerAmount(const Split *split)
 {
     GValue v = G_VALUE_INIT;
     gnc_numeric *num = NULL;
+    gnc_numeric retval;
     g_return_val_if_fail(split, gnc_numeric_zero());
     qof_instance_get_kvp (QOF_INSTANCE (split), &v, 1, void_former_amt_str);
     if (G_VALUE_HOLDS_BOXED (&v))
         num = (gnc_numeric*)g_value_get_boxed (&v);
-    return num ? *num : gnc_numeric_zero();
+    retval = num ? *num : gnc_numeric_zero();
+    g_value_unset (&v);
+    return retval;
 }
 
 gnc_numeric
@@ -2125,11 +2142,14 @@ xaccSplitVoidFormerValue(const Split *split)
 {
     GValue v = G_VALUE_INIT;
     gnc_numeric *num = NULL;
+    gnc_numeric retval;
     g_return_val_if_fail(split, gnc_numeric_zero());
     qof_instance_get_kvp (QOF_INSTANCE (split), &v, 1, void_former_val_str);
     if (G_VALUE_HOLDS_BOXED (&v))
         num = (gnc_numeric*)g_value_get_boxed (&v);
-    return num ? *num : gnc_numeric_zero();
+    retval = num ? *num : gnc_numeric_zero();
+    g_value_unset (&v);
+    return retval;
 }
 
 void
@@ -2142,6 +2162,7 @@ xaccSplitVoid(Split *split)
     num =  xaccSplitGetAmount(split);
     g_value_set_boxed (&v, &num);
     qof_instance_set_kvp (QOF_INSTANCE (split), &v, 1, void_former_amt_str);
+    g_value_reset (&v);
     num =  xaccSplitGetValue(split);
     g_value_set_boxed (&v, &num);
     qof_instance_set_kvp (QOF_INSTANCE (split), &v, 1, void_former_val_str);
@@ -2150,6 +2171,7 @@ xaccSplitVoid(Split *split)
     xaccSplitSetAmount (split, zero);
     xaccSplitSetValue (split, zero);
     xaccSplitSetReconcile(split, VREC);
+    g_value_unset (&v);
 }
 
 void

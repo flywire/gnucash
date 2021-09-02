@@ -61,6 +61,11 @@ TEST(gnc_timezone_constructors, test_pacific_time_constructor)
     EXPECT_EQ(3, tz->dst_local_start_time (2017).date().month());
     EXPECT_EQ(5, tz->dst_local_end_time (2017).date().day());
     EXPECT_EQ(11, tz->dst_local_end_time (2017).date().month());
+//Check some post-2038 dates to make sure that it works even on macOS.
+    EXPECT_EQ(10, tz->dst_local_start_time (2052).date().day());
+    EXPECT_EQ(3, tz->dst_local_start_time (2052).date().month());
+    EXPECT_EQ(3, tz->dst_local_end_time (2052).date().day());
+    EXPECT_EQ(11, tz->dst_local_end_time (2052).date().month());
 }
 
 #if !PLATFORM(WINDOWS)
@@ -134,6 +139,13 @@ TEST(gnc_timezone_constructors, test_IANA_Belize_tz)
             EXPECT_EQ(tz->dst_zone_abbrev(), "CDT");
             EXPECT_EQ(tz->dst_offset().total_seconds(), 3600);
         }
+        /* An IANA update on 22 Dec 2020 added missing DST transitions
+         * for Belize between 1943 and 1967. Ignore those years until
+         * the oldest supported OS version release is later than that
+         * because distros updating of zoneinfo is spotty.
+         */
+        else if (year >= 1943 && year <= 1967)
+            continue;
         else
         {
             EXPECT_EQ(tz->std_zone_abbrev(), "CST");

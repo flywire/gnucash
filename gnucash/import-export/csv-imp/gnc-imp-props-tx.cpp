@@ -20,14 +20,15 @@
  *                                                                  *
 \********************************************************************/
 
+#include <glib.h>
+#include <glib/gi18n.h>
+
 extern "C" {
 #include <platform.h>
 #if PLATFORM(WINDOWS)
 #include <windows.h>
 #endif
 
-#include <glib.h>
-#include <glib/gi18n.h>
 
 #include "engine-helpers.h"
 #include "gnc-csv-account-map.h"
@@ -39,10 +40,19 @@ extern "C" {
 
 }
 
+#include <algorithm>
+#include <exception>
+#include <map>
 #include <string>
+#include <vector>
+
+#include <boost/locale.hpp>
 #include <boost/regex.hpp>
 #include <boost/regex/icu.hpp>
+#include <gnc-locale-utils.hpp>
 #include "gnc-imp-props-tx.hpp"
+
+namespace bl = boost::locale;
 
 G_GNUC_UNUSED static QofLogModule log_module = GNC_MOD_IMPORT;
 
@@ -126,12 +136,12 @@ GncNumeric parse_amount (const std::string &str, int currency_format)
         break;
     case 1:
         /* Currency decimal period */
-        if (!(xaccParseAmountExtended (str_no_symbols.c_str(), TRUE, '-', '.', ',', "\003\003", "$+", &val, &endptr)))
+        if (!(xaccParseAmountExtended (str_no_symbols.c_str(), TRUE, '-', '.', ',', "$+", &val, &endptr)))
             throw std::invalid_argument (_("Value can't be parsed into a number using the selected currency format."));
         break;
     case 2:
         /* Currency decimal comma */
-        if (!(xaccParseAmountExtended (str_no_symbols.c_str(), TRUE, '-', ',', '.', "\003\003", "$+", &val, &endptr)))
+        if (!(xaccParseAmountExtended (str_no_symbols.c_str(), TRUE, '-', ',', '.', "$+", &val, &endptr)))
             throw std::invalid_argument (_("Value can't be parsed into a number using the selected currency format."));
         break;
     }
@@ -280,17 +290,17 @@ void GncPreTrans::set (GncTransPropType prop_type, const std::string& value)
     }
     catch (const std::invalid_argument& e)
     {
-        auto err_str = std::string(_(gnc_csv_col_type_strs[prop_type])) +
-                       std::string(_(" could not be understood.\n")) +
-                       e.what();
+        auto err_str = (bl::format (bl::translate ("Column '{1}' could not be understood.\n")) %
+                        bl::translate (gnc_csv_col_type_strs[prop_type])).str(gnc_get_boost_locale()) +
+                        e.what();
         m_errors.emplace(prop_type, err_str);
         throw std::invalid_argument (err_str);
     }
     catch (const std::out_of_range& e)
     {
-        auto err_str = std::string(_(gnc_csv_col_type_strs[prop_type])) +
-                       std::string(_(" could not be understood.\n")) +
-                       e.what();
+        auto err_str = (bl::format (bl::translate ("Column '{1}' could not be understood.\n")) %
+                        bl::translate (gnc_csv_col_type_strs[prop_type])).str(gnc_get_boost_locale()) +
+                        e.what();
         m_errors.emplace(prop_type, err_str);
         throw std::invalid_argument (err_str);
     }
@@ -499,17 +509,17 @@ void GncPreSplit::set (GncTransPropType prop_type, const std::string& value)
     }
     catch (const std::invalid_argument& e)
     {
-        auto err_str = std::string(_(gnc_csv_col_type_strs[prop_type])) +
-                       std::string(_(" could not be understood.\n")) +
-                       e.what();
+        auto err_str = (bl::format (bl::translate ("Column '{1}' could not be understood.\n")) %
+                        bl::translate (gnc_csv_col_type_strs[prop_type])).str(gnc_get_boost_locale()) +
+                        e.what();
         m_errors.emplace(prop_type, err_str);
         throw std::invalid_argument (err_str);
     }
     catch (const std::out_of_range& e)
     {
-        auto err_str = std::string(_(gnc_csv_col_type_strs[prop_type])) +
-                       std::string(_(" could not be understood.\n")) +
-                       e.what();
+        auto err_str = (bl::format (bl::translate ("Column '{1}' could not be understood.\n")) %
+                        bl::translate (gnc_csv_col_type_strs[prop_type])).str(gnc_get_boost_locale()) +
+                        e.what();
         m_errors.emplace(prop_type, err_str);
         throw std::invalid_argument (err_str);
     }
@@ -562,17 +572,17 @@ void GncPreSplit::add (GncTransPropType prop_type, const std::string& value)
     }
     catch (const std::invalid_argument& e)
     {
-        auto err_str = std::string(_(gnc_csv_col_type_strs[prop_type])) +
-        std::string(_(" could not be understood.\n")) +
-        e.what();
+        auto err_str = (bl::format (bl::translate ("Column '{1}' could not be understood.\n")) %
+                        bl::translate (gnc_csv_col_type_strs[prop_type])).str(gnc_get_boost_locale()) +
+                        e.what();
         m_errors.emplace(prop_type, err_str);
         throw std::invalid_argument (err_str);
     }
     catch (const std::out_of_range& e)
     {
-        auto err_str = std::string(_(gnc_csv_col_type_strs[prop_type])) +
-        std::string(_(" could not be understood.\n")) +
-        e.what();
+        auto err_str = (bl::format (bl::translate ("Column '{1}' could not be understood.\n")) %
+                        bl::translate (gnc_csv_col_type_strs[prop_type])).str(gnc_get_boost_locale()) +
+                        e.what();
         m_errors.emplace(prop_type, err_str);
         throw std::invalid_argument (err_str);
     }

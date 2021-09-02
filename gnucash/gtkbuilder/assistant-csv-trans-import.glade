@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.22.1 -->
+<!-- Generated with glade 3.36.0 -->
 <interface>
-  <requires lib="gtk+" version="3.10"/>
+  <requires lib="gtk+" version="3.22"/>
   <object class="GtkListStore" id="account_match_store">
     <columns>
       <!-- column-name import_string -->
@@ -33,6 +33,15 @@
     <signal name="close" handler="csv_tximp_assist_close_cb" swapped="no"/>
     <signal name="destroy" handler="csv_tximp_assist_close_cb" swapped="no"/>
     <signal name="prepare" handler="csv_tximp_assist_prepare_cb" swapped="no"/>
+    <child type="titlebar">
+      <placeholder/>
+    </child>
+    <child type="titlebar">
+      <placeholder/>
+    </child>
+    <child type="titlebar">
+      <placeholder/>
+    </child>
     <child>
       <placeholder/>
     </child>
@@ -42,8 +51,8 @@
         <property name="can_focus">False</property>
         <property name="halign">start</property>
         <property name="valign">start</property>
-        <property name="margin_left">12</property>
-        <property name="margin_right">12</property>
+        <property name="margin_start">12</property>
+        <property name="margin_end">12</property>
         <property name="label" translatable="yes">This assistant will help you import a delimited file containing a list of transactions. It supports both token separated files (such as comma separated or semi-colon separated) and fixed width data.
 
 For a successful import three columns have to be available in the import data:
@@ -57,7 +66,7 @@ Apart from a choice of delimiter, there are several options to tweak the importe
 
 The importer can handle files where transactions are split over multiple lines, with each line representing one split.
 
-Lastly, for repeated imports the preview page has buttons to Load and Save the settings. To save the settings, tweak the settings to your preferences (optionally starting from an existing preset), then (optionally change the settings name and press the Save Settings button. Note you can't save to built-in presets.</property>
+Lastly, for repeated imports the preview page has buttons to Load and Save the settings. You can save your adjusted settings to reuse them on later imports. After loading your settings you can also tweak them again for similar imports and save them under another name.</property>
         <property name="wrap">True</property>
       </object>
       <packing>
@@ -78,7 +87,7 @@ Lastly, for repeated imports the preview page has buttons to Load and Save the s
             <property name="visible">True</property>
             <property name="can_focus">False</property>
             <property name="label" translatable="yes">
-Select location and file name for the Import, then click 'OK'...
+Select location and file name for the Import, then click "OK"...
 </property>
             <property name="wrap">True</property>
           </object>
@@ -200,8 +209,8 @@ There are two reserved names which can't be used to save custom settings:
                   <object class="GtkBox" id="vbox1">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="margin_left">6</property>
-                    <property name="margin_right">6</property>
+                    <property name="margin_start">6</property>
+                    <property name="margin_end">6</property>
                     <property name="orientation">vertical</property>
                     <child>
                       <object class="GtkGrid" id="table4">
@@ -436,8 +445,7 @@ There are two reserved names which can't be used to save custom settings:
                               <object class="GtkLabel" id="label2">
                                 <property name="visible">True</property>
                                 <property name="can_focus">False</property>
-                                <property name="label" translatable="yes">•</property>
-                                <property name="use_markup">True</property>
+                                <property name="label">•</property>
                                 <property name="wrap">True</property>
                               </object>
                               <packing>
@@ -451,7 +459,6 @@ There are two reserved names which can't be used to save custom settings:
                                 <property name="can_focus">False</property>
                                 <property name="halign">start</property>
                                 <property name="label" translatable="yes">Double-click anywhere on the table below to insert a column break</property>
-                                <property name="use_markup">True</property>
                                 <property name="wrap">True</property>
                                 <property name="xalign">0</property>
                               </object>
@@ -464,8 +471,7 @@ There are two reserved names which can't be used to save custom settings:
                               <object class="GtkLabel" id="label4">
                                 <property name="visible">True</property>
                                 <property name="can_focus">False</property>
-                                <property name="label" translatable="yes">•</property>
-                                <property name="use_markup">True</property>
+                                <property name="label">•</property>
                                 <property name="wrap">True</property>
                               </object>
                               <packing>
@@ -479,7 +485,6 @@ There are two reserved names which can't be used to save custom settings:
                                 <property name="can_focus">False</property>
                                 <property name="halign">start</property>
                                 <property name="label" translatable="yes">Right-click anywhere in a column to modify it (widen, narrow, merge)</property>
-                                <property name="use_markup">True</property>
                                 <property name="wrap">True</property>
                                 <property name="xalign">0</property>
                               </object>
@@ -581,8 +586,8 @@ To know which lines belong to the same transaction, the importer will compare th
                       <object class="GtkGrid" id="table3">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="margin_left">6</property>
-                        <property name="margin_right">6</property>
+                        <property name="margin_start">6</property>
+                        <property name="margin_end">6</property>
                         <property name="margin_bottom">3</property>
                         <property name="row_spacing">6</property>
                         <property name="column_spacing">6</property>
@@ -706,8 +711,8 @@ To know which lines belong to the same transaction, the importer will compare th
                           <object class="GtkSeparator" id="hseparator2">
                             <property name="visible">True</property>
                             <property name="can_focus">False</property>
-                            <property name="margin_left">3</property>
-                            <property name="margin_right">3</property>
+                            <property name="margin_start">3</property>
+                            <property name="margin_end">3</property>
                           </object>
                           <packing>
                             <property name="left_attach">0</property>
@@ -1067,8 +1072,8 @@ For example
           <object class="GtkLabel" id="label8">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
-            <property name="margin_left">12</property>
-            <property name="margin_right">12</property>
+            <property name="margin_start">12</property>
+            <property name="margin_end">12</property>
             <property name="label" translatable="yes">If you click "Next" Gnucash will perform a number of checks.
 
 If one of those &lt;i&gt;checks fails&lt;/i&gt; you'll be automatically redirected to the preview page to try and correct.
@@ -1155,6 +1160,20 @@ More information can be displayed by using the help button.</property>
     </child>
     <child>
       <placeholder/>
+    </child>
+    <child type="titlebar">
+      <placeholder/>
+    </child>
+    <child type="titlebar">
+      <placeholder/>
+    </child>
+    <child type="titlebar">
+      <placeholder/>
+    </child>
+    <child internal-child="action_area">
+      <object class="GtkBox">
+        <property name="can_focus">False</property>
+      </object>
     </child>
   </object>
 </interface>

@@ -74,6 +74,7 @@
      (gnc:lookup-option (gnc:report-options report-obj) section name)))
 
   (define (get-all-lots splits)
+    (define lots-seen (make-hash-table))
     (let lp ((splits splits) (lots '()))
       (match splits
         (() (reverse lots))
@@ -82,8 +83,9 @@
            (lp rest
                (cond
                 ((null? lot) lots)
-                ((member lot lots) lots) ;warning: O(N^2)!
-                (else (cons lot lots)))))))))
+                ((hash-ref lots-seen lot) lots)
+                (else (hash-set! lots-seen lot #t)
+                      (cons lot lots)))))))))
 
   (let* ((to-date (gnc:time64-end-day-time
                    (gnc:date-option-absolute-time
@@ -102,7 +104,8 @@
          (splits
           (let ((query (qof-query-create-for-splits)))
             (qof-query-set-book query (gnc-get-current-book))
-            (gnc:query-set-match-non-voids-only! query (gnc-get-current-book))
+            (xaccQueryAddClearedMatch
+             query (logand CLEARED-ALL (lognot CLEARED-VOIDED)) QOF-QUERY-AND)
             (xaccQueryAddSingleAccountMatch query account QOF-QUERY-AND)
             (xaccQueryAddDateMatchTT query #t from-date #t to-date QOF-QUERY-AND)
             (filter desc-filter? (qof-query-run query))))
@@ -166,7 +169,7 @@
                  (#f #f #f ,@(map lot->guid lots) #f)))
 
         (gnc:html-table-append-row!
-         table `(#f "Document" #f ,@(map lot->document lots)))
+         table `(#f "Document" #f ,@(map lot->document lots) #f))
 
         (for-each
          (lambda (txn)
@@ -189,7 +192,7 @@
          (sort transactions (lambda (a b) (< (xaccTransOrder a b) 0))))
 
         (gnc:html-table-append-row!
-         table `(#f "Balance" #f ,@(map lot->balance lots)))
+         table `(#f "Balance" #f ,@(map lot->balance lots) #f))
 
         (gnc:html-document-add-object! document table))))
 

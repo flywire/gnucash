@@ -24,20 +24,57 @@
 ;; Boston, MA  02110-1301,  USA       gnu@gnu.org
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+
+(define-module (gnucash qif-import qif-dialog-utils))
+
+(eval-when (compile load eval expand)
+  (load-extension "libgnc-gnome" "scm_init_sw_gnome_module"))
+
+(use-modules (srfi srfi-1))
+(use-modules (sw_gnome))
+(use-modules (gnucash core-utils))
+(use-modules (gnucash engine))
 (use-modules (gnucash string))
+(use-modules (gnucash app-utils))
+(use-modules (gnucash qif-import qif-objects))
+(use-modules (gnucash qif-import qif-guess-map))
+
+(export default-capital-return-acct)
+(export default-cglong-acct)
+(export default-cgmid-acct)
+(export default-cgshort-acct)
+(export default-commission-acct)
+(export default-dividend-acct)
+(export default-equity-account)
+(export default-equity-holding)
+(export default-interest-acct)
+(export default-margin-interest-acct)
+(export default-stock-acct)
+(export default-unspec-acct)
+(export qif-dialog:make-account-display)
+(export qif-dialog:make-category-display)
+(export qif-dialog:make-memo-display)
+(export qif-dialog:qif-file-loaded?)
+(export qif-dialog:unload-qif-file)
+(export qif-import:any-new-accts?)
+(export qif-import:get-account-name)
+(export qif-import:update-security-hash)
+(export qif-import:fix-from-acct)
+(export qif-import:get-all-accts)
+(export qif-import:refresh-match-selection)
 
 (define (default-stock-acct brokerage security)
   (string-append brokerage (gnc-get-account-separator-string) security))
 
 (define (default-dividend-acct brokerage security)
-  (string-append (_ "Income") (gnc-get-account-separator-string)
-                 (_ "Dividends") (gnc-get-account-separator-string)
+  (string-append (G_ "Income") (gnc-get-account-separator-string)
+                 (G_ "Dividends") (gnc-get-account-separator-string)
                  brokerage (gnc-get-account-separator-string)
                  security))
 
 (define (default-interest-acct brokerage security)
-  (string-append (_ "Income") (gnc-get-account-separator-string)
-                 (_ "Interest") (gnc-get-account-separator-string)
+  (string-append (G_ "Income") (gnc-get-account-separator-string)
+                 (G_ "Interest") (gnc-get-account-separator-string)
                  brokerage
                  (if (string=? security "")
                   ""
@@ -45,49 +82,49 @@
                                   security))))
 
 (define (default-capital-return-acct brokerage security)
-  (string-append (_ "Income") (gnc-get-account-separator-string)
-                 (_ "Cap Return") (gnc-get-account-separator-string)
+  (string-append (G_ "Income") (gnc-get-account-separator-string)
+                 (G_ "Cap Return") (gnc-get-account-separator-string)
                  brokerage (gnc-get-account-separator-string)
                  security))
 
 (define (default-cglong-acct brokerage security)
-  (string-append (_ "Income") (gnc-get-account-separator-string)
-                 (_ "Cap. gain (long)") (gnc-get-account-separator-string)
+  (string-append (G_ "Income") (gnc-get-account-separator-string)
+                 (G_ "Cap. gain (long)") (gnc-get-account-separator-string)
                  brokerage (gnc-get-account-separator-string)
                  security))
 
 (define (default-cgmid-acct brokerage security)
-  (string-append (_ "Income") (gnc-get-account-separator-string)
-                 (_ "Cap. gain (mid)") (gnc-get-account-separator-string)
+  (string-append (G_ "Income") (gnc-get-account-separator-string)
+                 (G_ "Cap. gain (mid)") (gnc-get-account-separator-string)
                  brokerage (gnc-get-account-separator-string)
                  security))
 
 (define (default-cgshort-acct brokerage security)
-  (string-append (_ "Income") (gnc-get-account-separator-string)
-                 (_ "Cap. gain (short)") (gnc-get-account-separator-string)
+  (string-append (G_ "Income") (gnc-get-account-separator-string)
+                 (G_ "Cap. gain (short)") (gnc-get-account-separator-string)
                  brokerage (gnc-get-account-separator-string)
                  security))
 
 (define (default-equity-holding security)
-  (string-append (_ "Equity") (gnc-get-account-separator-string)
-                 (_ "Retained Earnings")))
+  (string-append (G_ "Equity") (gnc-get-account-separator-string)
+                 (G_ "Retained Earnings")))
 
 (define (default-equity-account)
-  (string-append (_ "Equity") (gnc-get-account-separator-string)
-                 (_ "Retained Earnings")))
+  (string-append (G_ "Equity") (gnc-get-account-separator-string)
+                 (G_ "Retained Earnings")))
 
 (define (default-commission-acct brokerage)
-  (string-append (_ "Expenses") (gnc-get-account-separator-string)
-                 (_ "Commissions") (gnc-get-account-separator-string)
+  (string-append (G_ "Expenses") (gnc-get-account-separator-string)
+                 (G_ "Commissions") (gnc-get-account-separator-string)
                  brokerage))
 
 (define (default-margin-interest-acct brokerage)
-  (string-append (_ "Expenses") (gnc-get-account-separator-string)
-                 (_ "Margin Interest") (gnc-get-account-separator-string)
+  (string-append (G_ "Expenses") (gnc-get-account-separator-string)
+                 (G_ "Margin Interest") (gnc-get-account-separator-string)
                  brokerage))
 
 (define (default-unspec-acct)
-  (_ "Unspecified"))
+  (G_ "Unspecified"))
 
 ;; The following investment actions implicitly specify
 ;; the two accounts involved in the transaction.
@@ -412,8 +449,8 @@
     (set! retval
           (sort retval
                 (lambda (a b)
-                  (string<? (qif-map-entry:qif-name a)
-                            (qif-map-entry:qif-name b)))))
+                  (gnc:string-locale<? (qif-map-entry:qif-name a)
+                                       (qif-map-entry:qif-name b)))))
     retval))
 
 
@@ -532,8 +569,8 @@
     ;; sort by qif account name
     (set! retval (sort retval
                        (lambda (a b)
-                         (string<? (qif-map-entry:qif-name a)
-                                   (qif-map-entry:qif-name b)))))
+                         (gnc:string-locale<? (qif-map-entry:qif-name a)
+                                              (qif-map-entry:qif-name b)))))
     retval))
 
 ;; this one's like the other display builders, it just looks at the
@@ -624,8 +661,8 @@
     ;; sort by qif memo/payee name
     (set! retval (sort retval
                        (lambda (a b)
-                         (string<? (qif-map-entry:qif-name a)
-                                   (qif-map-entry:qif-name b)))))
+                         (gnc:string-locale<? (qif-map-entry:qif-name a)
+                                              (qif-map-entry:qif-name b)))))
     retval))
 
 
@@ -826,7 +863,7 @@
      #f acct-hash)
 
     (if (not (null? names))
-        (sort names string<?)
+        (sort names gnc:string-locale<?)
         #f)))
 
 ;; this is used within the dialog to get a list of all the new
@@ -867,7 +904,7 @@
                           (loop (car tree-left) (cdr tree-left))
                           (set! newtree (cons (cvt-to-tree path new?)
                                               newtree))))))
-              (sort newtree (lambda (a b) (string<? (car a) (car b))))))))
+              (sort newtree (lambda (a b) (gnc:string-locale<? (car a) (car b))))))))
 
 
   (let ((accts '())

@@ -21,42 +21,72 @@
 ;; Boston, MA  02110-1301,  USA       gnu@gnu.org
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(define-module (gnucash report html-style-sheet))
+
+(use-modules (srfi srfi-9))
 (use-modules (ice-9 match))
 (use-modules (gnucash core-utils))
+(use-modules (gnucash engine))
+(use-modules (gnucash utilities))
+(use-modules (gnucash app-utils))
+(use-modules (gnucash report html-document))
+(use-modules (gnucash report html-style-info))
+
+(export <html-style-sheet-template>)
+(export gnc:html-style-sheet-template?)
+(export gnc:html-style-sheet-template-version)
+(export gnc:html-style-sheet-template-set-version!)
+(export gnc:html-style-sheet-template-name)
+(export gnc:html-style-sheet-template-set-name!)
+(export gnc:html-style-sheet-template-options-generator)
+(export gnc:html-style-sheet-template-set-options-generator!)
+(export gnc:html-style-sheet-template-renderer)
+(export gnc:html-style-sheet-template-set-renderer!)
+(export gnc:html-style-sheet-template-find)
+(export gnc:define-html-style-sheet)
+(export <html-style-sheet>)
+(export gnc:html-style-sheet?)
+(export gnc:html-style-sheet-name)
+(export gnc:html-style-sheet-set-name!)
+(export gnc:html-style-sheet-type)
+(export gnc:html-style-sheet-set-type!)
+(export gnc:html-style-sheet-options)
+(export gnc:html-style-sheet-set-options!)
+(export gnc:html-style-sheet-renderer)
+(export gnc:html-style-sheet-set-renderer!)
+(export gnc:make-html-style-sheet-internal)
+(export gnc:html-style-sheet-style)
+(export gnc:html-style-sheet-set-style!)
+(export gnc:make-html-style-sheet)
+(export gnc:restore-html-style-sheet)
+(export gnc:html-style-sheet-apply-changes)
+(export gnc:html-style-sheet-render)
+(export gnc:get-html-style-sheets)
+(export gnc:get-html-templates)
+(export gnc:html-style-sheet-find)
+(export gnc:save-style-sheet-options)
+(export gnc:html-style-sheet-remove)
 
 (define *gnc:_style-sheet-templates_* (make-hash-table 23))
 (define *gnc:_style-sheets_* (make-hash-table 23))
 
-(define <html-style-sheet-template> 
-  (make-record-type "<html-style-sheet-template>" 
-                    '(version name options-generator renderer)))
+(define-record-type <html-style-sheet-template>
+  (make-ss-template version name options-generator renderer)
+  ss-template?
+  (version ss-template-version ss-template-set-version!)
+  (name ss-template-name ss-template-set-name!)
+  (options-generator ss-template-options-generator ss-template-set-options-generator!)
+  (renderer ss-template-renderer ss-template-set-renderer!))
 
-(define gnc:html-style-sheet-template? 
-  (record-predicate <html-style-sheet-template>))
-
-(define gnc:html-style-sheet-template-version
-  (record-accessor <html-style-sheet-template> 'version))
-
-(define gnc:html-style-sheet-template-set-version!
-  (record-modifier <html-style-sheet-template> 'version))
-
-(define gnc:html-style-sheet-template-name
-  (record-accessor <html-style-sheet-template> 'name))
-
-(define gnc:html-style-sheet-template-set-name!
-  (record-modifier <html-style-sheet-template> 'name))
-
-(define gnc:html-style-sheet-template-options-generator
-  (record-accessor <html-style-sheet-template> 'options-generator))
-
-(define gnc:html-style-sheet-template-set-options-generator!
-  (record-modifier <html-style-sheet-template> 'options-generator))
-
-(define gnc:html-style-sheet-template-renderer
-  (record-accessor <html-style-sheet-template> 'renderer))
-
-(define gnc:html-style-sheet-template-set-renderer!
-  (record-modifier <html-style-sheet-template> 'renderer))
+(define gnc:html-style-sheet-template? ss-template?)
+(define gnc:html-style-sheet-template-version ss-template-version)
+(define gnc:html-style-sheet-template-set-version! ss-template-set-version!)
+(define gnc:html-style-sheet-template-name ss-template-name)
+(define gnc:html-style-sheet-template-set-name! ss-template-set-name!)
+(define gnc:html-style-sheet-template-options-generator ss-template-options-generator)
+(define gnc:html-style-sheet-template-set-options-generator! ss-template-set-options-generator!)
+(define gnc:html-style-sheet-template-renderer ss-template-renderer)
+(define gnc:html-style-sheet-template-set-renderer! ss-template-set-renderer!)
 
 (define (gnc:html-style-sheet-template-find tname)
   (hash-ref *gnc:_style-sheet-templates_* tname))
@@ -68,56 +98,45 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define (gnc:define-html-style-sheet . args)
-  (let loop ((args args)
-             (ss ((record-constructor <html-style-sheet-template>) #f #f #f #f)))
+  (define allowable-fields (record-type-fields <html-style-sheet-template>))
+  (define (not-a-field? fld) (not (memq fld allowable-fields)))
+  (let loop ((args args) (ss (make-ss-template #f #f #f #f)))
     (match args
+      (()
+       (hash-set! *gnc:_style-sheet-templates_*
+                  (gnc:html-style-sheet-template-name ss) ss))
+
+      (((? not-a-field? fld) . _)
+       (gnc:error "gnc:define-html-style-sheet " fld " is not a valid field"))
+
       ((field value . rest)
        ((record-modifier <html-style-sheet-template> field) ss value)
-       (loop rest ss))
-      (else ;; store the style sheet template
-       (hash-set! *gnc:_style-sheet-templates_*
-                  (gnc:html-style-sheet-template-name ss) ss)))))
+       (loop rest ss)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; <html-style-sheet> methods 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define <html-style-sheet> 
-  (make-record-type "<html-style-sheet>" 
-                    '(name type options renderer style)))
+(define-record-type <html-style-sheet>
+  (make-html-ss name type options renderer style)
+  html-ss?
+  (name ss-name ss-set-name!)
+  (type ss-type ss-set-type!)
+  (options ss-options ss-set-options!)
+  (renderer ss-renderer ss-set-renderer!)
+  (style ss-style))
 
-(define gnc:html-style-sheet? 
-  (record-predicate <html-style-sheet>))
-
-(define gnc:html-style-sheet-name
-  (record-accessor <html-style-sheet> 'name))
-
-(define gnc:html-style-sheet-set-name!
-  (record-modifier <html-style-sheet> 'name))
-
-(define gnc:html-style-sheet-type
-  (record-accessor <html-style-sheet> 'type))
-
-(define gnc:html-style-sheet-set-type!
-  (record-modifier <html-style-sheet> 'type))
-
-(define gnc:html-style-sheet-options
-  (record-accessor <html-style-sheet> 'options))
-
-(define gnc:html-style-sheet-set-options!
-  (record-modifier <html-style-sheet> 'options))
-
-(define gnc:html-style-sheet-renderer
-  (record-accessor <html-style-sheet> 'renderer))
-
-(define gnc:html-style-sheet-set-renderer!
-  (record-modifier <html-style-sheet> 'renderer))
-
-(define gnc:make-html-style-sheet-internal
-  (record-constructor <html-style-sheet>))
-
-(define gnc:html-style-sheet-style
-  (record-accessor <html-style-sheet> 'style))
+(define gnc:make-html-style-sheet-internal make-html-ss)
+(define gnc:html-style-sheet? html-ss?)
+(define gnc:html-style-sheet-name ss-name)
+(define gnc:html-style-sheet-set-name! ss-set-name!)
+(define gnc:html-style-sheet-type ss-type)
+(define gnc:html-style-sheet-set-type! ss-set-type!)
+(define gnc:html-style-sheet-options ss-options)
+(define gnc:html-style-sheet-set-options! ss-set-options!)
+(define gnc:html-style-sheet-renderer ss-renderer)
+(define gnc:html-style-sheet-set-renderer! ss-set-renderer!)
+(define gnc:html-style-sheet-style ss-style)
 
 (define gnc:current-saved-stylesheets
   (gnc-build-userdata-path "stylesheets-2.0"))
@@ -127,7 +146,7 @@
                (open gnc:current-saved-stylesheets
                      (logior O_WRONLY O_CREAT O_TRUNC)))))
     (if (not port)
-        (gnc:warn (_ "Can't save style sheet"))
+        (gnc:warn (G_ "Can't save style sheet"))
         (begin
           (hash-fold
            (lambda (id ss-obj p)
@@ -154,65 +173,31 @@
        (apply gnc:make-html-data-style-info rest)
        (apply gnc:make-html-markup-style-info rest))))
 
-(define (gnc:make-html-style-sheet template-name style-sheet-name)
-  (let* ((template (gnc:html-style-sheet-template-find template-name)))
-    (if template
-        (let ((rv (gnc:make-html-style-sheet-internal 
-                   style-sheet-name template-name 
-                   ((gnc:html-style-sheet-template-options-generator template))
-                   (gnc:html-style-sheet-template-renderer template)
-                   (gnc:make-html-style-table))))
-          ;; set up the fallback data styles for every rendered document 
-          (gnc:html-style-sheet-set-style! 
-           rv "<string>" 
-           gnc:default-html-string-renderer #f)
-          
-          (gnc:html-style-sheet-set-style! 
-           rv "<gnc-numeric>" 
-           gnc:default-html-gnc-numeric-renderer #f)
-          
-          (gnc:html-style-sheet-set-style!
-           rv "<number>" 
-           gnc:default-html-number-renderer #f)
-          
-          (gnc:html-style-sheet-set-style!
-           rv "<gnc-monetary>" 
-           gnc:default-html-gnc-monetary-renderer #f)
+(define (make-html-style-sheet-internal template-name style-sheet-name options)
+  (define template (gnc:html-style-sheet-template-find template-name))
+  (define fallback-styles
+    (list (cons "<string>" gnc:default-html-string-renderer)
+          (cons "<gnc-numeric>" gnc:default-html-gnc-numeric-renderer)
+          (cons "<number>" gnc:default-html-number-renderer)
+          (cons ':gnc-monetary gnc:default-html-gnc-monetary-renderer)))
+  (and template
+       (let ((ss (gnc:make-html-style-sheet-internal
+                  style-sheet-name template-name
+                  (or options
+                      ((gnc:html-style-sheet-template-options-generator template)))
+                  (gnc:html-style-sheet-template-renderer template)
+                  (gnc:make-html-style-table))))
+         (for-each (lambda (pair)
+                     (gnc:html-style-sheet-set-style! ss (car pair) (cdr pair) #f))
+                   fallback-styles)
+         (hash-set! *gnc:_style-sheets_* style-sheet-name ss)
+         ss)))
 
-          ;; store it in the style sheet hash 
-          (hash-set! *gnc:_style-sheets_* style-sheet-name rv)
-          rv)
-        #f)))
+(define (gnc:make-html-style-sheet template-name style-sheet-name)
+  (make-html-style-sheet-internal template-name style-sheet-name #f))
 
 (define (gnc:restore-html-style-sheet style-sheet-name template-name options)
-  (let* ((template (gnc:html-style-sheet-template-find template-name)))
-    (if template
-        (let ((rv (gnc:make-html-style-sheet-internal 
-                   style-sheet-name template-name 
-                   options
-                   (gnc:html-style-sheet-template-renderer template)
-                   (gnc:make-html-style-table))))
-          ;; set up the fallback data styles for every rendered document 
-          (gnc:html-style-sheet-set-style! 
-           rv "<string>" 
-           gnc:default-html-string-renderer #f)
-          
-          (gnc:html-style-sheet-set-style! 
-           rv "<gnc-numeric>" 
-           gnc:default-html-gnc-numeric-renderer #f)
-          
-          (gnc:html-style-sheet-set-style!
-           rv "<number>" 
-           gnc:default-html-number-renderer #f)
-          
-          (gnc:html-style-sheet-set-style!
-           rv "<gnc-monetary>" 
-           gnc:default-html-gnc-monetary-renderer #f)
-          
-          ;; store it in the style sheet hash 
-          (hash-set! *gnc:_style-sheets_* style-sheet-name rv)
-          rv)
-        #f)))
+  (make-html-style-sheet-internal template-name style-sheet-name options))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -258,14 +243,14 @@
 (define (gnc:get-html-style-sheets)
   (sort (map cdr (hash-map->list cons *gnc:_style-sheets_*))
         (lambda (a b)
-          (string<? (gnc:html-style-sheet-name a)
-                    (gnc:html-style-sheet-name b)))))
+          (gnc:string-locale<? (gnc:html-style-sheet-name a)
+                               (gnc:html-style-sheet-name b)))))
 
 (define (gnc:get-html-templates)
   (sort (map cdr (hash-map->list cons *gnc:_style-sheet-templates_*))
         (lambda (a b)
-          (string<? (gnc:html-style-sheet-template-name a)
-                    (gnc:html-style-sheet-template-name b)))))
+          (gnc:string-locale<? (gnc:html-style-sheet-template-name a)
+                               (gnc:html-style-sheet-template-name b)))))
 
 (define (gnc:html-style-sheet-find tname)
   (hash-ref *gnc:_style-sheets_* tname))

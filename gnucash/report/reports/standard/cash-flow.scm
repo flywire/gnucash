@@ -33,8 +33,7 @@
 (use-modules (gnucash core-utils))
 (use-modules (gnucash app-utils))
 (use-modules (gnucash report))
-
-(export cash-flow-calc-money-in-out)
+(use-modules (gnucash reports cash-flow-calc))
 
 (define reportname (N_ "Cash Flow"))
 
@@ -150,6 +149,8 @@
          (exchange-fn (gnc:case-exchange-fn
                        price-source report-currency to-date-t64))
 
+         (price-fn (gnc:case-price-fn price-source report-currency to-date-t64))
+
          (doc (gnc:make-html-document))
          (table (gnc:make-html-table))
 
@@ -157,7 +158,7 @@
          (accounts (if show-subaccts?
                        (gnc:accounts-and-all-descendants accounts)
                        accounts))
-         (accounts (sort accounts account-full-name<?)))
+         (accounts (sort accounts gnc:account-full-name<?)))
 
     (define (add-accounts-flow accounts accounts-alist)
       (let loop ((accounts accounts)
@@ -186,13 +187,13 @@
      doc (string-append
           (get-option gnc:pagename-general gnc:optname-reportname)
           " - "
-          (format #f (_ "~a to ~a")
+          (format #f (G_ "~a to ~a")
                   (qof-print-date from-date-t64) (qof-print-date to-date-t64))))
 
     (if (not (null? accounts))
 
         (let* ((tree-depth (if (equal? display-depth 'all)
-                               (accounts-get-children-depth accounts)
+                               (gnc:accounts-get-children-depth accounts)
                                display-depth))
                (account-disp-list
                 (map
@@ -201,8 +202,8 @@
                     (if (and (= (gnc-account-get-current-depth account) tree-depth)
                              (pair? (gnc-account-get-children account)))
                         (if show-subaccts?
-                            (_ "~a and subaccounts")
-                            (_ "~a and selected subaccounts"))
+                            (G_ "~a and subaccounts")
+                            (G_ "~a and selected subaccounts"))
                         "~a")
                     (gnc:html-markup-anchor
                      (gnc:account-anchor-text account)
@@ -241,18 +242,18 @@
                                (cons 'to-report-currency to-report-currency)))))
             (let ((money-in-accounts (sort
                                       (cdr (assq 'money-in-accounts result))
-                                      account-full-name<?))
+                                      gnc:account-full-name<?))
                   (money-in-alist (cdr (assq 'money-in-alist result)))
                   (money-in-collector (cdr (assq 'money-in-collector result)))
                   (money-out-accounts (sort
                                        (cdr (assq 'money-out-accounts result))
-                                       account-full-name<?))
+                                       gnc:account-full-name<?))
                   (money-out-alist (cdr (assq 'money-out-alist result)))
                   (money-out-collector (cdr (assq 'money-out-collector result))))
 
               (gnc:html-document-add-object!
                doc
-               (gnc:make-html-text (_ "Selected Accounts")))
+               (gnc:make-html-text (G_ "Selected Accounts")))
 
               (gnc:html-document-add-object!
                doc
@@ -266,7 +267,7 @@
                table
                "primary-subheading"
                (list
-                (_ "Money into selected accounts comes from")
+                (G_ "Money into selected accounts comes from")
                 ""))
 
               (add-accounts-flow money-in-accounts money-in-alist)
@@ -275,7 +276,7 @@
                table
                "grand-total"
                (list
-                (gnc:make-html-table-header-cell/markup "text-cell" (_ "Money In"))
+                (gnc:make-html-table-header-cell/markup "text-cell" (G_ "Money In"))
                 (gnc:make-html-table-header-cell/markup
                  "total-number-cell"
                  (gnc:sum-collector-commodity
@@ -287,7 +288,7 @@
                table
                "primary-subheading"
                (list
-                (_ "Money out of selected accounts goes to")
+                (G_ "Money out of selected accounts goes to")
                 ""))
 
               (add-accounts-flow money-out-accounts money-out-alist)
@@ -296,7 +297,7 @@
                table
                "grand-total"
                (list
-                (gnc:make-html-table-header-cell/markup "text-cell" (_ "Money Out"))
+                (gnc:make-html-table-header-cell/markup "text-cell" (G_ "Money Out"))
                 (gnc:make-html-table-header-cell/markup
                  "total-number-cell"
                  (gnc:sum-collector-commodity
@@ -308,7 +309,7 @@
                table
                "grand-total"
                (list
-                (gnc:make-html-table-header-cell/markup "text-cell" (_ "Difference"))
+                (gnc:make-html-table-header-cell/markup "text-cell" (G_ "Difference"))
                 (gnc:make-html-table-header-cell/markup
                  "total-number-cell"
                  (gnc:sum-collector-commodity
@@ -322,8 +323,8 @@
               (if show-rates?
                   (gnc:html-document-add-object!
                    doc ;;(gnc:html-markup-p
-                   (gnc:html-make-exchangerates
-                    report-currency exchange-fn accounts))))))
+                   (gnc:html-make-rates-table
+                    report-currency price-fn accounts))))))
 
         ;; error condition: no accounts specified
 
@@ -335,82 +336,6 @@
     (gnc:report-finished)
     doc))
 
-
-;; function to add inflow and outflow of money
-(define (cash-flow-calc-money-in-out settings)
-  (let* ((accounts (cdr (assq 'accounts settings)))
-         (to-date-t64 (cdr (assq 'to-date-t64 settings)))
-         (from-date-t64 (cdr (assq 'from-date-t64 settings)))
-         (report-currency (cdr (assq 'report-currency settings)))
-         (include-trading-accounts
-          (cdr (assq 'include-trading-accounts settings)))
-         (to-report-currency (cdr (assq 'to-report-currency settings)))
-         (money-in '())
-         (money-in-collector (gnc:make-commodity-collector))
-         (money-out '())
-         (money-out-collector (gnc:make-commodity-collector))
-         (all-splits (gnc:account-get-trans-type-splits-interval
-                      accounts '() from-date-t64 to-date-t64))
-         (splits-to-do (length all-splits))
-         (splits-seen-list '()))
-
-    (let loop ((splits all-splits)
-               (work-done 0))
-      (unless (null? splits)
-        (if (zero? (modulo work-done 100))
-            (gnc:report-percent-done (* 85 (/ work-done splits-to-do))))
-        (let* ((split (car splits))
-               (parent (xaccSplitGetParent split)))
-          (for-each
-           (lambda (s)
-             (let* ((s-account (xaccSplitGetAccount s))
-                    (s-value (xaccSplitGetValue s))
-                    (s-report-value (to-report-currency (xaccTransGetCurrency parent)
-                                                        (abs s-value)
-                                                        (xaccTransGetDate parent))))
-               (cond
-                ((null? s-account)
-                 (format #t "WARNING: s-account is NULL for split: ~a\n"
-                         (gncSplitGetGUID s)))
-                ((or (and include-trading-accounts
-                          (eqv? (xaccAccountGetType s-account)
-                                ACCT-TYPE-TRADING))
-                     (member s-account accounts)
-                     (member s splits-seen-list))
-                 #f)
-                ((negative? s-value)
-                 (let ((s-account-in-collector
-                        (or (assoc-ref money-in s-account)
-                            (let ((coll (gnc:make-commodity-collector)))
-                              (set! money-in
-                                (assoc-set! money-in s-account coll))
-                              coll))))
-                   (set! splits-seen-list (cons s splits-seen-list))
-                   (money-in-collector 'add report-currency s-report-value)
-                   (s-account-in-collector
-                    'add report-currency s-report-value)))
-                ((positive? s-value)
-                 (let ((s-account-out-collector
-                        (or (assoc-ref money-out s-account)
-                            (let ((coll (gnc:make-commodity-collector)))
-                              (set! money-out
-                                (assoc-set! money-out s-account coll))
-                              coll))))
-                   (set! splits-seen-list (cons s splits-seen-list))
-                   (money-out-collector 'add report-currency s-report-value)
-                   (s-account-out-collector
-                    'add report-currency s-report-value))))))
-           (xaccTransGetSplitList parent)))
-        (loop (cdr splits) (1+ work-done))))
-
-    ;; Return an association list of results
-    (list
-     (cons 'money-in-accounts (map car money-in))
-     (cons 'money-in-alist (map (lambda (p) (list (car p) (cdr p))) money-in))
-     (cons 'money-in-collector money-in-collector)
-     (cons 'money-out-accounts (map car money-out))
-     (cons 'money-out-alist (map (lambda (p) (list (car p) (cdr p))) money-out))
-     (cons 'money-out-collector money-out-collector))))
 
 (gnc:define-report
  'version 1

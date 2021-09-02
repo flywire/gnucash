@@ -609,8 +609,11 @@ gnc_ui_print_restore_dialog(PrintCheckDialog *pcd)
     if (guid == NULL)
         gtk_combo_box_set_active(GTK_COMBO_BOX(pcd->format_combobox), 0);
     else if (strcmp(guid, "custom") == 0)
+    {
         gtk_combo_box_set_active(GTK_COMBO_BOX(pcd->format_combobox),
                                  pcd->format_max - 1);
+        g_free (guid);
+    }
     else
     {
         model = gtk_combo_box_get_model(GTK_COMBO_BOX(pcd->format_combobox));
@@ -622,7 +625,9 @@ gnc_ui_print_restore_dialog(PrintCheckDialog *pcd)
         {
             gtk_combo_box_set_active(GTK_COMBO_BOX(pcd->format_combobox), 0);
         }
+        g_free (guid);
     }
+
     active = gnc_prefs_get_int(GNC_PREFS_GROUP, GNC_PREF_CHECK_POSITION);
 
     /* If the check format used last time no longer exists, then the saved check
@@ -1510,11 +1515,11 @@ read_one_check_directory(PrintCheckDialog *pcd, GtkListStore *store,
             gtk_message_dialog_format_secondary_text
             (GTK_MESSAGE_DIALOG(dialog),
              /* Translators:
-              * %1$s is the type of the first check format
-              *  (user defined or application defined);
-              * %2$s is the filename of that format;
-              * %3$s the type of the other check format; and
-              * %4$s the filename of that other format.      */
+                %1$s is the type of the first check format
+                 (user defined or application defined);
+                %2$s is the filename of that format;
+                %3$s the type of the other check format; and
+                %4$s the filename of that other format.      */
              _("The GUIDs in the %s check format file '%s' and "
                "the %s check format file '%s' match."),
              existing->group, existing->filename,
@@ -1595,6 +1600,7 @@ initialize_format_combobox (PrintCheckDialog *pcd)
                             GTK_TREE_MODEL(store));
     gtk_combo_box_set_row_separator_func(GTK_COMBO_BOX(pcd->format_combobox),
                                          format_is_a_separator, NULL, NULL);
+    g_object_unref (store);
 }
 
 
@@ -2603,6 +2609,7 @@ gnc_print_check_format_changed (GtkComboBox *widget,
     }
     gtk_list_store_append(GTK_LIST_STORE(p_store), &iter);
     gtk_list_store_set (GTK_LIST_STORE(p_store), &iter, 0, _("Custom"), -1);
+    g_object_unref (p_store);
 
     /* If there's only one thing in the position combobox, make it insensitive */
     sensitive = (pcd->position_max > 0);
@@ -2670,7 +2677,7 @@ gnc_ui_print_check_response_cb(GtkDialog *dialog,
     switch (response)
     {
     case GTK_RESPONSE_HELP:
-        gnc_gnome_help(HF_HELP, HL_PRINTCHECK);
+        gnc_gnome_help (GTK_WINDOW(dialog), HF_HELP, HL_PRINTCHECK);
         return;
 
     case GTK_RESPONSE_OK:

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.22.1 -->
+<!-- Generated with glade 3.36.0 -->
 <interface>
-  <requires lib="gtk+" version="3.10"/>
+  <requires lib="gtk+" version="3.22"/>
   <object class="GtkAdjustment" id="end_row_adj">
     <property name="upper">1000</property>
     <property name="step_increment">1</property>
@@ -43,6 +43,15 @@
     <signal name="close" handler="csv_price_imp_assist_close_cb" swapped="no"/>
     <signal name="destroy" handler="csv_price_imp_assist_close_cb" swapped="no"/>
     <signal name="prepare" handler="csv_price_imp_assist_prepare_cb" swapped="no"/>
+    <child type="titlebar">
+      <placeholder/>
+    </child>
+    <child type="titlebar">
+      <placeholder/>
+    </child>
+    <child type="titlebar">
+      <placeholder/>
+    </child>
     <child>
       <placeholder/>
     </child>
@@ -51,8 +60,8 @@
         <property name="visible">True</property>
         <property name="can_focus">False</property>
         <property name="valign">start</property>
-        <property name="margin_left">12</property>
-        <property name="margin_right">12</property>
+        <property name="margin_start">12</property>
+        <property name="margin_end">12</property>
         <property name="label" translatable="yes" comments="You should localize the (british) examples to your region.">This assistant will help you import Prices from a CSV file.
 
 There is a minimum number of columns that have to be present for a successful import, these are Date, Amount, From Namespace, From Symbol and Currency To. If all entries are for the same Commodity / Currency then you can select them and then the columns will be Date and Amount.
@@ -61,9 +70,9 @@ Various options exist for specifying the delimiter as well as a fixed width opti
 
 Examples are "FTSE","RR.L","21/11/2016",5.345,"GBP" and CURRENCY;USD;2016-11-21;1.56;GBP
 
-There is an option for specifying the start row, end row and an option to skip alternate rows beginning from the start row which can be used if you have some header text. Also there is an option to over write existing prices for that day if required.
+There is an option for specifying the start row, end row and an option to skip alternate rows beginning from the start row which can be used if you have some header text. Also there is an option to overwrite existing prices for that day if required.
 
-Lastly, for repeated imports the preview page has buttons to Load and Save the settings. To save the settings, tweak the settings to your preferences (optionally starting from an existing preset), then (optionally change the settings name and press the Save Settings button. Note you can't save to built-in presets.
+Lastly, for repeated imports the preview page has buttons to Load and Save the settings. You can save your adjusted settings to reuse them on later imports. After loading your settings you can also tweak them again for similar imports and save them under another name. Note you can't save to built-in presets.
 
 This operation is not reversible, so make sure you have a working backup.
 
@@ -210,8 +219,8 @@ There are two reserved names which can't be used to save custom settings:
                   <object class="GtkBox" id="vbox1">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="margin_left">6</property>
-                    <property name="margin_right">6</property>
+                    <property name="margin_start">6</property>
+                    <property name="margin_end">6</property>
                     <property name="orientation">vertical</property>
                     <property name="spacing">3</property>
                     <child>
@@ -441,8 +450,7 @@ There are two reserved names which can't be used to save custom settings:
                               <object class="GtkLabel" id="label2">
                                 <property name="visible">True</property>
                                 <property name="can_focus">False</property>
-                                <property name="label" translatable="yes">•</property>
-                                <property name="use_markup">True</property>
+                                <property name="label">•</property>
                                 <property name="wrap">True</property>
                               </object>
                               <packing>
@@ -456,7 +464,6 @@ There are two reserved names which can't be used to save custom settings:
                                 <property name="can_focus">False</property>
                                 <property name="halign">start</property>
                                 <property name="label" translatable="yes">Double-click anywhere on the table below to insert a column break</property>
-                                <property name="use_markup">True</property>
                                 <property name="wrap">True</property>
                                 <property name="xalign">0</property>
                               </object>
@@ -469,8 +476,7 @@ There are two reserved names which can't be used to save custom settings:
                               <object class="GtkLabel" id="label4">
                                 <property name="visible">True</property>
                                 <property name="can_focus">False</property>
-                                <property name="label" translatable="yes">•</property>
-                                <property name="use_markup">True</property>
+                                <property name="label">•</property>
                                 <property name="wrap">True</property>
                               </object>
                               <packing>
@@ -484,7 +490,6 @@ There are two reserved names which can't be used to save custom settings:
                                 <property name="can_focus">False</property>
                                 <property name="halign">start</property>
                                 <property name="label" translatable="yes">Right-click anywhere in a column to modify it (widen, narrow, merge)</property>
-                                <property name="use_markup">True</property>
                                 <property name="wrap">True</property>
                                 <property name="xalign">0</property>
                               </object>
@@ -574,8 +579,8 @@ There are two reserved names which can't be used to save custom settings:
                   <object class="GtkGrid" id="table3">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="margin_left">6</property>
-                    <property name="margin_right">6</property>
+                    <property name="margin_start">6</property>
+                    <property name="margin_end">6</property>
                     <property name="margin_bottom">6</property>
                     <property name="row_spacing">6</property>
                     <property name="column_spacing">6</property>
@@ -697,8 +702,8 @@ There are two reserved names which can't be used to save custom settings:
                       <object class="GtkSeparator" id="hseparator2">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="margin_left">3</property>
-                        <property name="margin_right">3</property>
+                        <property name="margin_start">3</property>
+                        <property name="margin_end">3</property>
                       </object>
                       <packing>
                         <property name="left_attach">0</property>
@@ -890,8 +895,10 @@ For example
                   <object class="GtkLabel" id="label8">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="label" translatable="yes">&lt;b&gt;Currency To&lt;/b&gt;</property>
-                    <property name="use_markup">True</property>
+                    <property name="label" translatable="yes">Currency To</property>
+                    <attributes>
+                      <attribute name="weight" value="bold"/>
+                    </attributes>
                   </object>
                 </child>
               </object>
@@ -1016,8 +1023,8 @@ For example
           <object class="GtkLabel" id="finish_label">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
-            <property name="label" translatable="yes">&lt;b&gt;Press Apply to add the Prices.
-Cancel to abort.&lt;/b&gt;</property>
+            <property name="label" translatable="yes">&lt;b&gt;Press "Apply" to add the Prices.
+"Cancel" to abort.&lt;/b&gt;</property>
             <property name="use_markup">True</property>
             <property name="justify">center</property>
             <property name="wrap">True</property>
@@ -1066,6 +1073,20 @@ Cancel to abort.&lt;/b&gt;</property>
     </child>
     <child>
       <placeholder/>
+    </child>
+    <child type="titlebar">
+      <placeholder/>
+    </child>
+    <child type="titlebar">
+      <placeholder/>
+    </child>
+    <child type="titlebar">
+      <placeholder/>
+    </child>
+    <child internal-child="action_area">
+      <object class="GtkBox">
+        <property name="can_focus">False</property>
+      </object>
     </child>
   </object>
 </interface>

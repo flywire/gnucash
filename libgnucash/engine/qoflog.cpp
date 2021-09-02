@@ -24,6 +24,8 @@
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  *  02110-1301,  USA
  */
+#include <glib.h>
+#include <glib/gstdio.h>
 
 extern "C"
 {
@@ -34,8 +36,6 @@ extern "C"
 #include <windows.h>
 #endif
 
-#include <glib.h>
-#include <glib/gstdio.h>
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
 #else
@@ -48,10 +48,10 @@ extern "C"
 #include <string.h>
 #include <stdio.h>
 
-#undef G_LOG_DOMAIN
-#define G_LOG_DOMAIN "qof.log"
 }
 
+#undef G_LOG_DOMAIN
+#define G_LOG_DOMAIN "qof.log"
 #include "qof.h"
 #include "qoflog.h"
 #include <string>
@@ -221,7 +221,7 @@ qof_log_init_filename(const gchar* log_filename)
         if (fout != NULL && fout != stderr && fout != stdout)
             fclose(fout);
 
-        fname = g_strconcat(log_filename, ".XXXXXX.log", NULL);
+        fname = g_strconcat(log_filename, ".XXXXXX.log", nullptr);
 
         if ((fd = g_mkstemp(fname)) != -1)
         {
@@ -322,21 +322,13 @@ gboolean
 qof_log_check(QofLogModule domain, QofLogLevel level)
 {
 
-    if (!domain)
-    {
-        PWARN ("Domain not set");
-        return FALSE;
-    }
-
-    if (!level)
-    {
-        PWARN("0 is not a valid log level");
-        return FALSE;
-    }
     auto module = get_modules();
     // If the level is < the default then no need to look further.
     if (level < module->m_level)
         return TRUE;
+
+    if (!domain)
+        return FALSE;
 
     auto domain_vec = split_domain(domain);
 
@@ -458,7 +450,7 @@ qof_log_parse_log_config(const char *filename)
         str = g_strdup_printf ("%d", logger_max_name_length);
         if (qof_logger_format)
             g_free (qof_logger_format);
-        qof_logger_format = g_strconcat ("* %s %*s <%-", str, ".", str, "s> %*s%s%s", NULL);
+        qof_logger_format = g_strconcat ("* %s %*s <%-", str, ".", str, "s> %*s%s%s", nullptr);
 
         g_free (str);
         g_strfreev(levels);

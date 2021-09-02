@@ -4,25 +4,31 @@
 # Tor Harald Thorland <tortho@strigen.com>, 2005.
 # Kjartan Maraas <kmaraas@gnome.org>, 2005.
 # John Erling Blad <jeblad@gmail.com>, 2018
-#
-#
+# Allan Nordhøy <epost@anotheragency.no>, 2021.
 msgid ""
 msgstr ""
 "Project-Id-Version: gnucash-glossary 0.1\n"
-"Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-03-27 21:58+0100\n"
-"PO-Revision-Date: 2018-02-16 15:32+0100\n"
-"Last-Translator: John Erling Blad <jeblad@gmail.com>\n"
-"Language-Team: Norwegian/Bokmaal <i18n-nb@lister.ping.uio.no>\n"
+"Report-Msgid-Bugs-To: https://bugs.gnucash.org/enter_bug."
+"cgi?product=GnuCash&component=Translations\n"
+"POT-Creation-Date: 2021-01-10 08:00+0100\n"
+"PO-Revision-Date: 2021-02-03 08:41+0000\n"
+"Last-Translator: Allan Nordhøy <epost@anotheragency.no>\n"
+"Language-Team: Norwegian Bokmål <https://hosted.weblate.org/projects/gnucash/"
+"glossary/nb_NO/>\n"
 "Language: nb\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"X-Generator: Poedit 2.0.4\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Weblate 4.5-dev\n"
 
 #. "English Definition (Dear translator: This file will never be visible to the user! It should only serve as a tool for you, the translator. Nothing more.)"
 msgid "Term (Dear translator: This file will never be visible to the user!)"
-msgstr ""
+msgstr "Term (Kjære oversetter: Denne fila vil aldri ses av brukeren!)"
+
+#. "Opening and closing quote symbols and optionally their key combos like [altgr]+[Y]/[X]. Define the preferred style of quotation, see https://en.wikipedia.org/wiki/Quotation_mark#Summary_table"
+msgid "\"\""
+msgstr "«»"
 
 #. "A detailed record of money spent and received"
 msgid "account"
@@ -126,7 +132,7 @@ msgstr "handling: Minibank"
 
 #. "Transaction was an auto deposit"
 msgid "action: autoDep"
-msgstr ""
+msgstr "Handling: autoinnskudd"
 
 #. "-"
 msgid "action: buy"
@@ -142,11 +148,11 @@ msgstr "handling: automatisk overførsel"
 
 #. "transaction is a distribution (???)"
 msgid "action: dist"
-msgstr ""
+msgstr "handling:fordeling"
 
 #. "transaction is a dividend"
 msgid "action: div"
-msgstr ""
+msgstr "Handling: utbytte"
 
 #. "-"
 msgid "action: fee"
@@ -154,7 +160,7 @@ msgstr "handling: honorar"
 
 #. "transaction comes from interest"
 msgid "action: int"
-msgstr ""
+msgstr "handling: renter"
 
 #. "-"
 msgid "action: loan"
@@ -166,7 +172,7 @@ msgstr "handling: betaling"
 
 #. "Point of sale"
 msgid "action: POS"
-msgstr ""
+msgstr "handling: utsalgssted"
 
 #. "-"
 msgid "action: rebate"
@@ -186,7 +192,7 @@ msgstr "handling: overfør"
 
 #. "-"
 msgid "action: wire"
-msgstr ""
+msgstr "handling: overføring"
 
 #. "-"
 msgid "action: withdraw"
@@ -194,7 +200,7 @@ msgstr "handling: bankuttak"
 
 #. "As in: payable aging, or: receivable aging. The aging report categorizes payables or receivables based on time buckets. This gives an overview of which bills or invoices are overdue at which time in the future. "
 msgid "aging"
-msgstr ""
+msgstr "aldring"
 
 #. "A sum of money"
 msgid "amount"
@@ -209,14 +215,12 @@ msgid "balance (noun)"
 msgstr "saldo (substantiv)"
 
 #. "Balance brought forward - usually the first entry of an account statement containing the 'balance c/f' of the previous billing period or page"
-#, fuzzy
 msgid "balance b/f"
-msgstr "balanser, til"
+msgstr "balanse fremført"
 
 #. "Balance carried forward - usually the last entry of an account statement to be used as 'balance b/f' on the next billing period or page"
-#, fuzzy
 msgid "balance c/f"
-msgstr "balanser, til"
+msgstr "fremført balanse"
 
 #. "A written record of money received and paid out, showing the difference between the two total amounts"
 msgid "balance sheet"
@@ -244,7 +248,7 @@ msgstr "regningsbetingelser"
 
 #. "The dataset that encapsulates all the collections of entities (accounts etc.) in gnucash. The written records of the financial affairs of a business."
 msgid "Book"
-msgstr ""
+msgstr "Hovedbok"
 
 #. "Completing the records of financial affairs for a specific time period, e.g. at the end of the year."
 msgid "book closing"
@@ -296,11 +300,11 @@ msgstr "varelisting"
 
 #. "the smallest amount of a commodity that's traded (e.g. 1/100 for USD, 1 for most stocks)"
 msgid "commodity option: fraction"
-msgstr ""
+msgstr "handelsvarealternativ: brøkdel"
 
 #. "e.g. USD, DEM"
 msgid "commodity option: Symbol"
-msgstr ""
+msgstr "handelsvarealternativ: symbol"
 
 #. "interest which is earned on both the initial deposit and on any interest that has already been earned but left on deposit."
 msgid "compound interests"
@@ -330,6 +334,10 @@ msgstr "valuta"
 msgid "Custom"
 msgstr "Egendefinert"
 
+#. "Compact, well-structured presentation of informations. See https://en.wikipedia.org/wiki/Dashboard_(business)"
+msgid "dashboard"
+msgstr ""
+
 #. "The backend where the data is stored."
 msgid "database"
 msgstr "database"
@@ -356,7 +364,7 @@ msgstr "standard"
 
 #. "see credit"
 msgid "deposit (in the reconcile dialog)"
-msgstr ""
+msgstr "innskudd (i avstemmingsdialogen)"
 
 #. "The process of something becoming less valuable"
 msgid "depreciation"
@@ -373,6 +381,14 @@ msgstr "rabatt"
 #. "Important Buzzword :)"
 msgid "double entry"
 msgstr "dobbel bokføring"
+
+#. "Transactions or bills/invoices can contain a document link which links either to some file on the local disk or to some arbitrary URL."
+msgid "document link"
+msgstr "dokumentlenke"
+
+#. "Electronic mail. Some languages allow different writings, but each team should use only one. https://en.wikipedia.org/wiki/Email"
+msgid "email"
+msgstr "e-post"
 
 #. "a person who works for somebody or a company in return for wages"
 msgid "employee"
@@ -414,6 +430,16 @@ msgstr "finanskalkulator: rentesats"
 msgid "financial calculator: payments"
 msgstr "finanskalkulator: betalinger"
 
+#. "formal records of the financial activities and position of a business, person, or other entity. See https://en.wikipedia.org/wiki/Financial_statement for a list."
+#, fuzzy
+#| msgid "income statement"
+msgid "financial statement"
+msgstr "resultatoppstilling"
+
+#. "Free software is a matter of liberty, not price … see https://en.wikipedia.org/wiki/Free_software"
+msgid "free software"
+msgstr ""
+
 #. "An increase in wealth; profit; advantage (See also: capital gains)"
 msgid "gain"
 msgstr "fortjeneste"
@@ -450,8 +476,14 @@ msgstr "hovedbok"
 msgid "liabilities/equity"
 msgstr "gjeld/egenkapital"
 
-#. "A sum of money that is lent (by a bank)"
+#. "A sum of money that is lent (by a bank), see also: financial calculator, Mortgage"
 msgid "loan"
+msgstr "lån"
+
+#. "Annual Percentage Rate, includes in contrast to the Nominal Rate some of the various costs to obtain a loan."
+#, fuzzy
+#| msgid "loan"
+msgid "loan: APR"
 msgstr "lån"
 
 #. "The money lost in business activity"
@@ -488,6 +520,18 @@ msgstr "Notat"
 
 #. "(a) An agreement by which money is lent by a bank for buying a house or other property, the property being the security. (b) A sum of money lent in this way."
 msgid "Mortgage"
+msgstr "Panteheftelse"
+
+#. "Adjustable Rate Mortgage"
+#, fuzzy
+#| msgid "Mortgage"
+msgid "mortgage: ARM"
+msgstr "Panteheftelse"
+
+#. "Fixed Rate Mortgage"
+#, fuzzy
+#| msgid "Mortgage"
+msgid "mortgage: FRM"
 msgstr "Panteheftelse"
 
 #. "e.g. USD, DEM, see Currency."
@@ -576,7 +620,7 @@ msgstr "poster, til"
 
 #. "A menu choice in many graphical user interface applications that allows the user to specify how the application will act each time it is used. "
 msgid "preferences"
-msgstr "instillinger"
+msgstr "innstillinger"
 
 #. "Loan repayment calculator: your payments are split in interests payment and principal payment"
 msgid "principal payment"
@@ -608,7 +652,7 @@ msgstr "Resultat & Tap"
 
 #. "-"
 msgid "quick-fill"
-msgstr ""
+msgstr "hurtigutfylling"
 
 #. "-"
 msgid "rebalance, to (a transaction)"
@@ -636,7 +680,7 @@ msgstr "registeroppføring: aksje splitt"
 
 #. "one form of register"
 msgid "register: auto-split ledger"
-msgstr ""
+msgstr "register: autosplitt grunnbok"
 
 #. "another form of register"
 msgid "register: basic ledger"
@@ -698,7 +742,7 @@ msgstr "Andelsbalanse (register)"
 msgid "shares"
 msgstr "andeler"
 
-#. "(of a price) A place wfrom which sth comes or is obtained"
+#. "(often: of a quote) A place from which something comes or is obtained."
 msgid "source"
 msgstr "kilde"
 
@@ -720,9 +764,25 @@ msgstr "MVA-kode"
 
 #. "field of an account"
 msgid "tax info"
-msgstr "MVA-informasjon"
+msgstr "skatteinfo"
 
-#. "if you create a new e.g. style sheet, you can start from a template"
+#. "Amost everybody has to declare and probably pay it. See https://en.wikipedia.org/wiki/Income_tax"
+msgid "tax type: income tax"
+msgstr "inntektsskatt"
+
+#. "Usually only business users have to handle it, see https://en.wikipedia.org/wiki/Sales_tax."
+msgid "tax type: sales tax"
+msgstr ""
+
+#. "'Goods and Service Tax' is one form of sales tax."
+msgid "tax type: GST"
+msgstr ""
+
+#. "'Value Added Tax' is the other form of sales tax."
+msgid "tax type: VAT"
+msgstr ""
+
+#. "If you create a new e.g. style sheet, you can start from a template."
 msgid "template"
 msgstr "mal"
 
@@ -782,7 +842,7 @@ msgstr "type"
 msgid "units"
 msgstr "enhet"
 
-#. "-"
+#. "Uniform Resource Locator, https://en.wikipedia.org/wiki/URL"
 msgid "URL"
 msgstr "URL"
 

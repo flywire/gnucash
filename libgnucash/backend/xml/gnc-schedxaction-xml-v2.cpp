@@ -20,11 +20,11 @@
  * Boston, MA  02110-1301,  USA       gnu@gnu.org                   *
  *                                                                  *
  *******************************************************************/
+#include <glib.h>
+
 extern "C"
 {
 #include <config.h>
-
-#include <glib.h>
 #include <string.h>
 
 #include "SX-book.h"
@@ -216,7 +216,7 @@ sx_id_handler (xmlNodePtr node, gpointer sx_pdata)
 
     g_return_val_if_fail (tmp, FALSE);
     xaccSchedXactionSetGUID (sx, tmp);
-    g_free (tmp);
+    guid_free (tmp);
 
     return TRUE;
 }
@@ -243,6 +243,7 @@ sx_enabled_handler (xmlNodePtr node, gpointer sx_pdata)
     gchar* tmp = dom_tree_to_text (node);
 
     sx->enabled = (g_strcmp0 (tmp, "y") == 0 ? TRUE : FALSE);
+    g_free (tmp);
 
     return TRUE;
 }
@@ -255,6 +256,7 @@ sx_autoCreate_handler (xmlNodePtr node, gpointer sx_pdata)
     gchar* tmp = dom_tree_to_text (node);
 
     sx->autoCreateOption = (g_strcmp0 (tmp, "y") == 0 ? TRUE : FALSE);
+    g_free (tmp);
 
     return TRUE;
 }
@@ -267,6 +269,7 @@ sx_notify_handler (xmlNodePtr node, gpointer sx_pdata)
     gchar* tmp = dom_tree_to_text (node);
 
     sx->autoCreateNotify = (g_strcmp0 (tmp, "y") == 0 ? TRUE : FALSE);
+    g_free (tmp);
 
     return TRUE;
 }

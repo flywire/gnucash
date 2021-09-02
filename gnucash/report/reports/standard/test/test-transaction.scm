@@ -166,6 +166,9 @@
         (set-option! options "General" "Table for Exporting" #t)
         (set-option! options "General" "Start Date" (cons 'relative 'start-cal-year))
         (set-option! options "General" "End Date" (cons 'relative 'end-cal-year))
+        (set-option! options "Display" "Account Name" #t)
+        (set-option! options "Display" "Other Account Name" #f)
+        (set-option! options "Display" "Amount" 'single)
         options))
 
     ;; This will make all accounts use default currency (I think depends on locale)
@@ -277,8 +280,8 @@
     (let ((options (default-testing-options)))
       (set-option! options "Sorting" "Add indenting columns" #t)
       (set-option! options "General" "Table for Exporting" #f)
-      (set-option! options "General" "Common Currency" #t)
-      (set-option! options "General" "Show original currency amount" #t)
+      (set-option! options "Currency" "Common Currency" #t)
+      (set-option! options "Currency" "Show original currency amount" #t)
       (set-option! options "General" "Add options summary" 'never)
       (set-option! options "Sorting" "Primary Key" 'account-name)
       (set-option! options "Sorting" "Primary Subtotal" #t)
@@ -480,12 +483,12 @@
              (length ((sxpath '(// (table 1) // (tr -1) // td)) sxml))
              1)))
 
-      (set-option! options "Display" "Enable links" #f)
+      (set-option! options "Display" "Enable Links" #f)
       (let ((sxml (options->sxml options "disable hyperlinks")))
         (test-assert "no anchor when disabling hyperlinks"
           (zero? (length ((sxpath '(// a // *text*)) sxml)))))
 
-      (set-option! options "Display" "Enable links" #t)
+      (set-option! options "Display" "Enable Links" #t)
       (let ((sxml (options->sxml options "enable hyperlinks")))
         (test-assert "anchors exist when enabling hyperlinks"
           (positive? (length ((sxpath '(// a // *text*)) sxml)))))
@@ -573,8 +576,8 @@
       (set-option! options "Accounts" "Accounts" (list usd-bank gbp-bank))
       (set-option! options "General" "Start Date" (cons 'absolute (gnc-dmy2time64 01 01 2000)))
       (set-option! options "General" "End Date" (cons 'absolute (gnc-dmy2time64 31 12 2000)))
-      (set-option! options "General" "Common Currency" #t)
-      (set-option! options "General" "Show original currency amount" #t)
+      (set-option! options "Currency" "Common Currency" #t)
+      (set-option! options "Currency" "Show original currency amount" #t)
       (let* ((sxml (options->sxml options "single column, with original currency headers")))
         (test-equal "single amount column, with original currency headers"
           (list "Date" "Num" "Description" "Memo/Notes" "Account"
@@ -647,8 +650,8 @@
       ;; test debit/credit dual columns
       (set! options (default-testing-options))
       (set-option! options "Display" "Amount" 'double)
-      (set-option! options "General" "Common Currency" #t)
-      (set-option! options "General" "Show original currency amount" #t)
+      (set-option! options "Currency" "Common Currency" #t)
+      (set-option! options "Currency" "Show original currency amount" #t)
       (set-option! options "Sorting" "Primary Key" 'date)
       (set-option! options "Sorting" "Primary Subtotal for Date Key" 'none)
       (let* ((sxml (options->sxml options "dual columns")))
@@ -730,7 +733,7 @@
 
       (set! options (default-testing-options))
       (set-option! options "Sorting" "Add indenting columns" #t)
-      (set-option! options "General" "Show original currency amount" #t)
+      (set-option! options "Currency" "Show original currency amount" #t)
       (set-option! options "Sorting" "Primary Key" 'account-name)
       (set-option! options "Sorting" "Primary Subtotal" #t)
       (set-option! options "Sorting" "Secondary Key" 'date)
@@ -747,7 +750,7 @@
       (set-option! options "Accounts" "Accounts" (gnc-account-get-descendants (gnc-account-get-root bank)))
       (set-option! options "Display" "Totals" #t)
       (set-option! options "Display" "Amount" 'double)
-      (set-option! options "General" "Show original currency amount" #t)
+      (set-option! options "Currency" "Show original currency amount" #t)
       (set-option! options "General" "Table for Exporting" #f)
       (set-option! options "Sorting" "Add indenting columns" #t)
       (set-option! options "Sorting" "Primary Key" 'account-name)
@@ -882,37 +885,32 @@
     (test-end "subtotal table")
 
     (test-begin "csv-export")
-    (test-assert "csv output is valid"
-      (let ((options (default-testing-options)))
-        (set-option! options "Accounts" "Accounts"
-                     (list bank usd-bank gbp-bank gbp-income income expense))
-        (set-option! options "General" "Start Date"
-                     (cons 'absolute (gnc-dmy2time64 01 01 1969)))
-        (set-option! options "General" "End Date"
-                     (cons 'absolute (gnc-dmy2time64 31 12 1970)))
-        (set-option! options "Display" "Subtotal Table" #t)
-        (set-option! options "General" "Common Currency" #t)
-        (set-option! options "General" "Report Currency" foreign2)
-        (set-option! options "General" "Show original currency amount" #t)
-        (set-option! options "Sorting" "Primary Key" 'account-name)
-        (set-option! options "Sorting" "Primary Subtotal" #t)
-        (set-option! options "Sorting" "Secondary Key" 'date)
-        (set-option! options "Sorting" "Secondary Subtotal for Date Key" 'monthly)
+    (let ((options (default-testing-options)))
+      (set-option! options "Accounts" "Accounts"
+                   (list bank usd-bank gbp-bank gbp-income income expense))
+      (set-option! options "General" "Start Date"
+                   (cons 'absolute (gnc-dmy2time64 01 01 1969)))
+      (set-option! options "General" "End Date"
+                   (cons 'absolute (gnc-dmy2time64 31 12 1970)))
+      (set-option! options "Display" "Subtotal Table" #t)
+      (set-option! options "Currency" "Common Currency" #t)
+      (set-option! options "Currency" "Report Currency" foreign2)
+      (set-option! options "Currency" "Show original currency amount" #t)
+      (set-option! options "Sorting" "Primary Key" 'account-name)
+      (set-option! options "Sorting" "Primary Subtotal" #t)
+      (set-option! options "Sorting" "Secondary Key" 'date)
+      (set-option! options "Sorting" "Secondary Subtotal for Date Key" 'monthly)
 
-        (let* ((template (gnc:find-report-template trep-uuid))
-               (constructor (record-constructor <report>))
-               (report (constructor trep-uuid "bar" options #t #t #f #f ""))
-               (renderer (gnc:report-template-renderer template)))
-          ;; run the renderer, ignore its output. we'll query the csv export.
-          (renderer report #:export-type 'csv #:filename "/tmp/export.csv"))
-        (let ((call-with-input-file "/tmp/export.csv"))
-          (lambda (f)
-            (let lp ((c (read-char f)) (out '()))
-              (if (eof-object? c)
-                  (string=?
-                   "\"from\",\"01/01/69\"\n\"to\",\"12/31/70\"\n\"Amount (GBP)\",2.15\n\"Amount\",3.0"
-                   (reverse-list->string out))
-                  (lp (read-char f) (cons c out))))))))
+      (let* ((template (gnc:find-report-template trep-uuid))
+             (constructor (record-constructor <report>))
+             (report (constructor trep-uuid "bar" options #t #t #f #f ""))
+             (renderer (gnc:report-template-renderer template))
+             (document (renderer report #:export-type 'csv)))
+        (test-assert "csv output has no export error"
+          (not (gnc:html-document-export-error document)))
+        (test-equal "csv output is valid"
+          "\"from\",\"1969-01-01\"\n\"to\",\"1970-12-31\"\n\"Amount (GBP)\",2.15\n\"Amount\",3.0"
+          (gnc:html-document-export-string document))))
     (test-end "csv-export")))
 
 (define (reconcile-tests)

@@ -1,21 +1,27 @@
 ;; -*-scheme-*-
-;; by  Richard -Gilligan- Uschold
-;;
-;; updated by  J. Alex Aycinena, July 2008, October 2009
+;; Tax report, country specific
+;; US version by Richard -Gilligan- Uschold,
+;; updated by J. Alex Aycinena, July 2008, October 2009
 ;;
 ;; This report prints transaction details and account totals for accounts
-;; relevant to United States taxes, sorted by form/schedule, copy, line
-;; and tax code, and exports TXF files for import to TaxCut, TurboTax, etc.
+;; relevant to whatever tax scheme is defined and activated by locale settings,
+;; sorted by form/schedule, copy, line and tax code,
+;; and exports TXF, XML or other files for import into tax software.
+;;
+;; This version is for United States taxes and
+;; exports TXF files for use by TaxCut, TurboTax, etc.
 ;;
 ;; For this to work, the user has to segregate taxable and not taxable
 ;; income to different accounts, as well as deductible and non-
 ;; deductible expenses and the accounts need to be referenced to the tax codes.
-;; However, there is no need to limit tax codes to just one account. For codes
-;; like N286 (Dividend, Ordinary) that can have the "payer" printed on
-;; Schedule B on separate lines, to have amounts from different accounts
-;; summarized together for one "payer" line, the accounts referenced to the
-;; same tax code for a given "payer" need to be adjacent to each other in the
-;; account hierarchy.
+;; However, there is no need to limit tax codes to just one account.
+;;
+;; Tax codes can have contributions from more than one account -- called a 'payer'
+;; (like N286 (Dividend, Ordinary) that can have the "payer" printed on
+;; Schedule B on separate lines).
+;; In order to have amounts from different accounts summarized together for one
+;; "payer" line, the accounts referenced to the same tax code for a given "payer"
+;; need to be adjacent to each other in the account hierarchy.
 ;;
 ;; The user selects the accounts(s) to be printed; if none are specified, all
 ;; are selected. Includes all sub-account levels below selected account, that
@@ -73,7 +79,7 @@
 ;; From prior version:
 ;; NOTE: setting of specific dates is squirly! and seems
 ;; to be current-date dependent!  Actually, time of day dependent!  Just
-;; after midnight gives diffenent dates than just before!  Referencing
+;; after midnight gives different dates than just before!  Referencing
 ;; all times to noon seems to fix this.  Subtracting 1 year sometimes
 ;; subtracts 2!  see "(to-value"
 ;;
@@ -101,12 +107,13 @@
 (define-module (gnucash reports locale-specific us taxtxf))
 (use-modules (gnucash engine))
 (use-modules (gnucash utilities))
-(use-modules (gnucash core-utils)) ; for gnc:version and (_ ...)
+(use-modules (gnucash core-utils)) ; for gnc:version and (G_ ...)
 (use-modules (gnucash app-utils))
 (use-modules (gnucash locale us tax))
 (use-modules (gnucash gnome-utils))
 (use-modules (gnucash report))
 (use-modules (srfi srfi-1))
+(use-modules (ice-9 format))
 (use-modules (gnucash html))
 
 (define reportname (N_ "Tax Schedule Report/TXF Export"))
@@ -174,30 +181,22 @@
     gnc:pagename-general (N_ "Alternate Period")
     "c" (N_ "Override or modify From: & To:.")
     (if after-tax-day 'from-to 'last-year)
-    (list (vector 'from-to (N_ "Use From - To") (N_ "Use From - To period."))
-          (vector '1st-est (N_ "1st Est Tax Quarter") (N_ "Jan 1 - Mar 31."))
-          (vector '2nd-est (N_ "2nd Est Tax Quarter") (N_ "Apr 1 - May 31."))
+    (list (vector 'from-to (N_ "Use From - To"))
+          (vector '1st-est (N_ "1st Est Tax Quarter (Jan 1 - Mar 31)"))
+          (vector '2nd-est (N_ "2nd Est Tax Quarter (Apr 1 - May 31)"))
           ;; Translators: The US tax quarters are different from
           ;; actual year's quarters! See the definition of
           ;; tax-qtr-real-qtr-year variable above.
-          (vector '3rd-est (N_ "3rd Est Tax Quarter") (N_ "Jun 1 - Aug 31."))
-          (vector '4th-est (N_ "4th Est Tax Quarter") (N_ "Sep 1 - Dec 31."))
-          (vector 'last-year (N_ "Last Year") (N_ "Last Year."))
-          (vector '1st-last
-                  (N_ "Last Yr 1st Est Tax Qtr")
-                  (N_ "Jan 1 - Mar 31, Last year."))
-          (vector '2nd-last
-                  (N_ "Last Yr 2nd Est Tax Qtr")
-                  (N_ "Apr 1 - May 31, Last year."))
-          (vector '3rd-last
-                  (N_ "Last Yr 3rd Est Tax Qtr")
-                  ;; Translators: The US tax quarters are different from
-                  ;; actual year's quarters! See the definition of
-                  ;; tax-qtr-real-qtr-year variable above.
-                  (N_ "Jun 1 - Aug 31, Last year."))
-          (vector '4th-last
-                  (N_ "Last Yr 4th Est Tax Qtr")
-                  (N_ "Sep 1 - Dec 31, Last year.")))))
+          (vector '3rd-est (N_ "3rd Est Tax Quarter (Jun 1 - Aug 31)"))
+          (vector '4th-est (N_ "4th Est Tax Quarter (Sep 1 - Dec 31)"))
+          (vector 'last-year (N_ "Last Year"))
+          (vector '1st-last (N_ "Last Yr 1st Est Tax Qtr (Jan 1 - Mar 31)"))
+          (vector '2nd-last (N_ "Last Yr 2nd Est Tax Qtr (Apr 1 - May 31)"))
+          ;; Translators: The US tax quarters are different from
+          ;; actual year's quarters! See the definition of
+          ;; tax-qtr-real-qtr-year variable above.
+          (vector '3rd-last (N_ "Last Yr 3rd Est Tax Qtr (Jun 1 - Aug 31)"))
+          (vector '4th-last (N_ "Last Yr 4th Est Tax Qtr (Sep 1 - Dec 31)")))))
 
   (gnc:register-tax-option
    (gnc:make-account-list-option
@@ -252,9 +251,9 @@
     "m" (N_ "Select date to use for PriceDB lookups.")
     'conv-to-tran-date
     (list (list->vector
-           (list 'conv-to-tran-date (N_ "Nearest transaction date") (N_ "Use nearest to transaction date.")))
+           (list 'conv-to-tran-date (N_ "Nearest to transaction date")))
           (list->vector
-           (list 'conv-to-report-date (N_ "Nearest report date") (N_ "Use nearest to report date.")))
+           (list 'conv-to-report-date (N_ "Nearest to report date")))
     )))
 
   #t
@@ -266,11 +265,11 @@
 ;; Render txf information
 (define crlf (string #\return #\newline)) ; TurboTax seems to want these
 
-(define txf-last-payer "")		; if same as current, inc txf-l-count
-					; this only works if different
-					; accounts from the same payer are
-					; grouped in the accounts list
-(define txf-l-count 0)		; count repeated N codes
+(define txf-last-payer "") ; if same as current, inc txf-l-count
+                           ; this only works if different
+                           ; accounts from the same payer are
+                           ; grouped in the accounts list
+(define txf-l-count 0)     ; count repeated N codes
 
 ;; stores invalid txf codes so we can list
 (define txf-invalid-alist '())
@@ -618,7 +617,7 @@
 ;; if neither trans-currency nor account-commodity = USD-currency,
 ;;    use split amount & pricedb lookup using lookup date
 ;; returns the converted amount, the conversion text, and, if the conversion
-;;   price was looked up, the pricedb-lookup-price and addtitional text in
+;;   price was looked up, the pricedb-lookup-price and additional text in
 ;;   a list
 
   (let*
@@ -1418,7 +1417,7 @@
                             (gnc:make-html-table-cell/markup
                                          "date-cell"
                                          (gnc-print-time64 trans-date "%Y-%b-%d")))
-                       (gnc:html-table-set-style! num-table "table" 
+                       (gnc:html-table-set-style! num-table "table"
                                           'attribute (list "border" "0")
                                           'attribute (list "cellspacing" "0")
                                           'attribute (list "cellpadding" "0"))
@@ -1656,8 +1655,7 @@
 (define (generate-tax-schedule report-name
                              report-description
                              report-obj
-                             tax-mode?
-                             file-name)
+                             tax-mode?)
 
   (define (get-option pagename optname)
     (gnc:option-value
@@ -1678,15 +1676,21 @@
             (get-line-info year (cdr line-list)))
         ((<= (caar line-list) (string->number year)) (cadar line-list)))))
 
-  ;; List of entries, each containing a form, form copy number, form line
-  ;; number, tax-code (as string), account name, account, and, to avoid having
-  ;; to fetch again later, account type and tax-code as symbol. Only accounts
-  ;; that are tax related, with a tax code that is valid for the tax-entity-type
-  ;; and account type are put on list, along with those assigned code N000.
+  ;; List of entries, each containing a
+  ;;
+  ;; form, form copy number, form line number,
+  ;; tax-code (as string), account name, account, and, to avoid having
+  ;; to fetch again later, account type and tax-code as symbol.
+  ;;
+  ;; Only accounts that are tax related,
+  ;; with a tax code that is valid for the tax-entity-type and account type,
+  ;; are put on list, along with those assigned code N000.
+  ;;
   ;; Accounts that are not tax-related and have a tax code or are tax-related
-  ;; and have an invalid tax code are put on an error list. Codes N438 and N440
-  ;; have special processing: if an asset account is assigned to either of these
-  ;; two codes, an additional 'form-line-acct' entry is created for the other
+  ;; and have an invalid tax code are put on an error list.
+  ;; Codes N438 and N440 have special processing:
+  ;; if an asset account is assigned to either of these two codes,
+  ;; an additional 'form-line-acct' entry is created for the other
   ;; code so that either both codes are represented or neither.
   (define (make-form-line-acct-list accounts tax-year)
      (map (lambda (account)
@@ -2899,78 +2903,32 @@
           ))
 
       (if (not tax-mode?) ; Do Txf mode
-          (if tax-entity-type-valid?
-              (if file-name		; cancel TXF if no file selected
-                  (let ((port (catch #t ;;e.g., system-error
-                                 (lambda () (open-output-file file-name))
-                                 (lambda (key . args)
-                                    (gnc-error-dialog
-                                          '()
-                                          (string-append
-                                              "Could not open the file: "
-                                              file-name
-                                              ". The error is: "
-                                              (symbol->string key)
-                                              " - "
-                                              (car (caddr args))
-                                              "."
-                                          ))
-                                     #f)))
-                       )
-                       (if port ;; port opened successfully
-                           (let* ((output (map (lambda (form-line-acct)
-                                               (handle-tax-code form-line-acct))
-                                    selected-accounts-sorted-by-form-line-acct))
-                                  (output-txf
-                                    (list
-                                      "V042" crlf
-                                      "AGnuCash " gnc:version crlf
-                                      today-date crlf
-                                      "^" crlf
-                                      output
-                                      (if (or
-                                             (gnc-numeric-zero-p tax-code-USD-total)
-                                             (not prior-account))
-                                          '()
-                                          (render-txf-account
-                                              prior-account
-                                              (if (= 4 (get-acct-txf-info
-                                                          'format
-                                                          (xaccAccountGetType
-                                                                  prior-account)
-                                                          (gnc:account-get-txf-code
-                                                                prior-account)))
-                                                  (gnc-numeric-neg
-                                                   tax-code-cap-gain-sales-USD-total)
-                                                  tax-code-USD-total-as-dr)
-                                              #f #f #f #f
-                                              (xaccAccountGetType prior-account)
-                                              (gnc:account-get-txf-code
-                                                                prior-account)
-                                              prior-account-copy
-                                              tax-entity-type #f))
-                                    ))
-                                 )
-                                 ;; prior-account can be #f if selected accounts are
-                                 ;; marked as 'tax-related' in the account edit
-                                 ;; dialog but not actually assigned to a tax code
-                                 ;; using the 'Tax Options' dialog (UI bug?).
-                                 ;; An empty file is unfortunately put out with
-                                 ;; no user warning other than message on report.
-                                 (if prior-account
-                                     (gnc:display-report-list-item output-txf port
-                                                           "taxtxf.scm - ")
-                                     #f)
-                                 (close-output-port port)
-                                 #t
-                           ) ; end of let
-                           ;; Could not open port successfully
-                           #t ;; to prevent 2nd error dialog in
-                              ;; gnc_plugin_page_report_export_cb
-                       ) ;; end of if
-                  ) ;; end of let*
-              #f) ;;end of if
-          #f) ;;end of if
+          (begin
+            (if tax-entity-type-valid?
+                (gnc:html-document-set-export-string
+                 doc
+                 (call-with-output-string
+                   (lambda (port)
+                     (gnc:display-report-list-item
+                      (list
+                       "V042" crlf "AGnuCash " gnc:version crlf
+                       today-date crlf "^" crlf
+                       (map handle-tax-code selected-accounts-sorted-by-form-line-acct)
+                       (if (or (zero? tax-code-USD-total) (not prior-account))
+                           '()
+                           (render-txf-account
+                            prior-account
+                            (if (= 4 (get-acct-txf-info
+                                      'format (xaccAccountGetType prior-account)
+                                      (gnc:account-get-txf-code prior-account)))
+                                (- tax-code-cap-gain-sales-USD-total)
+                                tax-code-USD-total-as-dr)
+                            #f #f #f #f (xaccAccountGetType prior-account)
+                            (gnc:account-get-txf-code prior-account)
+                            prior-account-copy tax-entity-type #f)))
+                      port "taxtxf.scm - "))))
+                (gnc:html-document-set-export-error doc "tax-entity-type is invalid"))
+            doc)
           (begin  ; else do tax report
                   (gnc:html-document-set-style!
                    doc "header-just-top"
@@ -3371,18 +3329,16 @@
  'options-generator tax-options-generator
  'renderer (lambda (report-obj)
              (generate-tax-schedule
-              (_ "Taxable Income/Deductible Expenses")
-              (_ "This report shows transaction detail for your accounts \
+              (G_ "Taxable Income/Deductible Expenses")
+              (G_ "This report shows transaction detail for your accounts \
 related to Income Taxes.")
               report-obj
-              #t
-              #f))
+              #t))
  'export-types (list (cons "TXF" 'txf))
- 'export-thunk (lambda (report-obj choice file-name)
+ 'export-thunk (lambda* (report-obj choice)
                  (generate-tax-schedule
-                  (_ "Taxable Income/Deductible Expenses")
-                  (_ "This page shows transaction detail for relevant \
+                  (G_ "Taxable Income/Deductible Expenses")
+                  (G_ "This page shows transaction detail for relevant \
 Income Tax accounts.")
                   report-obj
-                  #f
-                  file-name)))
+                  #f)))

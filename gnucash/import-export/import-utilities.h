@@ -27,15 +27,16 @@
 
 
 /** The preferences used by the importer */
-#define GNC_PREFS_GROUP_IMPORT        "dialogs.import.generic"
-#define GNC_PREF_ENABLE_SKIP          "enable-skip"
-#define GNC_PREF_ENABLE_UPDATE        "enable-update"
-#define GNC_PREF_USE_BAYES            "use-bayes"
-#define GNC_PREF_ATM_FEE_THRESHOLD    "atm-fee-threshold"
-#define GNC_PREF_AUTO_CLEAR_THRESHOLD "auto-clear-threshold"
-#define GNC_PREF_AUTO_ADD_THRESHOLD   "auto-add-threshold"
-#define GNC_PREF_MATCH_THRESHOLD      "match-threshold"
-
+#define GNC_PREFS_GROUP_IMPORT            "dialogs.import.generic"
+#define GNC_PREF_ENABLE_SKIP              "enable-skip"
+#define GNC_PREF_ENABLE_UPDATE            "enable-update"
+#define GNC_PREF_USE_BAYES                "use-bayes"
+#define GNC_PREF_ATM_FEE_THRESHOLD        "atm-fee-threshold"
+#define GNC_PREF_AUTO_CLEAR_THRESHOLD     "auto-clear-threshold"
+#define GNC_PREF_AUTO_ADD_THRESHOLD       "auto-add-threshold"
+#define GNC_PREF_MATCH_THRESHOLD          "match-threshold"
+#define GNC_PREF_MATCH_DATE_THRESHOLD     "match-date-threshold"
+#define GNC_PREF_MATCH_DATE_NOT_THRESHOLD "match-date-not-threshold"
 
 #include "Account.h"
 
@@ -48,17 +49,6 @@ const gchar * gnc_import_get_acc_online_id(Account * account);
 void gnc_import_set_acc_online_id(Account * account,
                                   const gchar * string_value);
 /** @} */
-/** @name Setter-getters
-    Setter and getter functions for the online_id field for
-    Transactions.
-	@{
-*/
-const gchar * gnc_import_get_trans_online_id(Transaction * transaction);
-void gnc_import_set_trans_online_id(Transaction * transaction,
-                                    const gchar * string_value);
-/** @} */
-
-gboolean gnc_import_trans_has_online_id(Transaction * transaction);
 
 /** @name Setter-getters
     Setter and getter functions for the online_id field for

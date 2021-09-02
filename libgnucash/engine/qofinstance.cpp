@@ -319,9 +319,8 @@ qof_instance_dispose (GObject *instp)
     QofInstance* inst = QOF_INSTANCE(instp);
 
     priv = GET_PRIVATE(instp);
-    if (!priv->collection)
-        return;
-    qof_collection_remove_entity(inst);
+    if (priv->collection)
+        qof_collection_remove_entity(inst);
 
     CACHE_REMOVE(inst->e_type);
     inst->e_type = NULL;
@@ -1030,10 +1029,9 @@ qof_commit_edit_part2(QofInstance *inst,
                 on_error(inst, errcode);
             return FALSE;
         }
-        /* XXX the backend commit code should clear dirty!! */
-        priv->dirty = FALSE;
+        if (!priv->dirty) //Cleared if the save was successful
+            priv->infant = FALSE;
     }
-    priv->infant = FALSE;
 
     if (priv->do_free)
     {

@@ -46,6 +46,8 @@
 #include "gnc-plugin-aqbanking.h"
 #include "qof.h"
 
+#include "gnc-flicker-gui.h"
+
 # define GNC_GWENHYWFAR_CB GWENHYWFAR_CB
 
 #define GWEN_GUI_CM_CLASS "dialog-hbcilog"
@@ -57,65 +59,6 @@
 
 /* This static indicates the debugging module that this .o belongs to.  */
 static QofLogModule log_module = G_LOG_DOMAIN;
-
-/* The following block can be enabled, but the gwen-gtk3 widgets might
- * still need some work. */
-#if 0 /*#ifdef USING_GWENHYWFAR_GTK3_GUI*/
-
-/* A GWEN_GUI implementation using gtk3 widgets  */
-static GWEN_GUI *gwen_gui = NULL;
-
-void gnc_GWEN_Gui_log_init(void)
-{
-    if (!gwen_gui)
-    {
-        gwen_gui = Gtk3_Gui_new();
-        GWEN_Gui_SetGui(gwen_gui);
-    }
-}
-GncGWENGui *gnc_GWEN_Gui_get(GtkWidget *parent)
-{
-    if (!gwen_gui)
-        gnc_GWEN_Gui_log_init();
-    return (GncGWENGui*) gwen_gui;
-}
-void gnc_GWEN_Gui_release(GncGWENGui *gui)
-{
-}
-void gnc_GWEN_Gui_shutdown(void)
-{
-    if (gwen_gui)
-    {
-        GWEN_Gui_free(gwen_gui);
-        gwen_gui = NULL;
-        GWEN_Gui_SetGui(NULL);
-    }
-}
-void
-gnc_GWEN_Gui_set_close_flag(gboolean close_when_finished)
-{
-    gnc_prefs_set_bool(
-        GNC_PREFS_GROUP_AQBANKING, GNC_PREF_CLOSE_ON_FINISH,
-        close_when_finished);
-}
-gboolean
-gnc_GWEN_Gui_get_close_flag()
-{
-    return gnc_prefs_get_bool (GNC_PREFS_GROUP_AQBANKING, GNC_PREF_CLOSE_ON_FINISH);
-}
-
-gboolean
-gnc_GWEN_Gui_show_dialog()
-{
-    return TRUE;
-}
-
-void
-gnc_GWEN_Gui_hide_dialog()
-{
-}
-
-#else
 
 /* A unique full-blown GUI, featuring  */
 static GncGWENGui *full_gui = NULL;
@@ -177,23 +120,23 @@ static void get_input(GncGWENGui *gui, guint32 flags, const gchar *title,
                       const char *pChallenge, uint32_t lChallenge,
                       gchar **input, gint min_len, gint max_len);
 #endif
-static gint messagebox_cb(GWEN_GUI *gwen_gui, guint32 flags, const gchar *title,
+static gint GNC_GWENHYWFAR_CB messagebox_cb(GWEN_GUI *gwen_gui, guint32 flags, const gchar *title,
                           const gchar *text, const gchar *b1, const gchar *b2,
                           const gchar *b3, guint32 guiid);
-static gint inputbox_cb(GWEN_GUI *gwen_gui, guint32 flags, const gchar *title,
+static gint GNC_GWENHYWFAR_CB inputbox_cb(GWEN_GUI *gwen_gui, guint32 flags, const gchar *title,
                         const gchar *text, gchar *buffer, gint min_len,
                         gint max_len, guint32 guiid);
-static guint32 showbox_cb(GWEN_GUI *gwen_gui, guint32 flags, const gchar *title,
+static guint32 GNC_GWENHYWFAR_CB showbox_cb(GWEN_GUI *gwen_gui, guint32 flags, const gchar *title,
                           const gchar *text, guint32 guiid);
-static void hidebox_cb(GWEN_GUI *gwen_gui, guint32 id);
-static guint32 progress_start_cb(GWEN_GUI *gwen_gui, uint32_t progressFlags,
+static void GWENHYWFAR_CB hidebox_cb(GWEN_GUI *gwen_gui, guint32 id);
+static guint32 GNC_GWENHYWFAR_CB progress_start_cb(GWEN_GUI *gwen_gui, uint32_t progressFlags,
                                  const char *title, const char *text,
                                  uint64_t total, uint32_t guiid);
-static gint progress_advance_cb(GWEN_GUI *gwen_gui, uint32_t id,
+static gint GNC_GWENHYWFAR_CB progress_advance_cb(GWEN_GUI *gwen_gui, uint32_t id,
                                 uint64_t new_progress);
-static gint progress_log_cb(GWEN_GUI *gwen_gui, guint32 id,
+static gint GNC_GWENHYWFAR_CB progress_log_cb(GWEN_GUI *gwen_gui, guint32 id,
                             GWEN_LOGGER_LEVEL level, const gchar *text);
-static gint progress_end_cb(GWEN_GUI *gwen_gui, guint32 id);
+static gint GNC_GWENHYWFAR_CB progress_end_cb(GWEN_GUI *gwen_gui, guint32 id);
 #ifndef AQBANKING6
 static gint GNC_GWENHYWFAR_CB getpassword_cb(GWEN_GUI *gwen_gui, guint32 flags,
                                              const gchar *token,
@@ -301,13 +244,7 @@ gnc_GWEN_Gui_log_init(void)
 {
     if (!log_gwen_gui)
     {
-        log_gwen_gui =
-#ifdef USING_GWENHYWFAR_GTK3_GUI
-            Gtk3_Gui_new()
-#else
-            GWEN_Gui_new()
-#endif
-            ;
+        log_gwen_gui = Gtk3_Gui_new();
 
         /* Always use our own logging */
         GWEN_Gui_SetLogHookFn(log_gwen_gui, loghook_cb);
@@ -471,13 +408,7 @@ register_callbacks(GncGWENGui *gui)
 
     ENTER("gui=%p", gui);
 
-    gwen_gui =
-#ifdef USING_GWENHYWFAR_GTK3_GUI
-        Gtk3_Gui_new()
-#else
-        GWEN_Gui_new()
-#endif
-        ;
+    gwen_gui = Gtk3_Gui_new();
     gui->gwen_gui = gwen_gui;
 
     GWEN_Gui_SetMessageBoxFn(gwen_gui, messagebox_cb);
@@ -999,6 +930,9 @@ get_input(GncGWENGui *gui, guint32 flags, const gchar *title,
     GtkWidget *confirm_label;
     GtkWidget *remember_pin_checkbutton;
     GtkImage *optical_challenge;
+
+    static GncFlickerGui *flickergui = NULL;
+
     const gchar *internal_input, *internal_confirmed;
     gboolean confirm = (flags & GWEN_GUI_INPUT_FLAGS_CONFIRM) != 0;
     gboolean is_tan = (flags & GWEN_GUI_INPUT_FLAGS_TAN) != 0;
@@ -1020,9 +954,33 @@ get_input(GncGWENGui *gui, guint32 flags, const gchar *title,
     remember_pin_checkbutton = GTK_WIDGET(gtk_builder_get_object (builder, "remember_pin"));
     optical_challenge = GTK_IMAGE(gtk_builder_get_object (builder, "optical_challenge"));
     gtk_widget_set_visible(GTK_WIDGET(optical_challenge), FALSE);
+
+    flickergui = g_slice_new(GncFlickerGui);
+    flickergui->flicker_challenge = GTK_WIDGET(gtk_builder_get_object(builder, "flicker_challenge"));
+    flickergui->flicker_marker = GTK_WIDGET(gtk_builder_get_object(builder, "flicker_marker"));
+    flickergui->flicker_hbox = GTK_WIDGET(gtk_builder_get_object(builder, "flicker_hbox"));
+    flickergui->spin_barwidth = GTK_SPIN_BUTTON(gtk_builder_get_object(builder, "spin_barwidth"));
+    flickergui->spin_delay = GTK_SPIN_BUTTON(gtk_builder_get_object(builder, "spin_delay"));
+
+    gtk_widget_set_visible(GTK_WIDGET(flickergui->flicker_challenge), FALSE);
+    gtk_widget_set_visible(GTK_WIDGET(flickergui->flicker_marker), FALSE);
+    gtk_widget_set_visible(GTK_WIDGET(flickergui->flicker_hbox), FALSE);
+    gtk_widget_set_visible(GTK_WIDGET(flickergui->spin_barwidth), FALSE);
+    gtk_widget_set_visible(GTK_WIDGET(flickergui->spin_delay), FALSE);
+
     #ifdef AQBANKING6
-    if(mimeType != NULL && pChallenge != NULL && lChallenge > 0)
+    if (g_strcmp0(mimeType,"text/x-flickercode") == 0 && pChallenge != NULL)
     {
+        /* Chiptan Optic (aka Flicker) */
+        gtk_widget_set_visible(GTK_WIDGET(flickergui->flicker_challenge), TRUE);
+        gtk_widget_set_visible(GTK_WIDGET(flickergui->flicker_marker), TRUE);
+        gtk_widget_set_visible(GTK_WIDGET(flickergui->flicker_hbox), TRUE);
+        gtk_widget_set_visible(GTK_WIDGET(flickergui->spin_barwidth), TRUE);
+        gtk_widget_set_visible(GTK_WIDGET(flickergui->spin_delay), TRUE);
+    }
+    else if(mimeType != NULL && pChallenge != NULL && lChallenge > 0)
+    {
+        /* Phototan or Chiptan QR */
         gtk_widget_set_visible(GTK_WIDGET(optical_challenge), TRUE);
     }
     #endif
@@ -1040,6 +998,7 @@ get_input(GncGWENGui *gui, guint32 flags, const gchar *title,
     if ((flags & (GWEN_GUI_INPUT_FLAGS_TAN | GWEN_GUI_INPUT_FLAGS_SHOW)) != 0)
     {
         gtk_widget_set_visible(input_entry, TRUE);
+        gtk_entry_set_visibility(GTK_ENTRY(input_entry), TRUE);
     }
 
     if (gui->dialog)
@@ -1064,9 +1023,22 @@ get_input(GncGWENGui *gui, guint32 flags, const gchar *title,
     }
 
     #ifdef AQBANKING6
-    //if (optical_challenge)
-    if(mimeType != NULL && pChallenge != NULL && lChallenge > 0)
+    /* Optical challenge. Flickercode sets the mimetype to
+     * x-flickercode and doesn't set the challenge length */
+    if (g_strcmp0(mimeType,"text/x-flickercode") == 0 && pChallenge != NULL)
     {
+         /* Chiptan Optic (aka Flicker) */
+         flickergui->dialog = dialog;
+         flickergui->input_entry = input_entry;
+
+         ini_flicker_gui(pChallenge, flickergui);
+         g_slice_free(GncFlickerGui, flickergui);
+    }
+    /* While phototan has multiple mimetypes and does set the
+     * challenge length. */
+    else if(mimeType != NULL && pChallenge != NULL && lChallenge > 0)
+    {
+        /* Phototan or Chiptan QR */
         // convert PNG and load into widget
         // TBD: check mimeType?
         guchar *gudata = (guchar*)pChallenge;
@@ -1090,7 +1062,7 @@ get_input(GncGWENGui *gui, guint32 flags, const gchar *title,
 
         gtk_image_set_from_pixbuf(optical_challenge, pixbuf);
     }
-    #endif
+#endif
 
     if (*input)
     {
@@ -1138,7 +1110,7 @@ get_input(GncGWENGui *gui, guint32 flags, const gchar *title,
         {
             gboolean retval;
             gchar *msg = g_strdup_printf(
-                             _("The PIN needs to be at least %d characters \n"
+                             _("The PIN needs to be at least %d characters\n"
                                "long. Do you want to try again?"), min_len);
             retval = gnc_verify_dialog (GTK_WINDOW (gui->parent), TRUE, "%s", msg);
             g_free(msg);
@@ -1169,7 +1141,7 @@ get_input(GncGWENGui *gui, guint32 flags, const gchar *title,
     LEAVE("input %s", *input ? "non-NULL" : "NULL");
 }
 
-static gint
+static gint GNC_GWENHYWFAR_CB
 messagebox_cb(GWEN_GUI *gwen_gui, guint32 flags, const gchar *title,
               const gchar *text, const gchar *b1, const gchar *b2,
               const gchar *b3, guint32 guiid)
@@ -1215,7 +1187,7 @@ messagebox_cb(GWEN_GUI *gwen_gui, guint32 flags, const gchar *title,
     return result;
 }
 
-static gint
+static gint GNC_GWENHYWFAR_CB
 inputbox_cb(GWEN_GUI *gwen_gui, guint32 flags, const gchar *title,
             const gchar *text, gchar *buffer, gint min_len, gint max_len,
             guint32 guiid)
@@ -1244,7 +1216,7 @@ inputbox_cb(GWEN_GUI *gwen_gui, guint32 flags, const gchar *title,
     return input ? 0 : -1;
 }
 
-static guint32
+static guint32 GNC_GWENHYWFAR_CB
 showbox_cb(GWEN_GUI *gwen_gui, guint32 flags, const gchar *title,
            const gchar *text, guint32 guiid)
 {
@@ -1279,7 +1251,7 @@ showbox_cb(GWEN_GUI *gwen_gui, guint32 flags, const gchar *title,
     return showbox_id;
 }
 
-static void
+static void GNC_GWENHYWFAR_CB
 hidebox_cb(GWEN_GUI *gwen_gui, guint32 id)
 {
     GncGWENGui *gui = GETDATA_GUI(gwen_gui);
@@ -1320,7 +1292,7 @@ hidebox_cb(GWEN_GUI *gwen_gui, guint32 id)
     LEAVE(" ");
 }
 
-static guint32
+static guint32 GNC_GWENHYWFAR_CB
 progress_start_cb(GWEN_GUI *gwen_gui, uint32_t progressFlags, const char *title,
                   const char *text, uint64_t total, uint32_t guiid)
 {
@@ -1374,7 +1346,7 @@ progress_start_cb(GWEN_GUI *gwen_gui, uint32_t progressFlags, const char *title,
     return g_list_length(gui->progresses);
 }
 
-static gint
+static gint GNC_GWENHYWFAR_CB
 progress_advance_cb(GWEN_GUI *gwen_gui, uint32_t id, uint64_t progress)
 {
     GncGWENGui *gui = GETDATA_GUI(gwen_gui);
@@ -1401,7 +1373,7 @@ progress_advance_cb(GWEN_GUI *gwen_gui, uint32_t id, uint64_t progress)
     return !keep_alive(gui);
 }
 
-static gint
+static gint GNC_GWENHYWFAR_CB
 progress_log_cb(GWEN_GUI *gwen_gui, guint32 id, GWEN_LOGGER_LEVEL level,
                 const gchar *text)
 {
@@ -1430,7 +1402,7 @@ progress_log_cb(GWEN_GUI *gwen_gui, guint32 id, GWEN_LOGGER_LEVEL level,
     return !keep_alive(gui);
 }
 
-static gint
+static gint GNC_GWENHYWFAR_CB
 progress_end_cb(GWEN_GUI *gwen_gui, guint32 id)
 {
     GncGWENGui *gui = GETDATA_GUI(gwen_gui);
@@ -1496,28 +1468,43 @@ getpassword_cb(GWEN_GUI *gwen_gui, guint32 flags, const gchar *token,
     if(is_tan && methodId == GWEN_Gui_PasswordMethod_OpticalHHD)
     {
         /**
-        * TODO: How to handle Flicker code (use WebView and JS???)
-        *
         * use GWEN_Gui_PasswordMethod_Mask to get the basic method id
         *  cf. gui/gui.h of gwenhywfar
         */
         opticalMethodId=GWEN_DB_GetIntValue(methodParams, "tanMethodId", 0, AB_BANKING_TANMETHOD_TEXT);
         switch(opticalMethodId)
         {
+            case AB_BANKING_TANMETHOD_CHIPTAN:
+                break;
+            case AB_BANKING_TANMETHOD_CHIPTAN_OPTIC:
+                mimeType = "text/x-flickercode";
+                pChallenge = GWEN_DB_GetCharValue(methodParams, "challenge", 0, NULL);
+                if ((pChallenge == NULL) || (pChallenge[0] == '\0'))
+                {
+                    /* empty flicker-data */
+                    return GWEN_ERROR_NO_DATA;
+                }
+                break;
+            case AB_BANKING_TANMETHOD_CHIPTAN_USB:
+                /**
+                 * ToDo: is this the same as CHIPTAN_OPTIC ?
+                 */
+                 break;
             case AB_BANKING_TANMETHOD_PHOTOTAN:
             case AB_BANKING_TANMETHOD_CHIPTAN_QR:
-            /**
-            * image data is in methodParams
-            */
-            mimeType=GWEN_DB_GetCharValue(methodParams, "mimeType", 0, NULL);
-            pChallenge=(const char*) GWEN_DB_GetBinValue(methodParams, "imageData", 0, NULL, 0, &lChallenge);
-            if (!(pChallenge && lChallenge)) {
-                /* empty optical data */
-                return GWEN_ERROR_NO_DATA;
-            }
-            break;
-        default:
-            break;
+                /**
+                 * image data is in methodParams
+                 */
+                mimeType=GWEN_DB_GetCharValue(methodParams, "mimeType", 0, NULL);
+                pChallenge=(const char*) GWEN_DB_GetBinValue(methodParams, "imageData", 0, NULL, 0, &lChallenge);
+                if (!(pChallenge && lChallenge))
+                {
+                    /* empty optical data */
+                    return GWEN_ERROR_NO_DATA;
+                }
+                break;
+            default:
+                break;
         }
     }
     #endif
@@ -1745,4 +1732,3 @@ ggg_close_toggled_cb(GtkToggleButton *button, gpointer user_data)
 
     LEAVE(" ");
 }
-#endif

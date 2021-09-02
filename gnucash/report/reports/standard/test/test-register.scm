@@ -66,8 +66,10 @@
       (set-option options "__reg" "query" (gnc-query2scm query)))
 
     (let ((sxml (options->sxml options "basic")))
-      (test-equal "table has 231 cells"
-        231
+      ;; this is a simplistic test - counts the number of populated
+      ;; html-table-cells in the register table.
+      (test-equal "table has 232 cells"
+        232
         (length (sxml->table-row-col sxml 1 #f #f)))
 
       (test-equal "total debit = $2587"
@@ -80,8 +82,10 @@
 
     (set-option options "__reg" "journal" #t)
     (let ((sxml (options->sxml options "journal")))
-      (test-equal "table has 337 cells"
-        337
+      ;; this is a simplistic test - counts the number of populated
+      ;; html-table-cells in the register table.
+      (test-equal "table has 329 cells"
+        329
         (length (sxml->table-row-col sxml 1 #f #f)))
 
       (test-equal "total debit = #6"
@@ -102,8 +106,10 @@
 
     (set-option options "__reg" "ledger-type" #t)
     (let ((sxml (options->sxml options "ledger-type")))
-      (test-equal "table has 341 cells"
-        341
+      ;; this is a simplistic test - counts the number of populated
+      ;; html-table-cells in the register table.
+      (test-equal "table has 333 cells"
+        333
         (length (sxml->table-row-col sxml 1 #f #f)))
 
       (test-equal "total debit = #6"
@@ -132,8 +138,10 @@
 
     (set-option options "__reg" "double" #t)
     (let ((sxml (options->sxml options "double")))
-      (test-equal "table has 345 cells"
-        345
+      ;; this is a simplistic test - counts the number of populated
+      ;; html-table-cells in the register table.
+      (test-equal "table has 337 cells"
+        337
         (length (sxml->table-row-col sxml 1 #f #f)))
 
       (test-equal "total debit = #6"

@@ -23,8 +23,35 @@
 ;; Boston, MA  02110-1301,  USA       gnu@gnu.org
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(define-module (gnucash qif-import qif-parse))
+(eval-when (compile load eval expand)
+  (load-extension "libgnc-gnome" "scm_init_sw_gnome_module"))
+
+(use-modules (sw_gnome))
+(use-modules (gnucash core-utils))
+(use-modules (gnucash utilities))
+(use-modules (gnucash engine))
+(use-modules (gnucash qif-import qif-guess-map))
 (use-modules (gnucash string))
+(use-modules (srfi srfi-1))
 (use-modules (srfi srfi-13))
+(use-modules (ice-9 regex))
+
+(export qif-parse:check-date-format)
+(export qif-parse:check-number-format)
+(export qif-parse:check-number-formats)
+(export qif-parse:parse-acct-type)
+(export qif-parse:parse-action-field)
+(export qif-parse:parse-bang-field)
+(export qif-parse:parse-cleared-field)
+(export qif-parse:parse-date/format)
+(export qif-parse:parse-number/format)
+(export qif-parse:parse-numbers/format)
+(export qif-parse:print-date)
+(export qif-parse:print-number)
+(export qif-parse:print-numbers)
+(export qif-split:parse-category)
+(export qif-parse:fix-year)
 
 (define regexp-enabled?
   (defined? 'make-regexp))
@@ -142,7 +169,7 @@
           (list "oth s" GNC-ASSET-TYPE GNC-BANK-TYPE GNC-CASH-TYPE)
           (list "mutual" GNC-BANK-TYPE)))
   (or (assoc-ref string-map-alist (string-downcase! (string-trim-both read-value)))
-      (let ((msg (format #f (_ "Unrecognized account type '~s'. Defaulting to Bank.")
+      (let ((msg (format #f (G_ "Unrecognized account type '~s'. Defaulting to Bank.")
                          read-value)))
         (errorproc errortype msg)
         (list GNC-BANK-TYPE))))
@@ -205,7 +232,7 @@
   (and read-value
        (let ((sym (string->symbol (string-downcase (string-trim-both read-value)))))
          (or (any (lambda (lst) (and (memq sym lst) (car lst))) action-map)
-             (let ((msg (format #f (_ "Unrecognized action '~a'.") read-value)))
+             (let ((msg (format #f (G_ "Unrecognized action '~a'.") read-value)))
                (errorproc errortype msg))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -224,7 +251,7 @@
    (not (string-null? read-value))
    (let* ((secondchar (string-ref read-value 0)))
      (or (any (lambda (m) (and (memq secondchar (cdr m)) (car m))) maplist)
-         (let ((msg (format #f (_ "Unrecognized status '~a'. Defaulting to uncleared.")
+         (let ((msg (format #f (G_ "Unrecognized status '~a'. Defaulting to uncleared.")
                             read-value)))
            (errorproc errortype msg))))))
 
@@ -401,14 +428,16 @@
 
 ;; the following is a working refactored function
 (define (qif-parse:parse-number/format value-string format)
-  (let* ((filtered-string (gnc:string-delete-chars value-string "$'+"))
+  (let* ((has-minus? (string-index value-string #\-))
+         (filtered-string (gnc:string-delete-chars value-string "$'+-"))
          (read-string (case format
                         ((decimal) (gnc:string-delete-chars filtered-string ","))
                         ((comma) (gnc:string-replace-char
                                   (gnc:string-delete-chars filtered-string ".")
                                   #\, #\.))
-                        ((integer) filtered-string))))
-    (or (string->number (string-append "#e" read-string)) 0)))
+                        ((integer) filtered-string)))
+         (num (or (string->number (string-append "#e" read-string)) 0)))
+    (if has-minus? (- num) num)))
 
 ;; input: list of numstrings eg "10.50" "20.54"
 ;; input: formats to test '(decimal comma integer)

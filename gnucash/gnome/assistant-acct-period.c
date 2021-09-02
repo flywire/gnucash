@@ -263,7 +263,7 @@ ap_assistant_menu_prepare (GtkAssistant *assistant, gpointer user_data)
 {
     int nperiods;
     GDate period_begin, period_end, date_now;
-    char * str;
+    char *str, *earliest_str;
 
     AcctPeriodInfo *info = user_data;
 
@@ -302,14 +302,16 @@ ap_assistant_menu_prepare (GtkAssistant *assistant, gpointer user_data)
      * we may have closed books since last time. */
     info->earliest = get_earliest_in_book (gnc_get_current_book());
     info->earliest_str = qof_print_date(info->earliest);
+    earliest_str = gnc_ctime (&info->earliest);
     PINFO ("Date of earliest transaction is %" G_GINT64_FORMAT " %s",
-	   info->earliest, gnc_ctime (&info->earliest));
+	   info->earliest, earliest_str);
+    g_free (earliest_str);
 
     /* Display the results */
     str = g_strdup_printf (
               /* Translators: %s is a date string. %d is the number of books
-               * that will be created. This is a ngettext(3) message (but
-               * only for the %d part). */
+                 that will be created. This is a ngettext(3) message (but
+                 only for the %d part). */
               ngettext("The earliest transaction date found in this book is %s. "
                        "Based on the selection made above, this book will be split "
                        "into %d book.",
@@ -368,8 +370,8 @@ ap_assistant_book_prepare (GtkAssistant *assistant, gpointer user_data)
 	/* Translators: Run the assistant in your language to see GTK's translation of the button labels. */
         _("You have asked for a book to be created. This book "
           "will contain all transactions up to midnight %s "
-          "(for a total of %d transactions spread over %d accounts).\n\n "
-          "Amend the Title and Notes or Click on \"Next\" to proceed.\n "
+          "(for a total of %d transactions spread over %d accounts).\n\n"
+          "Amend the Title and Notes or Click on \"Next\" to proceed.\n"
           "Click on \"Back\" to adjust the dates or \"Cancel\".");
     str = g_strdup_printf (period_text, close_date_str, ntrans, nacc);
     gtk_label_set_text (GTK_LABEL(info->book_details), str);
@@ -536,6 +538,7 @@ ap_assistant_create (AcctPeriodInfo *info)
     GtkBuilder *builder;
     GtkWidget *window;
     GtkWidget *box;
+    gchar *earliest_str;
 
     builder = gtk_builder_new();
     gnc_builder_add_from_file  (builder , "assistant-acct-period.glade", "account_period_assistant");
@@ -566,8 +569,10 @@ ap_assistant_create (AcctPeriodInfo *info)
      * and use that to set up the freq spec widget. */
     info->earliest = get_earliest_in_book (gnc_get_current_book());
     info->earliest_str = qof_print_date(info->earliest);
+    earliest_str = gnc_ctime (&info->earliest);
     PINFO ("date of earliest transaction is %" G_GINT64_FORMAT " %s",
-           info->earliest, gnc_ctime (&info->earliest));
+           info->earliest, earliest_str);
+    g_free (earliest_str);
 
     g_date_clear (&info->closing_date, 1);
     gnc_gdate_set_time64 (&info->closing_date, info->earliest);

@@ -37,7 +37,7 @@
 
 (use-modules (gnucash engine))
 (use-modules (gnucash utilities))
-(use-modules (gnucash core-utils)) ; for gnc:version and (_ ...)
+(use-modules (gnucash core-utils)) ; for gnc:version and (G_ ...)
 (use-modules (gnucash app-utils))
 (use-modules (gnucash report))
 (use-modules (gnucash html))
@@ -149,16 +149,9 @@
       (N_ "Images")
       (N_ "Heading Alignment") "c" (N_ "Banner for top of report.")
       'left
-      (list (vector 'left
-                    (N_ "Left")
-                    (N_ "Align the banner to the left."))
-            (vector 'center
-                    (N_ "Center")
-                    (N_ "Align the banner in the center."))
-            (vector 'right
-                    (N_ "Right")
-                    (N_ "Align the banner to the right."))
-            )))
+      (list (vector 'left (N_ "Left"))
+            (vector 'center (N_ "Center"))
+            (vector 'right (N_ "Right")))))
     (opt-register
      (gnc:make-pixmap-option
       (N_ "Images")
@@ -429,7 +422,7 @@
              ;; print preparer info as additional header info
              (gnc:make-html-text
               (gnc:html-markup-i
-               (_ "Prepared by: ")
+               (G_ "Prepared by: ")
                (gnc:html-markup-b preparer))
               (gnc:html-markup-br))
              " ")
@@ -437,7 +430,7 @@
              ;; print receiver info as additional header info
              (gnc:make-html-text
               (gnc:html-markup-i
-               (_ "Prepared for: ")
+               (G_ "Prepared for: ")
                (gnc:html-markup-b prepared-for)
                (gnc:html-markup-br)))
              " ")
@@ -446,14 +439,14 @@
              (if show-time?
                  (gnc:make-html-text
                   (gnc:html-markup-i
-                   (_ "Report Creation Date: ")
+                   (G_ "Report Creation Date: ")
                    (qof-print-date (gnc:get-today))
                    " "
                    (gnc-print-time64 (current-time) "%X %Z"))
                   (gnc:html-markup-br))
                  (gnc:make-html-text
                   (gnc:html-markup-i
-                   (_ "Report Creation Date: ")
+                   (G_ "Report Creation Date: ")
                    (qof-print-date (gnc:get-today)))
                   (gnc:html-markup-br)))
              " ")
@@ -523,7 +516,7 @@
            ;; print preparer info as additional header info
            (gnc:make-html-text
             (gnc:html-markup-i
-             (_ "Prepared by: ")
+             (G_ "Prepared by: ")
              (gnc:html-markup-b preparer))
             (gnc:html-markup-br))
            " ")
@@ -531,7 +524,7 @@
            ;; print receiver info as additional header info
            (gnc:make-html-text
             (gnc:html-markup-i
-             (_ "Prepared for: ")
+             (G_ "Prepared for: ")
              (gnc:html-markup-b prepared-for))
             (gnc:html-markup-br))
            " ")
@@ -540,14 +533,14 @@
            (if show-time?
                (gnc:make-html-text
                 (gnc:html-markup-i
-                 (_ "Report Creation Date: ")
+                 (G_ "Report Creation Date: ")
                  (qof-print-date (gnc:get-today))
                  " "
                  (gnc-print-time64 (current-time) "%X %Z"))
                 (gnc:html-markup-br))
                (gnc:make-html-text
                 (gnc:html-markup-i
-                 (_ "Report Creation Date: ")
+                 (G_ "Report Creation Date: ")
                  (qof-print-date (gnc:get-today))
                  (gnc:html-markup-br))))
            " ")
@@ -555,7 +548,7 @@
            ;; print the GnuCash version string as additional header info
            (gnc:make-html-text
             (gnc:html-markup-i
-             (_ "GnuCash ")
+             (G_ "GnuCash ")
              gnc:version)
             (gnc:html-markup-br))
            " ")

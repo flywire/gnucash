@@ -89,6 +89,21 @@ struct _GncABImExContextImport
     GData *tmp_job_list;
 };
 
+static inline time64
+gnc_gwen_date_to_time64 (const GNC_GWEN_DATE* date)
+{
+#if AQBANKING_VERSION_INT >= 59900
+    return gnc_dmy2time64_neutral(GWEN_Date_GetDay(date),
+                                  GWEN_Date_GetMonth(date),
+                                  GWEN_Date_GetYear(date));
+#else
+    int month, day, year;
+    GWEN_Time_GetBrokenDownDate(date, &day, &month, &year);
+    /* GWEN_Time_GetBrokenDownDate returns localtime(3) format; month is [0..11] */
+    return gnc_dmy2time64_neutral(day, month + 1, year);
+#endif
+}
+
 void
 gnc_GWEN_Init(void)
 {
@@ -571,11 +586,7 @@ gnc_ab_trans_to_gnc(const AB_TRANSACTION *ab_trans, Account *gnc_acc)
     }
     if (valuta_date)
     {
-#ifdef AQBANKING6
-        time64 secs = GWEN_Date_toLocalTime(valuta_date);
-#else
-        time64 secs = GWEN_Time_toTime_t(valuta_date);
-#endif
+        time64 secs = gnc_gwen_date_to_time64(valuta_date);
         xaccTransSetDatePostedSecsNormalized(gnc_trans, secs);
     }
     else
@@ -786,7 +797,7 @@ txn_transaction_cb(const AB_TRANSACTION *element, gpointer user_data)
             if (gnc_verify_dialog(
                         GTK_WINDOW (data->parent), FALSE, "%s",
                         _("The backend found an error during the preparation "
-                          "of the job. It is not possible to execute this job. \n"
+                          "of the job. It is not possible to execute this job.\n"
                           "\n"
                           "Most probably the bank does not support your chosen "
                           "job or your Online Banking account does not have the permission "
@@ -1057,12 +1068,7 @@ bal_accountinfo_cb(AB_IMEXPORTER_ACCOUNTINFO *element, gpointer user_data)
 #endif
         if (ti)
         {
-#ifdef AQBANKING6
-            time64 secs = GWEN_Date_toLocalTime(ti);
-#else
-            time64 secs = GWEN_Time_toTime_t(ti);
-#endif
-            booked_tt = gnc_time64_get_day_neutral(secs);
+            booked_tt = gnc_gwen_date_to_time64(ti);
         }
         else
         {
@@ -1124,12 +1130,12 @@ bal_accountinfo_cb(AB_IMEXPORTER_ACCOUNTINFO *element, gpointer user_data)
                      GTK_BUTTONS_OK,
                      "%s",
                      /* Translators: Strings from this file are needed only in
-                      * countries that have one of aqbanking's Online Banking
-                      * techniques available. This is 'OFX DirectConnect'
-                      * (U.S. and others), 'HBCI' (in Germany), or 'YellowNet'
-                      * (Switzerland). If none of these techniques are available
-                      * in your country, you may safely ignore strings from the
-                      * import-export/hbci subdirectory. */
+                        countries that have one of aqbanking's Online Banking
+                        techniques available. This is 'OFX DirectConnect'
+                        (U.S. and others), 'HBCI' (in Germany), or 'YellowNet'
+                        (Switzerland). If none of these techniques are available
+                        in your country, you may safely ignore strings from the
+                        import-export/hbci subdirectory. */
                      _("The downloaded Online Banking Balance was zero.\n\n"
                        "Either this is the correct balance, or your bank does not "
                        "support Balance download in this Online Banking version. "
@@ -1147,7 +1153,7 @@ bal_accountinfo_cb(AB_IMEXPORTER_ACCOUNTINFO *element, gpointer user_data)
 
         gchar *booked_str = gnc_AB_VALUE_to_readable_string(booked_val);
         gchar *message1 = g_strdup_printf(
-                              _("Result of Online Banking job: \n"
+                              _("Result of Online Banking job:\n"
                                 "Account booked balance is %s"),
                               booked_str);
         gchar *message2 =
@@ -1238,6 +1244,10 @@ gnc_ab_import_context(AB_IMEXPORTER_CONTEXT *context,
             AB_ImExporterAccountInfo_List_ForEach(ab_ail, txn_accountinfo_cb,
                                                   data);
 
+        /* populate and display the matching window */
+        if (data->generic_importer)
+            gnc_gen_trans_list_show_all(data->generic_importer);
+
         /* Check balances */
         if (!(awaiting & IGNORE_BALANCES))
             AB_ImExporterAccountInfo_List_ForEach(ab_ail, bal_accountinfo_cb,
@@ -1247,6 +1257,10 @@ gnc_ab_import_context(AB_IMEXPORTER_CONTEXT *context,
     if (!(awaiting & IGNORE_TRANSACTIONS))
         AB_ImExporterContext_AccountInfoForEach(context, txn_accountinfo_cb,
                                                 data);
+
+    /* populate and display the matching window */
+    if (data->generic_importer)
+        gnc_gen_trans_list_show_all(data->generic_importer);
 
     /* Check balances */
     if (!(awaiting & IGNORE_BALANCES))

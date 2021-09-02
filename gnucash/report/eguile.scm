@@ -86,30 +86,17 @@
 (use-modules (ice-9 regex))       ; for regular expressions
 (use-modules (ice-9 rdelim))      ; for read-line
 (use-modules (ice-9 local-eval))  ; for the-environment
-(use-modules (gnucash app-utils)) ; for _
+(use-modules (gnucash core-utils)); for G_ N_
 (use-modules (gnucash utilities)) ; for gnc:html-string-sanitize
 
-(define-public (string-substitute-alist str sub-alist)
-  (with-output-to-string
-    (lambda ()
-      (string-for-each
-       (lambda (c)
-         (display
-          (or (assv-ref sub-alist c)
-              c)))
-       str))))
+(load-and-reexport (gnucash eguile eguile-utilities)
+                   (gnucash eguile eguile-html-utilities))
+
+(export eguile-file-to-string)
 
 ;; regexps used to find start and end of code segments
 (define startre (and (defined? 'make-regexp) (make-regexp "<\\?scm(:d)?[[:space:]]")))
 (define endre   (and (defined? 'make-regexp) (make-regexp "(^|[[:space:]])\\?>")))
-
-;; Guile code to mark starting and stopping text or code modes
-(define textstart  "(display \"")
-(define textstop   "\")")
-(define codestart  "")
-(define codestop   "")
-(define dcodestart "(display ")
-(define dcodestop  ")")
 
 ;; Parse a template, and return a sequence of s-expressions
 ;; e.g. "Text <?scm:d (+ x 2) ?>." -> (display "Text ")(display (+ x 2))(display ".")
@@ -129,43 +116,28 @@
         (display t)
         (display-text t)))
 
-  (define stop textstop)    ; text to output at end of current section
-
-  ;; switch between code and text modes
-  (define (switch-mode code? dmodifier?)
-    (display stop)
-    (cond
-     (code? (display textstart)
-            (set! stop textstop))
-     (dmodifier? (display dcodestart)
-                 (set! stop dcodestop))
-     (else (display codestart)
-           (set! stop codestop))))
-
   ;; recursively process input stream
-  (define (loop inp needle other code? line)
-    (when (string-null? line)
-      (set! line (read-line inp 'concat)))
-    (unless (eof-object? line)
-      (cond
-       ((regexp-exec needle line)
-        => (lambda (rmatch)
-             (let ((dmodifier? #f))
-               (display-it (match:prefix rmatch) code?)
-               (unless code?
-                 ;; switching from text to code -- check for modifier
-                 (set! dmodifier? (match:substring rmatch 1)))
-               (switch-mode code? dmodifier?)
-               (loop inp other needle (not code?) (match:suffix rmatch)))))
-       (else    ; no match - output whole line and continue
-        (display-it line code?)
-        (loop inp needle other code? "")))))
+  (define (loop inp needle other code? line stop)
+    (cond
+     ((eof-object? line) (display stop))
+     ((string-null? line) (loop inp needle other code? (read-line inp 'concat) stop))
+     ((regexp-exec needle line) =>
+      (lambda (rmatch)
+        (display-it (match:prefix rmatch) code?)
+        (display stop)
+        (loop inp other needle (not code?) (match:suffix rmatch)
+              (cond
+               (code? (display "(display \"") "\")")
+               ((match:substring rmatch 1) (display "(display ") ")")
+               (else (display "") "")))))
+     (else
+      (display-it line code?)
+      (loop inp needle other code? "" stop))))
 
-  (display textstart)
+  (display "(display \"")
   (if (defined? 'make-regexp)
-      (loop (current-input-port) startre endre #f "")
-      (display "eguile requires guile with regex."))
-  (display stop))
+      (loop (current-input-port) startre endre #f "" "\")")
+      (display "eguile requires guile with regex.\")")))
 
 ;end of (template->script)
 
@@ -175,7 +147,7 @@
 (define (eguile-file-to-string infile environment)
   (cond
    ((not (access? infile R_OK))
-    (format #f (_ "Template file \"~a\" can not be read") infile))
+    (format #f (G_ "Template file \"~a\" can not be read") infile))
    (else
     (let ((script (with-input-from-file infile
                     (lambda ()
@@ -189,8 +161,3 @@
                 (unless (eof-object? next)
                   (local-eval next local-env)
                   (lp (read))))))))))))
-
-(export eguile-file-to-string)
-
-(load-from-path "gnucash/eguile/eguile-utilities")
-(load-from-path "gnucash/eguile/eguile-html-utilities")

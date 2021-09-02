@@ -18,6 +18,9 @@
  * 51 Franklin Street, Fifth Floor    Fax:    +1-617-542-2652       *
  * Boston, MA  02110-1301,  USA       gnu@gnu.org                   *
 \********************************************************************/
+#include <glib.h>
+#include <glib/gstdio.h>
+
 extern "C"
 {
 #include <config.h>
@@ -36,8 +39,6 @@ extern "C"
 #endif
 #include <windows.h>
 #endif
-#include <glib.h>
-#include <glib/gstdio.h>
 #include <fcntl.h>
 #include <string.h>
 #ifdef HAVE_UNISTD_H
@@ -698,6 +699,7 @@ qof_session_load_from_xml_file_v2_full (
     QofBookFileType type)
 {
     Account* root;
+    Account* template_root;
     sixtp_gdv2* gd;
     sixtp* top_parser;
     sixtp* main_parser;
@@ -850,12 +852,18 @@ qof_session_load_from_xml_file_v2_full (
     /* commit all groups, this completes the BeginEdit started when the
      * account_end_handler finished reading the account.
      */
+    template_root = gnc_book_get_template_root (book);
     gnc_account_foreach_descendant (root,
                                     (AccountCb) xaccAccountCommitEdit,
                                     NULL);
-    gnc_account_foreach_descendant (gnc_book_get_template_root (book),
+    gnc_account_foreach_descendant (template_root,
                                     (AccountCb) xaccAccountCommitEdit,
                                     NULL);
+    /* if these exist in the XML file then they will be uncommitted */
+    if (qof_instance_get_editlevel(root) != 0)
+        xaccAccountCommitEdit(root);
+    if (qof_instance_get_editlevel(template_root) != 0)
+        xaccAccountCommitEdit(template_root);
 
     /* start logging again */
     xaccLogEnable ();
@@ -1619,7 +1627,7 @@ gnc_book_write_to_xml_file_v2 (
 /*
  * Have to pass in the backend as this routine needs the temporary
  * backend for file export, not the real backend which could be
- * postgress or anything else.
+ * postgresql or anything else.
  */
 gboolean
 gnc_book_write_accounts_to_xml_file_v2 (QofBackend* qof_be, QofBook* book,

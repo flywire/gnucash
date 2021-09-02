@@ -1,7 +1,12 @@
+
+(eval-when (compile load eval expand)
+  (load-extension "libgnc-report" "scm_init_sw_report_module"))
+
 (use-modules (gnucash engine))
 (use-modules (gnucash app-utils))
 (use-modules (gnucash report))
 (use-modules (gnucash report stylesheets plain))
+(use-modules (gnucash report html-style-sheet))
 (use-modules (srfi srfi-64))
 (use-modules (ice-9 pretty-print))
 (use-modules (sxml simple))
@@ -637,11 +642,6 @@ HTML Document Title</title></head><body></body>\n\
                (test-doc (gnc:make-html-document))
                (test-table (gnc:make-html-table))
              )
-          ;; change the default settings just to see what effect it has
-          ;;(gnc:html-table-set-col-headers! test-table #t)
-          ;; -> this make (gnc:html-table-render test-table test-doc) crash
-          ;; col-headers must be #f or a list
-          (gnc:html-table-set-row-headers! test-table #t)
           (gnc:html-table-set-caption! test-table #t)
           (gnc:html-table-append-row! test-table "Row 1")
           (gnc:html-table-append-row! test-table "Row 2")
@@ -660,11 +660,6 @@ HTML Document Title</title></head><body></body>\n\
                (test-doc (gnc:make-html-document))
                (test-table (gnc:make-html-table))
              )
-          ;; change the default settings just to see what effect it has
-          ;;(gnc:html-table-set-col-headers! test-table #t)
-          ;; -> this make (gnc:html-table-render test-table test-doc) crash
-          ;; col-headers must be #f or a list
-          (gnc:html-table-set-row-headers! test-table #t)
           (gnc:html-table-set-caption! test-table #t)
           (gnc:html-table-append-row! test-table "Row 2")
           (gnc:html-table-prepend-row! test-table "Row 1")
@@ -687,11 +682,6 @@ HTML Document Title</title></head><body></body>\n\
              (test-doc (gnc:make-html-document))
              (test-table (gnc:make-html-table))
            )
-        ;; change the default settings just to see what effect it has
-        ;;(gnc:html-table-set-col-headers! test-table #t)
-        ;; -> this make (gnc:html-table-render test-table test-doc) crash
-        ;; col-headers must be #f or a list
-        (gnc:html-table-set-row-headers! test-table #t)
         (gnc:html-table-set-caption! test-table #t)
         (gnc:html-table-append-row! test-table "Row 1")
         (gnc:html-table-append-row! test-table "Row 2")
@@ -718,11 +708,6 @@ HTML Document Title</title></head><body></body>\n\
              (test-doc (gnc:make-html-document))
              (test-table (gnc:make-html-table))
            )
-        ;; change the default settings just to see what effect it has
-        ;;(gnc:html-table-set-col-headers! test-table #t)
-        ;; -> this make (gnc:html-table-render test-table test-doc) crash
-        ;; col-headers must be #f or a list
-        (gnc:html-table-set-row-headers! test-table #t)
         (gnc:html-table-set-caption! test-table #t)
         (gnc:html-table-append-row! test-table "r1c1")
         (gnc:html-table-append-row! test-table '("r2c1" "r2c2" "r2c3"))
@@ -747,11 +732,6 @@ HTML Document Title</title></head><body></body>\n\
              (test-doc (gnc:make-html-document))
              (test-table (gnc:make-html-table))
            )
-        ;; change the default settings just to see what effect it has
-        ;;(gnc:html-table-set-col-headers! test-table #t)
-        ;; -> this make (gnc:html-table-render test-table test-doc) crash
-        ;; col-headers must be #f or a list
-        (gnc:html-table-set-row-headers! test-table #t)
         (gnc:html-table-set-caption! test-table #t)
         (gnc:html-table-append-row! test-table "Row 1")
         (gnc:html-table-append-row! test-table "Row 2")
@@ -905,14 +885,4 @@ HTML Document Title</title></head><body></body>\n\
             "Income" "Income-GBP" "Expenses" "Equity")
           (sxml->table-row-col sxml 1 #f 1))))
 
-    (let* ((table (gnc:make-html-table))
-           (acct-table (gnc:make-html-acct-table/env/accts
-                        '((balance-mode pre-adjusting)
-                          (display-tree-depth 9))
-                        accounts)))
-      (gnc:html-table-add-account-balances table acct-table '())
-      (let ((sxml (table->sxml table "basic - combo 3")))
-        (test-equal "gnc:make-html-acct-table/env/accts combo 3"
-          '("Root" "Asset" "Bank" "GBP Bank" "Wallet" "Liabilities"
-            "Income" "Income-GBP" "Expenses" "Equity")
-          (sxml->table-row-col sxml 1 #f 1))))))
+    ))

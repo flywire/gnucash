@@ -25,6 +25,10 @@
 /* @file test-load-xml2.c
  * @brief test the loading of a version-2 gnucash XML file
  */
+#include <glib.h>
+#include <glib-object.h>
+#include <glib/gstdio.h>
+
 extern "C"
 {
 #include <config.h>
@@ -36,9 +40,6 @@ extern "C"
 #include <unistd.h>
 #include <dirent.h>
 #include <string.h>
-#include <glib.h>
-#include <glib-object.h>
-#include <glib/gstdio.h>
 
 #include <cashobjects.h>
 #include <TransLog.h>
@@ -91,20 +92,24 @@ test_load_file (const char* filename)
     g_log_set_handler (logdomain, loglevel,
                        (GLogFunc)test_checked_handler, &check);
 
-    auto session = qof_session_new (nullptr);
+    auto book = qof_book_new();
+    auto session = qof_session_new (book);
 
     remove_locks (filename);
 
     ignore_lock = (g_strcmp0 (g_getenv ("SRCDIR"), ".") != 0);
     /*    gnc_prefs_set_file_save_compressed(FALSE); */
-    qof_session_begin (session, filename, ignore_lock, FALSE, TRUE);
+    qof_session_begin (session, filename,
+                       ignore_lock ? SESSION_READ_ONLY : SESSION_NORMAL_OPEN);
 
     qof_session_load (session, NULL);
-    auto book = qof_session_get_book (session);
 
     auto root = gnc_book_get_root_account (book);
     do_test (gnc_account_get_book (root) == book,
              "book and root account don't match");
+
+    do_test (qof_instance_get_editlevel(root) == 0,
+             "root account editlevel is not 0");
 
     do_test_args (qof_session_get_error (session) == ERR_BACKEND_NO_ERR,
                   "session load xml2", __FILE__, __LINE__,
@@ -113,6 +118,7 @@ test_load_file (const char* filename)
     /* Uncomment the line below to generate corrected files */
     /*    qof_session_save( session, NULL ); */
     qof_session_end (session);
+    qof_book_destroy (book);
 }
 
 int

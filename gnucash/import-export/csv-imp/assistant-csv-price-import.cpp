@@ -52,6 +52,13 @@ extern "C"
 #include "go-charmap-sel.h"
 }
 
+#include <algorithm>
+#include <exception>
+#include <iostream>
+#include <memory>
+#include <string>
+#include <tuple>
+
 #include "gnc-imp-settings-csv-price.hpp"
 #include "gnc-import-price.hpp"
 #include "gnc-tokenizer-fw.hpp"
@@ -155,7 +162,7 @@ private:
     GtkWidget       *skip_errors_button;            /**< The widget for Skip error rows*/
     GtkWidget       *csv_button;                    /**< The widget for the CSV button */
     GtkWidget       *fixed_button;                  /**< The widget for the Fixed Width button */
-    GtkWidget       *over_write_cbutton;            /**< The widget for Price Over Write */
+    GtkWidget       *over_write_cbutton;            /**< The widget for Price Overwrite */
     GtkWidget       *commodity_selector;            /**< The widget for commodity combo box */
     GtkWidget       *currency_selector;             /**< The widget for currency combo box */
     GOCharmapSel    *encselector;                   /**< The widget for selecting the encoding */
@@ -506,6 +513,7 @@ GtkTreeModel *get_model (bool all_commodity)
     }
     g_list_free (commodity_list);
     g_list_free (namespace_list);
+    g_object_unref (store);
 
     return model;
 }
@@ -565,6 +573,8 @@ CsvImpPriceAssist::CsvImpPriceAssist ()
         // Add Settings combo
         auto settings_store = gtk_list_store_new (2, G_TYPE_POINTER, G_TYPE_STRING);
         settings_combo = GTK_COMBO_BOX(gtk_combo_box_new_with_model_and_entry (GTK_TREE_MODEL(settings_store)));
+        g_object_unref (settings_store);
+
         gtk_combo_box_set_entry_text_column (GTK_COMBO_BOX(settings_combo), SET_NAME);
         gtk_combo_box_set_active (GTK_COMBO_BOX(settings_combo), 0);
 
@@ -928,7 +938,7 @@ CsvImpPriceAssist::preview_settings_save ()
             {
                 auto response = gnc_ok_cancel_dialog (GTK_WINDOW(csv_imp_asst),
                         GTK_RESPONSE_OK,
-                        "%s", _("Setting name already exists, over write?"));
+                        "%s", _("Setting name already exists, overwrite?"));
                 if (response != GTK_RESPONSE_OK)
                     return;
 
@@ -992,7 +1002,7 @@ void CsvImpPriceAssist::preview_update_skipped_rows ()
     preview_refresh_table ();
 }
 
-/* Callback triggered when user clicks on Over Write option
+/* Callback triggered when user clicks on Overwrite option
  */
 void CsvImpPriceAssist::preview_over_write (bool over)
 {
@@ -1628,6 +1638,7 @@ void CsvImpPriceAssist::preview_refresh_table ()
     }
     gtk_tree_view_set_model (treeview, GTK_TREE_MODEL(store));
     gtk_tree_view_set_tooltip_column (treeview, PREV_COL_ERROR);
+    g_object_unref (store);
 
     /* Adjust treeview to go with the just created model. This consists of adding
      * or removing columns and resetting any parameters related to how

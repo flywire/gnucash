@@ -128,6 +128,9 @@
            (catch #t
              (lambda ()
                (gnc:debug "handling-request: " request)
+               (and (member (car request) '("currency" "alphavantage" "vanguard"))
+                    (not (getenv "ALPHAVANTAGE_API_KEY"))
+                    (throw 'need-alphavantage-key))
                ;; we need to display the first element (the method,
                ;; so it won't be quoted) and then write the rest
                (with-output-to-port (fdes->outport (gnc-process-get-fd quoter 0))
@@ -343,7 +346,13 @@
           (cond
            ((assq-ref quote-data (car price-syms)) =>
             (lambda (p)
-              (set! price (gnc-scm-to-numeric p))
+              ;; The OpenExchange exchange rate source in Finance::Quote produces
+              ;; some ridiculously precise prices like #e6.95253159056541e-5 which 
+              ;; produce a denominator greater than INT64_MAX.  Use the rationalize
+              ;; function to bring them back to reality.  The precision parameter is
+              ;; chosen empirically to give the best results.
+              (set! price (gnc-scm-to-numeric 
+                            (rationalize p 1/100000000000000)))
               (set! price-type (car price-types))))
            (else (lp (cdr price-syms) (cdr price-types))))))
 
@@ -400,7 +409,7 @@
        prices)))
 
   (define (show-error msg)
-    (gnc:gui-error msg (_ msg)))
+    (gnc:gui-error msg (G_ msg)))
 
   ;; Add the alphavantage api key to the environment. This value is taken from
   ;; the Online Quotes preference tab
@@ -447,6 +456,11 @@
       (show-error (N_ "You are missing some needed Perl libraries.
 Run 'gnc-fq-update' as root to install them.")))
 
+     ((memq 'need-alphavantage-key fq-results)
+      (set! keep-going? #f)
+      (show-error (format #f (G_ "ERROR: ALPHAVANTAGE_API_KEY must be set for currency and quotes; see ~A")
+                          "https://wiki.gnucash.org/wiki/Online_Quotes#Source_Alphavantage.2C_US")))
+
      ((memq 'system-error fq-results)
       (set! keep-going? #f)
       (show-error (N_ "There was a system error while retrieving the price quotes.")))
@@ -476,18 +490,18 @@ Run 'gnc-fq-update' as root to install them.")))
           (gnc-verify-dialog
            window #t (with-output-to-string
                        (lambda ()
-                         (display (_ "Unable to retrieve quotes for these items:"))
+                         (display (G_ "Unable to retrieve quotes for these items:"))
                          (display "\n  ")
                          (display (string-join problem-syms "\n  "))
                          (newline)
-                         (display (_ "Continue using only the good quotes?")))))))
+                         (display (G_ "Continue using only the good quotes?")))))))
 
        (else
         (set! keep-going? #f)
         (gnc-error-dialog
          window (with-output-to-string
                   (lambda ()
-                    (display (_ "Unable to retrieve quotes for these items:"))
+                    (display (G_ "Unable to retrieve quotes for these items:"))
                     (display "\n  ")
                     (display (string-join problem-syms "\n  ")))))))))
 
@@ -502,11 +516,11 @@ Run 'gnc-fq-update' as root to install them.")))
                  window #t
                  (with-output-to-string
                    (lambda ()
-                     (display (_ "Unable to create prices for these items:"))
+                     (display (G_ "Unable to create prices for these items:"))
                      (display "\n  ")
                      (display (string-join (filter string? prices) "\n  "))
                      (newline)
-                     (display (_ "Add remaining good quotes?"))))))
+                     (display (G_ "Add remaining good quotes?"))))))
               (gnc:warn
                (with-output-to-string
                  (lambda ()
@@ -524,7 +538,7 @@ Run 'gnc-fq-update' as root to install them.")))
     (cond
      ((list? sources)
       ;; Translators: ~A is the version string
-      (format #t (_ "Found Finance::Quote version ~A.") (car sources))
+      (format #t (G_ "Found Finance::Quote version ~A.") (car sources))
       (newline)
       (gnc:msg "Found Finance::Quote version " (car sources))
       (gnc-quote-source-set-fq-installed (car sources) (cdr sources))))))

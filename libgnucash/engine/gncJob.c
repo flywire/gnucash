@@ -41,9 +41,9 @@
 struct _gncJob
 {
     QofInstance inst;
-    char *        id;
-    char *        name;
-    char *        desc;
+    const char *  id;
+    const char *  name;
+    const char *  desc;
     GncOwner      owner;
     gboolean      active;
 };
@@ -269,13 +269,9 @@ static void gncJobFree (GncJob *job)
 /* Set Functions */
 
 #define SET_STR(obj, member, str) { \
-        char * tmp; \
-        \
         if (!g_strcmp0 (member, str)) return; \
         gncJobBeginEdit (obj); \
-        tmp = CACHE_INSERT (str); \
-        CACHE_REMOVE (member); \
-        member = tmp; \
+        CACHE_REPLACE (member, str); \
         }
 
 void gncJobSetID (GncJob *job, const char *id)
@@ -317,6 +313,7 @@ void gncJobSetRate (GncJob *job, gnc_numeric rate)
         g_value_init (&v, GNC_TYPE_NUMERIC);
         g_value_set_boxed (&v, &rate);
         qof_instance_set_kvp (QOF_INSTANCE (job), &v, 1, GNC_JOB_RATE);
+        g_value_unset (&v);
     }
     else
     {
@@ -453,13 +450,14 @@ gnc_numeric gncJobGetRate (const GncJob *job)
 {
     GValue v = G_VALUE_INIT;
     gnc_numeric *rate = NULL;
+    gnc_numeric retval;
     if (!job) return gnc_numeric_zero ();
     qof_instance_get_kvp (QOF_INSTANCE (job), &v, 1, GNC_JOB_RATE);
     if (G_VALUE_HOLDS_BOXED (&v))
         rate = (gnc_numeric*)g_value_get_boxed (&v);
-    if (rate)
-        return *rate;
-    return gnc_numeric_zero();
+    retval = rate ? *rate : gnc_numeric_zero ();
+    g_value_unset (&v);
+    return retval;
 }
 
 GncOwner * gncJobGetOwner (GncJob *job)

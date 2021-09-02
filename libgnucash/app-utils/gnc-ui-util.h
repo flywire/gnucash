@@ -56,6 +56,11 @@ gboolean gnc_using_unreversed_budgets (QofBook* book);
  * don't match, return FALSE. */
 gboolean gnc_reverse_budget_balance (const Account *account, gboolean unreversed);
 
+/* Backward compatibility *******************************************
+ * Return that book's support opening balance accounts by equity type slot */
+void gnc_set_use_equity_type_opening_balance_account (QofBook* book);
+gboolean gnc_using_equity_type_opening_balance_account (QofBook* book);
+
 /* Default directory sections ***************************************/
 #define GNC_PREFS_GROUP_OPEN_SAVE    "dialogs.open-save"
 #define GNC_PREFS_GROUP_EXPORT       "dialogs.export-accounts"
@@ -189,6 +194,29 @@ const char * gnc_get_reconcile_str (char reconciled_flag);
 const char * gnc_get_reconcile_valid_flags (void);
 const char * gnc_get_reconcile_flag_order (void);
 
+#define WLINK 'w'
+#define FLINK 'f'
+
+/** Get a string containing documentation link valid flags
+ *
+ *  @return a string containing the list of valid link_flags
+ */
+const char *gnc_get_doclink_valid_flags (void);
+
+/** Get a string containing document link flag order
+ *
+ * @return a string containing the document link flag change order
+ */
+const char *gnc_get_doclink_flag_order (void);
+
+/** Get a string representing the document link type
+ *
+ * @param  link_flag The flag to convert into a string
+ *
+ * @return the i18n'd doclink string
+ */
+const char *gnc_get_doclink_str (char link_flag);
+
 typedef enum
 {
     EQUITY_OPENING_BALANCE,
@@ -207,17 +235,16 @@ gboolean gnc_account_create_opening_balance (Account *account,
 /* Locale functions *************************************************/
 
 
-/* Returns the default currency of the current locale, or NULL if no
+/**
+ * Returns the default currency of the current locale, or NULL if no
  * sensible currency could be identified from the locale. */
 gnc_commodity * gnc_locale_default_currency_nodefault (void);
 
-/* Returns the default currency of the current locale. WATCH OUT: If
+/**
+ * Returns the default currency of the current locale. WATCH OUT: If
  * no currency could be identified from the locale, this one returns
  * "USD", but this will have nothing to do with the actual locale. */
 gnc_commodity * gnc_locale_default_currency (void);
-
-/* Returns the default ISO currency string of the current locale. */
-const char * gnc_locale_default_iso_currency_code (void);
 
 
 /** Return the default currency set by the user.  If the user's
@@ -263,18 +290,6 @@ gnc_commodity * gnc_default_report_currency (void);
 
 /* Amount printing and parsing **************************************/
 
-/*
- * The xaccPrintAmount() and xaccSPrintAmount() routines provide
- *    i18n'ed convenience routines for printing gnc_numerics.
- *    amounts. Both routines take a gnc_numeric argument and
- *    a printing information object.
- *
- * The xaccPrintAmount() routine returns a pointer to a statically
- *    allocated buffer, and is therefore not thread-safe.
- *
- * The xaccSPrintAmount() routine accepts a pointer to the buffer to be
- *    printed to.  It returns the length of the printed string.
- */
 
 typedef struct _GNCPrintAmountInfo
 {
@@ -315,14 +330,37 @@ GNCPrintAmountInfo gnc_integral_print_info (void);
 /* WARNING: Garbage in, garbage out.  You must check the validity of
    the supplied gnc_numeric.  If it's invalid, the returned string
    could point to ANYTHING. */
+/*
+ * The xaccPrintAmount() and xaccSPrintAmount() routines provide
+ *    i18n'ed convenience routines for printing gnc_numerics.
+ *    amounts. Both routines take a gnc_numeric argument and
+ *    a printing information object.
+ *
+ * The xaccPrintAmount() routine returns a pointer to a statically
+ *    allocated buffer, and is therefore not thread-safe.
+ *
+ * The xaccSPrintAmount() routine accepts a pointer to the buffer to be
+ *    printed to.  It returns the length of the printed string.
+ */
+/**
+ * Make a string representation of a gnc_numeric.  Warning, the
+ * gnc_numeric is not checked for validity and the returned char* may
+ * point to random garbage.
+ */
 const char * xaccPrintAmount (gnc_numeric val, GNCPrintAmountInfo info);
+/**
+ * Make a string representation of a gnc_numeric.  Warning, the
+ * gnc_numeric is not checked for validity and the contents of the
+ * buffer will be unchanged. It is up to the calling function to
+ * ensure that buf is large enough for the results.
+ */
 int xaccSPrintAmount (char *buf, gnc_numeric val, GNCPrintAmountInfo info);
 
 const gchar *printable_value(gdouble val, gint denom);
 gchar *number_to_words(gdouble val, gint64 denom);
 gchar *numeric_to_words(gnc_numeric val);
 
-/* xaccParseAmount parses in_str to obtain a numeric result. The
+/**  Parses in_str to obtain a numeric result. The
  *   routine will parse as much of in_str as it can to obtain a single
  *   number. The number is parsed using the current locale information
  *   and the 'monetary' flag. The routine will return TRUE if it
@@ -336,24 +374,23 @@ gchar *numeric_to_words(gnc_numeric val);
 gboolean xaccParseAmount (const char * in_str, gboolean monetary,
                           gnc_numeric *result, char **endstr);
 
-/*
- * xaccParseAmountPosSign is just like xaccParseAmount except the
- * caller can choose whether the locale's postive sign (or in absense
- * the '+') character is ignored. Setting skip to TRUE will cause
- * the function to ignore any positive sign. Setting it to FALSE,
- * and positive signs will be treated as unrecognized characters.
- * xaccParseAmount will run as if skip is FALSE for compatibility
- * reasons (gnc-expression-parser depends on this behaviour).
+/**
+ * Parses in_str to a gnc_numeric, with a flag to indicate whether the
+ * locale's positive sign (or in absence the '+') character is
+ * ignored. Setting skip to TRUE will cause the function to ignore any
+ * positive sign. Setting it to FALSE, and positive signs will be
+ * treated as unrecognized characters.  xaccParseAmount will run as if
+ * skip is FALSE for compatibility reasons (gnc-expression-parser
+ * depends on this behaviour).
  */
 gboolean
 xaccParseAmountPosSign (const char * in_str, gboolean monetary, gnc_numeric *result,
                         char **endstr, gboolean skip);
 
-/*
- * xaccParseAmountExtended is just like xaccParseAmount except the
- * caller must provide all the locale-specific information.
+/**
+ * Converts a string to a gnc_numeric. The caller must provide all the
+ * locale-specific information.
  *
- * Note: if group is NULL, no group-size verification will take place.
  * ignore_list is a list of characters that are completely ignored
  * while processing the input string.  If ignore_list is NULL, nothing
  * is ignored.
@@ -361,7 +398,7 @@ xaccParseAmountPosSign (const char * in_str, gboolean monetary, gnc_numeric *res
 gboolean
 xaccParseAmountExtended (const char * in_str, gboolean monetary,
                          gunichar negative_sign, gunichar decimal_point,
-                         gunichar group_separator, const char *group, const char *ignore_list,
+                         gunichar group_separator, const char *ignore_list,
                          gnc_numeric *result, char **endstr);
 
 /* Initialization ***************************************************/
@@ -371,6 +408,56 @@ void gnc_ui_util_init (void);
 /* Remove callback preferences **************************************/
 
 void gnc_ui_util_remove_registered_prefs (void);
+
+/** Returns the incoming text removed of control characters
+ *
+ * @param incoming_text The text to filter
+ *
+ * @return The incoming text filtered of control characters to be
+ *         freed by the caller.
+*/
+gchar * gnc_filter_text_for_control_chars (const gchar *incoming_text);
+
+/** Updates cursor_position after removal of currency symbols
+ *
+ * @param incoming_text The text to filter
+ *
+ * @param symbol to remove
+ *
+ * @param cursor_position the posistion of cursor in the incoming text
+ *
+ * @return nothing
+*/
+void gnc_filter_text_set_cursor_position (const gchar *incoming_text,
+                                          const gchar *symbol,
+                                          gint *cursor_position);
+
+/** Returns the incoming text removed of a currency symbol
+ *
+ * @param incoming_text The text to filter
+ *
+ * @param symbol to remove
+ *
+ * @param cursor_position the posistion of cursor in the incoming text
+ *
+ * @return The incoming text with symbol removed to be freed by the caller
+*/
+gchar * gnc_filter_text_for_currency_symbol (const gchar *incoming_text,
+                                             const gchar *symbol);
+
+/** Returns the incoming text removed of currency symbol
+ * 
+ * @param comm commodity of entry if known
+ * 
+ * @param incoming_text The text to filter
+ *
+ * @param symbol return the symbol used
+ *
+ * @return The incoming text with symbol removed to be freed by the caller
+*/
+gchar * gnc_filter_text_for_currency_commodity (const gnc_commodity *comm,
+                                                const gchar *incoming_text,
+                                                const gchar **symbol);
 
 #endif
 /** @} */

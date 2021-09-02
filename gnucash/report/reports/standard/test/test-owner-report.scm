@@ -14,11 +14,11 @@
 (use-modules (system vm vm))
 
 (define uuid-list
-  (list (cons 'employee "08ae9c2e884b4f9787144f47eacd7f44")
-        (cons 'vendor "d7d1e53505ee4b1b82efad9eacedaea0")
-        (cons 'customer "c146317be32e4948a561ec7fc89d15c1")
-        (cons 'customer-new "c146317be32e4948a561ec7fc89d15c1-new")
-        (cons 'job "5518ac227e474f47a34439f2d4d049de")))
+  (list (cons 'employee "08ae9c2e884b4f9787144f47eacd7f44-old")
+        (cons 'vendor "d7d1e53505ee4b1b82efad9eacedaea0-old")
+        (cons 'customer "c146317be32e4948a561ec7fc89d15c1-old")
+        (cons 'customer-new "c146317be32e4948a561ec7fc89d15c1")
+        (cons 'job "5518ac227e474f47a34439f2d4d049de-old")))
 
 (setlocale LC_ALL "C")
 
@@ -39,12 +39,17 @@
         (coverage-data->lcov data port)
         (close port)))))
 
+(define (teardown)
+  (gnc-clear-current-session))
+
 (define (run-test-proper)
   (let ((saved-format (qof-date-format-get)))
     (qof-date-format-set QOF-DATE-FORMAT-ISO)
     (test-runner-factory gnc:test-runner)
     (test-begin "test-owner-report")
-    (owner-tests)
+    (test-group-with-cleanup "test-owner-report"
+      (owner-tests)
+      (teardown))
     (qof-date-format-set saved-format)
     (test-end "test-owner-report")))
 
@@ -333,14 +338,14 @@
                       owner-1 (get-acct "AR-USD")))
            (sxml (options->sxml 'customer-new options "new-customer-report basic")))
       (test-equal "inv-descriptions"
-        '("inv >90 $11.50" "$2.00" "inv 60-90 $7.50" "inv 30-60 $8.50"
+        '("inv >90 $11.50" "-$2.00" "inv 60-90 $7.50" "inv 30-60 $8.50"
           "inv >90 payment" "inv >90 payment" "inv <30days $4.00"
           "inv $200" "inv $200" "inv current $6.75" "inv $3 CN"
           "$31.75" "$7.50")
         ((sxpath `(// (table 3) // tr (td 5) // *text*))
          sxml))
       (test-equal "credit-amounts"
-        '("$11.50" "$2.00" "$7.50" "$8.50" "$4.00" "$200.00" "$6.75" "$8.00")
+        '("$11.50" "-$2.00" "$7.50" "$8.50" "$4.00" "$200.00" "$6.75" "$8.00")
         ((sxpath `(// (table 3) // tr (td 6) // *text*))
          sxml))
       (test-equal "debit-amounts"
@@ -353,8 +358,8 @@
         ((sxpath `(// (table 3) // tr (td 8) // *text*))
          sxml))
       (test-equal "positive-link-amounts"
-        '("$1.50" "$2.00" "$8.00" "$7.50" "$8.50" "$11.50" "$11.50"
-          "$4.00" "$200.00" "$200.00" "$6.75")
+        '("-$1.50" "-$2.00" "$8.00" "$7.50" "$8.50" "$11.50" "$11.50"
+          "$4.00" "-$200.00" "$200.00" "$6.75")
         ((sxpath `(// (table 3) // tr
                       (td -1 (@ (equal? (class "number-cell")))) //
                       *text*))
@@ -370,7 +375,15 @@
       (test-equal "aging-table"
         '("$0.00" "$6.75" "$1.00" "$8.50" "$7.50" "$8.00" "$31.75")
         ((sxpath `(// (table 3) // (tr -1) // table // tbody // tr // *text*))
-         sxml)))
+         sxml))
+
+      (test-equal "dr/cr headers"
+        '("Date" "Due Date" "Reference" "Type" "Description"
+          "Debits" "Credits" "Balance" "Date" "Reference" "Type"
+          "Description" "Partial Amount" "Amount")
+        ((sxpath `(// (table 3) // thead // (tr 2) // *text*))
+         sxml))
+      )
     (test-end "new-customer-report")
 
     (display "job-report tests:\n")

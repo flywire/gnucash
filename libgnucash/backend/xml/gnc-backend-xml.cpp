@@ -27,14 +27,15 @@
  * This file implements the top-level QofBackend API for saving/
  * restoring data to/from an ordinary Unix filesystem file.
  */
+#include <glib.h>
+#include <glib/gi18n.h>
+#include <glib/gstdio.h>
+
 extern "C"
 {
 #include <config.h>
 
 
-#include <glib.h>
-#include <glib/gi18n.h>
-#include <glib/gstdio.h>
 #include <libintl.h>
 #include <locale.h>
 #include <fcntl.h>
@@ -129,11 +130,6 @@ QofXmlBackendProvider::type_check (const char *uri)
     }
 
     filename = gnc_uri_get_path (uri);
-    if (0 == g_strcmp0 (filename, QOF_STDOUT))
-    {
-        result = FALSE;
-        goto det_exit;
-    }
     t = g_fopen (filename, "r");
     if (!t)
     {

@@ -2,10 +2,10 @@
 
 add_subdirectory(test-core)
 add_subdirectory(test)
+add_subdirectory(mocks)
 
 set(engine_noinst_HEADERS
   AccountP.h
-  ScrubP.h
   SplitP.h
   SX-book.h
   SX-ttinfo.h
@@ -267,4 +267,8 @@ if (NOT WIN32)
 endif()
 set_local_dist(engine_DIST_local CMakeLists.txt ${engine_SOURCES} ${engine_HEADERS}
                      ${engine_noinst_HEADERS} ${engine_EXTRA_DIST})
-set(engine_DIST ${engine_DIST_local} ${engine_test_core_DIST} ${test_engine_DIST} PARENT_SCOPE)
+set(engine_DIST
+    ${engine_DIST_local}
+    ${engine_test_core_DIST}
+    ${test_engine_DIST}
+    ${engine_mocks_DIST} PARENT_SCOPE)

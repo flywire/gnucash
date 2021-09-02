@@ -567,7 +567,7 @@ gnc_split_register_move_cursor (VirtualLocation *p_new_virt_loc,
 
     *p_new_virt_loc = new_virt_loc;
 
-    PINFO ("after move %d %d \n",
+    PINFO ("after move %d %d\n",
            new_virt_loc.vcell_loc.virt_row,
            new_virt_loc.vcell_loc.virt_col);
 
@@ -888,9 +888,9 @@ gnc_split_register_auto_completion (SplitRegister *reg,
         g_assert(pending_trans == trans);
 
         gnc_copy_trans_onto_trans (auto_trans, trans, FALSE, FALSE);
-        /* if there is an association, lets clear it */
-        if (xaccTransGetAssociation (auto_trans) != NULL)
-            xaccTransSetAssociation (trans, "");
+        /* if there is an doclink, let's clear it */
+        if (xaccTransGetDocLink (auto_trans) != NULL)
+            xaccTransSetDocLink (trans, "");
         blank_split = NULL;
 
         if (gnc_split_register_get_default_account (reg) != NULL)

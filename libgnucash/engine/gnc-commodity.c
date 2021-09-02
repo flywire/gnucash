@@ -70,24 +70,28 @@ typedef struct gnc_commodityPrivate
 {
     gnc_commodity_namespace *name_space;
 
-    char    * fullname;
-    char    * mnemonic;
-    char    * printname;
-    char    * cusip;          /* CUSIP or other identifying code */
-    int       fraction;
-    char    * unique_name;
+    const char *fullname;
+    const char *mnemonic;
+    char       *printname;
+    const char *cusip;                /* CUSIP or other identifying code */
+    int         fraction;
+    char       *unique_name;
+    char       *user_symbol;
 
-    gboolean  quote_flag;	    /* user wants price quotes */
-    gnc_quote_source * quote_source;   /* current/old source of quotes */
-    char    * quote_tz;
+    gboolean    quote_flag;	      /* user wants price quotes */
+    gnc_quote_source *quote_source;   /* current/old source of quotes */
+    const char *quote_tz;
 
     /* the number of accounts using this commodity - this field is not
      * persisted */
-    int       usage_count;
+    int         usage_count;
 
     /* the default display_symbol, set in iso-4217-currencies at start-up */
-    const char * default_symbol;
+    const char *default_symbol;
 } gnc_commodityPrivate;
+
+static const char*
+is_unset = "unset";
 
 #define GET_PRIVATE(o) \
     ((gnc_commodityPrivate*)g_type_instance_get_private((GTypeInstance*)o, GNC_TYPE_COMMODITY))
@@ -104,7 +108,7 @@ struct gnc_commodity_namespace_s
 {
     QofInstance inst;
 
-    gchar      * name;
+    const gchar *name;
     gboolean     iso4217;
     GHashTable * cm_table;
     GList      * cm_list;
@@ -167,7 +171,7 @@ static gnc_quote_source currency_quote_source =
 { TRUE, 0, 0, "Currency", "CURRENCY", "currency" };
 
 /* The single quote method is usually the module name, but
- * sometimes it get's the suffix "_direct"
+ * sometimes it gets the suffix "_direct"
  * and the failover method is without suffix.
  */
 static gnc_quote_source single_quote_sources[] =
@@ -667,6 +671,7 @@ gnc_commodity_init(gnc_commodity* com)
     priv->quote_flag = 0;
     priv->quote_source = NULL;
     priv->quote_tz = CACHE_INSERT("");
+    priv->user_symbol = (char*) is_unset;
 
     reset_printname(priv);
     reset_unique_name(priv);
@@ -951,6 +956,10 @@ commodity_free(gnc_commodity * cm)
     g_free(priv->unique_name);
     priv->unique_name = NULL;
 
+    if (priv->user_symbol != is_unset)
+        g_free (priv->user_symbol);
+    priv->user_symbol = NULL;
+
 #ifdef ACCOUNTS_CLEANED_UP
     /* Account objects are not actually cleaned up when a book is closed (in fact
      * a memory leak), but commodities are, so in currently this warning gets hit
@@ -1118,13 +1127,15 @@ static gboolean
 gnc_commodity_get_auto_quote_control_flag(const gnc_commodity *cm)
 {
     GValue v = G_VALUE_INIT;
+    gboolean retval = TRUE;
 
     if (!cm) return FALSE;
     qof_instance_get_kvp (QOF_INSTANCE (cm), &v, 1, "auto_quote_control");
     if (G_VALUE_HOLDS_STRING (&v) &&
         strcmp(g_value_get_string (&v), "false") == 0)
-        return FALSE;
-    return TRUE;
+        retval = FALSE;
+    g_value_unset (&v);
+    return retval;
 }
 
 /********************************************************************
@@ -1180,12 +1191,17 @@ gnc_commodity_get_quote_tz(const gnc_commodity *cm)
 const char*
 gnc_commodity_get_user_symbol(const gnc_commodity *cm)
 {
-    GValue v = G_VALUE_INIT;
-    if (!cm) return NULL;
-    qof_instance_get_kvp (QOF_INSTANCE(cm), &v, 1, "user_symbol");
-    if (G_VALUE_HOLDS_STRING (&v))
-        return g_value_get_string (&v);
-    return NULL;
+    gnc_commodityPrivate* priv;
+    g_return_val_if_fail (GNC_IS_COMMODITY (cm), NULL);
+    priv = GET_PRIVATE(cm);
+    if (priv->user_symbol == is_unset)
+    {
+        GValue v = G_VALUE_INIT;
+        qof_instance_get_kvp (QOF_INSTANCE(cm), &v, 1, "user_symbol");
+        priv->user_symbol = G_VALUE_HOLDS_STRING (&v) ? g_value_dup_string (&v) : NULL;
+        g_value_unset (&v);
+    }
+    return priv->user_symbol;
 }
 
 /********************************************************************
@@ -1360,6 +1376,7 @@ gnc_commodity_set_auto_quote_control_flag(gnc_commodity *cm,
         g_value_set_string (&v, "false");
         qof_instance_set_kvp (QOF_INSTANCE (cm), &v, 1, "auto_quote_control");
     }
+    g_value_unset (&v);
     mark_commodity_dirty(cm);
     gnc_commodity_commit_edit(cm);
     LEAVE("");
@@ -1472,12 +1489,12 @@ void
 gnc_commodity_set_user_symbol(gnc_commodity * cm, const char * user_symbol)
 {
     struct lconv *lc;
-    GValue v = G_VALUE_INIT;
+    gnc_commodityPrivate* priv;
+
     if (!cm) return;
+    priv = GET_PRIVATE(cm);
 
     ENTER ("(cm=%p, symbol=%s)", cm, user_symbol ? user_symbol : "(null)");
-
-    gnc_commodity_begin_edit(cm);
 
     lc = gnc_localeconv();
     if (!user_symbol || !*user_symbol)
@@ -1489,14 +1506,33 @@ gnc_commodity_set_user_symbol(gnc_commodity * cm, const char * user_symbol)
 	user_symbol = NULL;
     else if (!g_strcmp0(user_symbol, gnc_commodity_get_default_symbol(cm)))
 	user_symbol = NULL;
+
+    if (priv->user_symbol != is_unset)
+    {
+        if (!g_strcmp0 (user_symbol, priv->user_symbol))
+        {
+            LEAVE ("gnc_commodity_set_user_symbol: no change");
+            return;
+        }
+        g_free (priv->user_symbol);
+    }
+
+    gnc_commodity_begin_edit (cm);
+
     if (user_symbol)
     {
+        GValue v = G_VALUE_INIT;
         g_value_init (&v, G_TYPE_STRING);
         g_value_set_string (&v, user_symbol);
         qof_instance_set_kvp (QOF_INSTANCE(cm), &v, 1, "user_symbol");
+        priv->user_symbol = g_strdup (user_symbol);
+        g_value_unset (&v);
     }
     else
+    {
         qof_instance_set_kvp (QOF_INSTANCE(cm), NULL, 1, "user_symbol");
+        priv->user_symbol = NULL;
+    }
 
     mark_commodity_dirty(cm);
     gnc_commodity_commit_edit(cm);
@@ -1747,7 +1783,7 @@ gnc_commodity_table_new(void)
 }
 
 /********************************************************************
- * book anchor functons
+ * book anchor functions
  ********************************************************************/
 
 gnc_commodity_table *
@@ -1993,7 +2029,7 @@ gnc_commodity_table_insert(gnc_commodity_table * table,
     PINFO ("insert %p %s into nsp=%p %s", priv->mnemonic, priv->mnemonic,
            nsp->cm_table, nsp->name);
     g_hash_table_insert(nsp->cm_table,
-                        CACHE_INSERT(priv->mnemonic),
+                        (gpointer)CACHE_INSERT(priv->mnemonic),
                         (gpointer)comm);
     nsp->cm_list = g_list_append(nsp->cm_list, comm);
 

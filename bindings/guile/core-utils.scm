@@ -26,20 +26,84 @@
 
 (define-module (gnucash core-utils))
 
-;; Guile 2 needs to find the symbols from the extension at compile time already
-(eval-when
-      (compile load eval expand)
-      (load-extension "libgnucash-guile" "gnc_guile_bindings_init"))
-(use-modules (sw_core_utils))
+(eval-when (compile load eval expand)
+  (load-extension "libgnucash-guile" "gnc_guile_bindings_init"))
 
-; Export the swig-wrapped symbols in the public interface of this module
-(let ((i (module-public-interface (current-module))))
-     (module-use! i (resolve-interface '(sw_core_utils))))
+(use-modules (srfi srfi-26))
+(use-modules (ice-9 match))
+(use-modules (ice-9 i18n))
 
-(define-public gnc:version (gnc-version))
-;; gettext functions
-(define-public _ gettext)
-(define-syntax N_
-    (syntax-rules ()
-        ((_ x) x)))
 (export N_)
+(export G_)
+(export NG_)
+(export C_)
+(export load-and-reexport)
+(export gnc:string-locale<?)
+(export gnc:string-locale>?)
+(export gnc:version)
+
+;; loads modules and re-exports all its public interface into the
+;; current module
+(define-syntax load-and-reexport
+  (syntax-rules ()
+    ((_ (mod ...) ...)
+     (begin
+       (use-modules (mod ...))
+       ...
+       (module-use! (module-public-interface (current-module))
+                    (resolve-interface '(mod ...)))
+       ...))))
+
+(load-and-reexport (sw_core_utils))
+
+(define gnc:version (gnc-version))
+
+;; gettext functions
+(define G_ gnc:gettext)
+(define NG_ gnc:ngettext)
+(define C_ gnc:C-gettext)
+(define N_ identity)
+
+;; the following will define _ to call gnc:gettext for guile up to
+;; 2.2. It may be removed in the future when minimum guile is 3.0.
+(cond-expand
+  (guile-3)
+  (guile-2
+   (define-public (_ x)
+     (issue-deprecation-warning "Using _ to call gettext is disallowed in guile-3 and will be removed in the future. Use G_ instead.")
+     (gnc:gettext x))))
+
+(define gnc:string-locale<? string-locale<?)
+(define gnc:string-locale>? string-locale>?)
+
+;; Custom unbound-variable exception printer: instead of generic "In
+;; procedure module-lookup: Unbound variable: varname", it will first
+;; search all available modules to identify missing (use-modules) in
+;; header, and offer hint to add it. This is adapted from Guix source.
+(define (known-variable-definition variable)
+  (define seen (make-hash-table))
+  (let lp ((modules (list (resolve-module '() #f #f #:ensure #f))) (retval '()))
+    (match modules
+      (() retval)
+      (((? (cut hash-ref seen <>)) . tail) (lp tail retval))
+      ((head tail ...)
+       (hash-set! seen head #t)
+       (let ((next (append tail (hash-map->list (lambda (name module) module)
+                                                (module-submodules head)))))
+         (match (and=> (module-public-interface head)
+                       (cut module-local-variable <> variable))
+           (#f (lp next retval))
+           (_ (lp next (cons (module-name head) retval)))))))))
+
+(define (print-unbound-variable-error port key args default-printer)
+  (match args
+    ((proc message (variable) _ ...)
+     (format port "Unbound variable: ~a. " variable)
+     (match (known-variable-definition variable)
+       (() (format port "It is a typo, or inaccessible in current module."))
+       ((mod) (format port "Did you forget (use-modules ~s)?" mod))
+       (modules (format port "It is defined in one of the following modules\n")
+                (for-each (cut format port "(use-modules ~s)\n" <>) modules))))
+    (_ (default-printer))))
+
+(set-exception-printer! 'unbound-variable print-unbound-variable-error)

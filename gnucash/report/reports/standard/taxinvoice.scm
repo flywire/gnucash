@@ -25,6 +25,7 @@
 (define-module (gnucash reports standard taxinvoice))
 
 (use-modules (ice-9 local-eval))  ; for the-environment
+(use-modules (ice-9 match))
 (use-modules (gnucash engine))
 (use-modules (gnucash utilities))
 (use-modules (gnucash core-utils))
@@ -45,28 +46,20 @@
   ;; depending on how complicated the tax table is.
   ;; (When called from within the eguile template, anything
   ;; (display)ed becomes part of the HTML string.)
-  (if (or (not taxable) (eq? taxtable '()))
-    (display "&nbsp;")
-    (let* ((amttot  (gnc:make-commodity-collector))
-           (pctot   (gnc:make-value-collector))
-           (entries (gncTaxTableGetEntries taxtable))
-           (amt?    #f)  ; becomes #t if any entries are amounts
-           (pc?     #f)) ; becomes #t if any entries are percentages
-      (for entry in entries do
-          (let ((tttype (gncTaxTableEntryGetType   entry))
-                (ttamt  (gncTaxTableEntryGetAmount entry)))
-            (if (equal? tttype GNC-AMT-TYPE-VALUE)
-              (begin
-                (set! amt? #t)
-                (amttot 'add curr ttamt))
-              (begin
-                (set! pc? #t)
-                (pctot 'add ttamt)))))
-      (if pc? (begin (display (fmtnumeric (pctot 'total #f))) (display "%")))
-      (if (and amt? pc?) (display " +&nbsp;"))        ; both - this seems unlikely in practice
-      (if amt?
-        (display-comm-coll-total amttot #f))
-      (if (and (not amt?) (not pc?)) (display (_ "n/a"))))))        ; neither
+  (define (amt-type? entry)
+    (eqv? (gncTaxTableEntryGetType entry) GNC-AMT-TYPE-VALUE))
+  (let lp ((entries (if taxable (gncTaxTableGetEntries taxtable) '())) (acc '()))
+    (match entries
+      (() (display (if (null? acc)
+                       (G_ "n/a")
+                       (string-join (reverse acc) "&nbsp;+&nbsp;"))))
+      (((and (? amt-type?) (= gncTaxTableEntryGetAmount amt)) . rest)
+       (lp rest (cons (gnc:default-html-gnc-monetary-renderer
+                       (gnc:make-gnc-monetary curr amt) #f) acc)))
+      (((= gncTaxTableEntryGetAmount percent) . rest)
+       (lp rest
+           (cons (string-append (gnc:default-html-number-renderer percent #f) "%")
+                 acc))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Define all the options
@@ -98,7 +91,7 @@
 (define optname-border-color-th		(N_ "table-header-border-color"))
 (define optname-border-color-td		(N_ "table-cell-border-color"))
 (define optname-extra-css		(N_ "Embedded CSS"))
-(define optname-report-title		(N_ "Report title"))
+(define optname-report-title		(N_ "Report Title"))
 (define optname-template-file		(N_ "Template file"))
 (define optname-css-file	        (N_ "CSS stylesheet file"))
 (define optname-heading-font		(N_ "Heading font"))
@@ -117,21 +110,7 @@
 (define optname-subtotal       		(N_ "Sub-total"))
 (define optname-amount-due     		(N_ "Amount Due"))
 (define optname-payment-recd   		(N_ "Payment received text"))
-(define optname-extra-notes    		(N_ "Extra notes"))
-
-; Choose only customer invoices
-; (This doesn't work very nicely -- all invoices and bills
-;  are offered for selection, but if a non-customer invoice
-;  is selected, the user is dumped back to viewing the
-;  previous invoice (or none) with no error message)
-(define (customers-only invoice)
-  (let* ((owner     (gncInvoiceGetOwner  invoice))
-         (endowner  (gncOwnerGetEndOwner owner))
-         (ownertype (gncOwnerGetType     endowner)))
-    ;(gnc:debug "ownertype is ")(gnc:debug ownertype)
-    (if (eqv? ownertype GNC-OWNER-CUSTOMER)
-      (list #t invoice)
-      (list #f invoice))))
+(define optname-extra-notes    		(N_ "Extra Notes"))
 
 (define (options-generator)
   ;; Options
@@ -142,8 +121,7 @@
   (add-option
     (gnc:make-invoice-option ; defined in gnucash/scm/business-options.scm
       gnc:pagename-general gnc:optname-invoice-number 
-      "a" "" (lambda () '()) 
-      #f))        ;customers-only)) ;-- see above
+      "a" "" (lambda () '()) #f))
 
   ;; Elements page options
 (add-option (gnc:make-simple-boolean-option	elementspage	optname-col-date		"a" (N_ "Display the date?") #t))
@@ -184,48 +162,47 @@
   ;; Heading options
   (add-option (gnc:make-string-option
                 ; page / name / orderkey / tooltip / default
-                headingpage optname-report-title "a" "" (_ "Invoice")))
+                headingpage optname-report-title "a" "" (G_ "Invoice")))
   (add-option (gnc:make-string-option
-                headingpage optname-units "b" "" (_ "Units")))
+                headingpage optname-units "b" "" (G_ "Units")))
   (add-option (gnc:make-string-option
-                headingpage optname-qty "c" "" (_ "Qty")))
+                headingpage optname-qty "c" "" (G_ "Qty")))
   (add-option (gnc:make-string-option
-                headingpage optname-unit-price "d" "" (_ "Unit Price")))
+                headingpage optname-unit-price "d" "" (G_ "Unit Price")))
   (add-option (gnc:make-string-option
-                headingpage optname-disc-rate "e" "" (_ "Discount Rate")))
+                headingpage optname-disc-rate "e" "" (G_ "Discount Rate")))
   (add-option (gnc:make-string-option
-                headingpage optname-disc-amount "f" "" (_ "Discount Amount")))
+                headingpage optname-disc-amount "f" "" (G_ "Discount Amount")))
   (add-option (gnc:make-string-option
-                headingpage optname-net-price "g" "" (_ "Net Price")))
+                headingpage optname-net-price "g" "" (G_ "Net Price")))
   (add-option (gnc:make-string-option
-                headingpage optname-tax-rate "h" "" (_ "Tax Rate")))
+                headingpage optname-tax-rate "h" "" (G_ "Tax Rate")))
   (add-option (gnc:make-string-option
-                headingpage optname-tax-amount "i" "" (_ "Tax Amount")))
+                headingpage optname-tax-amount "i" "" (G_ "Tax Amount")))
   (add-option (gnc:make-string-option
-                headingpage optname-total-price "j" "" (_ "Total Price")))
+                headingpage optname-total-price "j" "" (G_ "Total Price")))
   (add-option (gnc:make-string-option
-                headingpage2 optname-subtotal "a" "" (_ "Sub-total")))
+                headingpage2 optname-subtotal "a" "" (G_ "Sub-total")))
   (add-option (gnc:make-string-option
-                headingpage2 optname-amount-due "b" "" (_ "Amount Due")))
+                headingpage2 optname-amount-due "b" "" (G_ "Amount Due")))
   (add-option (gnc:make-string-option
                 headingpage2 optname-payment-recd "c" "" 
-                (_ "Payment received, thank you!")))
+                (G_ "Payment received, thank you!")))
   (add-option (gnc:make-string-option	headingpage2	optname-invoice-number-text
-    "d" "" (_ "Invoice number: ")))
+    "d" "" (G_ "Invoice number: ")))
   (add-option (gnc:make-string-option	headingpage2	optname-to-text
-    "e" "" (_ "To: ")))
+    "e" "" (G_ "To: ")))
   (add-option (gnc:make-string-option	headingpage2	optname-ref-text
-    "f" "" (_ "Your ref: ")))
+    "f" "" (G_ "Your ref: ")))
   (add-option (gnc:make-string-option	headingpage2	optname-jobnumber-text
-    "g" "" (_ "Job number: ")))
+    "g" "" (G_ "Job number: ")))
   (add-option (gnc:make-string-option	headingpage2	optname-jobname-text
-    "h" "" (_ "Job name: ")))
+    "h" "" (G_ "Job name: ")))
 
   (add-option (gnc:make-text-option
                 notespage optname-extra-notes "a"
-                (_ "Notes added at end of invoice -- may contain HTML markup.") 
-                (_ "Thank you for your patronage!")))
-                ;(N_ "(Development version -- don't rely on the numbers on this report without double-checking them.<br/>Change the 'Extra Notes' option to get rid of this message)")))
+                (G_ "Notes added at end of invoice -- may contain HTML markup.") 
+                (G_ "Thank you for your patronage!")))
 
   (add-option (gnc:make-text-option	notespage optname-extra-css "b"
                 (N_ "Embedded CSS.")	"h1.coyname { text-align: left; }"))
@@ -253,9 +230,9 @@
                                       (opt-value displaypage optname-template-file)))
          (opt-css-file              (find-stylesheet
                                       (opt-value displaypage optname-css-file)))
-         (opt-heading-font          (font-name-to-style-info 
+         (opt-heading-font          (font-name-to-style-info-eguile
                                       (opt-value displaypage optname-heading-font)))
-         (opt-text-font             (font-name-to-style-info
+         (opt-text-font             (font-name-to-style-info-eguile
                                       (opt-value displaypage optname-text-font)))
          (opt-logofile              (opt-value displaypage  optname-logofile)) 
          (opt-logo-width            (opt-value displaypage  optname-logo-width)) 
@@ -321,14 +298,14 @@
          (gnc:option-set-value option value)))
 
   (let ((options (options-generator)))
-       (set-opt options headingpage optname-report-title (_ "Tax Invoice"))
-       (set-opt options headingpage optname-unit-price (_ "Unit"))
-       (set-opt options headingpage optname-tax-rate (_ "GST Rate"))
-       (set-opt options headingpage optname-tax-amount (_ "GST Amount"))
-       (set-opt options headingpage2 optname-amount-due (_ "Amount Due (inc GST)"))
-       (set-opt options headingpage2 optname-invoice-number-text (_ "Invoice #: "))
-       (set-opt options headingpage2 optname-ref-text (_ "Reference: "))
-       (set-opt options headingpage2 optname-jobname-text (_ "Engagement: "))
+       (set-opt options headingpage optname-report-title (G_ "Tax Invoice"))
+       (set-opt options headingpage optname-unit-price (G_ "Unit"))
+       (set-opt options headingpage optname-tax-rate (G_ "GST Rate"))
+       (set-opt options headingpage optname-tax-amount (G_ "GST Amount"))
+       (set-opt options headingpage2 optname-amount-due (G_ "Amount Due (inc GST)"))
+       (set-opt options headingpage2 optname-invoice-number-text (G_ "Invoice #: "))
+       (set-opt options headingpage2 optname-ref-text (G_ "Reference: "))
+       (set-opt options headingpage2 optname-jobname-text (G_ "Engagement: "))
        (set-opt options notespage optname-extra-css "h1.coyname { text-align: right; margin-bottom: 0px ; font-size: 200%; } h2.invoice { text-align: left; margin-bottom: 0px ; font-size: 500%; }")
        options))
 

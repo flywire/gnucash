@@ -381,8 +381,111 @@ TEST(gnc_datetime_constructors, test_gncdate_end_constructor)
     EXPECT_EQ(atime.format("%d-%m-%Y %H:%M:%S"), "06-11-2046 23:59:59");
 }
 
+static ::testing::AssertionResult
+test_offset(time64 start_time, int hour, int offset1, int offset2,
+            const char* zone)
+{
+    GncDateTime gdt{start_time + hour * 3600};
+    if ((hour < 2 && gdt.offset() == offset1) ||
+        (hour >= 2 && gdt.offset() == offset2))
+        return ::testing::AssertionSuccess();
+    else
+        return ::testing::AssertionFailure() << zone << ": " << gdt.format("%D %T %z %q") << " hour " << hour;
+}
+
+TEST(gnc_datetime_constructors, test_DST_start_transition_time)
+{
+#ifdef __MINGW32__
+    TimeZoneProvider tzp_can{"A.U.S Eastern Standard Time"};
+    TimeZoneProvider tzp_la{"Pacific Standard Time"};
+#else
+    TimeZoneProvider tzp_can("Australia/Canberra");
+    TimeZoneProvider tzp_la("America/Los_Angeles");
+#endif
+    _set_tzp(tzp_la);
+    for (auto hours = 0; hours < 23; ++hours)
+        EXPECT_TRUE(test_offset(1583657940, hours, -28800, -25200, "Los Angeles"));
+
+    _reset_tzp();
+    _set_tzp(tzp_can);
+    for (auto hours = 0; hours < 23; ++hours)
+        EXPECT_TRUE(test_offset(1601737140, hours, 36000, 39600, "Canberra"));
+    _reset_tzp();
+}
+
+TEST(gnc_datetime_constructors, test_DST_end_transition_time)
+{
+#ifdef __MINGW32__
+    TimeZoneProvider tzp_can{"A.U.S Eastern Standard Time"};
+    TimeZoneProvider tzp_la{"Pacific Standard Time"};
+#else
+    TimeZoneProvider tzp_can("Australia/Canberra");
+    TimeZoneProvider tzp_la("America/Los_Angeles");
+#endif
+    _set_tzp(tzp_la);
+    for (auto hours = 0; hours < 23; ++hours)
+        EXPECT_TRUE(test_offset(1604217540, hours, -25200, -28800, "Los Angeles"));
+    _reset_tzp();
+    _set_tzp(tzp_can);
+    for (auto hours = 0; hours < 23; ++hours)
+        EXPECT_TRUE(test_offset(1586008740, hours, 39600, 36000, "Canberra"));
+    _reset_tzp();
+}
+
+TEST(gnc_datetime_constructors, test_create_in_transition)
+{
+#ifdef __MINGW32__
+    TimeZoneProvider tzp_br{"E. South America Standard Time"};
+#else
+    TimeZoneProvider tzp_br("America/Sao_Paulo");
+#endif
+    _set_tzp(tzp_br);
+    /* Test Daylight Savings start: When Sao Paolo had daylight
+     * savings time it ended at 23:59:59 and the next second was
+     * 01:00:00 so that's when the day starts.
+     */
+    GncDate date0{"2018-11-03", "y-m-d"};
+    GncDateTime gncdt0{date0, DayPart::end};
+    EXPECT_EQ(gncdt0.format_zulu("%Y-%m-%d %H:%M:%S %Z"), "2018-11-04 02:59:59 UTC");
+    EXPECT_EQ(gncdt0.format("%Y-%m-%d %H:%M:%S %Z"), "2018-11-03 23:59:59 -03");
+    GncDate date1{"2018-11-04", "y-m-d"};
+    GncDateTime gncdt1{date1, DayPart::start};
+    EXPECT_EQ(gncdt1.format_zulu("%Y-%m-%d %H:%M:%S %Z"), "2018-11-04 03:00:00 UTC");
+    EXPECT_EQ(gncdt1.format("%Y-%m-%d %H:%M:%S %Z"), "2018-11-04 01:00:00 -02");
+    /* End of day, end of DST. We want one second before midnight in
+     * std time, i.e. -03. Unfortunately sometimes boost::date_time
+     * decides that it's still DST and returns the first one.
+     */
+    GncDate date2{"2018-02-17", "y-m-d"};
+    GncDateTime gncdt2{date2, DayPart::end};
+    if (gncdt2.offset() == -7200)
+    {
+        EXPECT_EQ(gncdt2.format_zulu("%Y-%m-%d %H:%M:%S %Z"), "2018-02-18 01:59:59 UTC");
+        EXPECT_EQ(gncdt2.format("%Y-%m-%d %H:%M:%S %Z"), "2018-02-17 23:59:59 -02");
+    }
+    else
+    {
+        EXPECT_EQ(gncdt2.format_zulu("%Y-%m-%d %H:%M:%S %Z"), "2018-02-18 02:59:59 UTC");
+        EXPECT_EQ(gncdt2.format("%Y-%m-%d %H:%M:%S %Z"), "2018-02-17 23:59:59 -03");
+    }
+   /* After February 2019 Sao Paulo discontinued Daylight
+     * Savings. This test checks to ensure that GncTimeZone doesn't
+     * try to project 2018's rule forward.
+     */
+    GncDate date3{"2019-11-01", "y-m-d"};
+    GncDateTime gncdt3{date3, DayPart::start};
+    EXPECT_EQ(gncdt3.format_zulu("%Y-%m-%d %H:%M:%S %Z"), "2019-11-01 03:00:00 UTC");
+    EXPECT_EQ(gncdt3.format("%Y-%m-%d %H:%M:%S %Z"), "2019-11-01 00:00:00 -03");
+}
+
 TEST(gnc_datetime_constructors, test_gncdate_neutral_constructor)
 {
+#ifdef __MINGW32__
+    TimeZoneProvider tzp_la{"Pacific Standard Time"};
+#else
+    TimeZoneProvider tzp_la("America/Los_Angeles");
+#endif
+    _set_tzp(tzp_la);
     const ymd aymd = { 2017, 04, 20 };
     GncDateTime atime(GncDate(aymd.year, aymd.month, aymd.day), DayPart::neutral);
     time64 date{1492685940};
@@ -397,8 +500,8 @@ TEST(gnc_datetime_constructors, test_gncdate_neutral_constructor)
     if (gncdt.offset() >= max_western_offset &&
         gncdt.offset() <= max_eastern_offset)
     {
-        EXPECT_EQ(atime.format("%d-%m-%Y %H:%M:%S %Z"), "20-04-2017 10:59:00 UTC");
-//        EXPECT_EQ(atime, gncdt);
+        EXPECT_EQ(atime.format_zulu("%d-%m-%Y %H:%M:%S %Z"),
+                  "20-04-2017 10:59:00 UTC");
         EXPECT_EQ(date, static_cast<time64>(gncdt));
         EXPECT_EQ(date, static_cast<time64>(atime));
     }
@@ -467,15 +570,34 @@ TEST(gnc_datetime_functions, test_date)
     EXPECT_EQ(ymd.day - (12 + atime.offset() / 3600) / 24, 13);
 }
 /* This test works only in the America/LosAngeles time zone and
- * there's no way at present to make it more flexible.
-TEST(gnc_datetime_functions, test_timezone_offset)
-{
+ * there's no straightforward way to make it more flexible. It ensures
+ * that DST in that timezone transitions correctly for each day of the
+ * week in which March begines.
 
-    GncDateTime gncdt1(1488797940); //6 Mar 2017
-    EXPECT_EQ(-28800, gncdt1.offset());
-    GncDateTime gncdt2(1489661940);  //16 Mar 2017 10:59 Z
-    EXPECT_EQ(-25200, gncdt2.offset());
-    GncDateTime gncdt3(1490525940);  //26 Mar 2017
-    EXPECT_EQ(-25200, gncdt3.offset());
+ TEST(gnc_datetime_functions, test_timezone_offset)
+{
+    struct Timepair
+    {
+        time64 before;
+        time64 after;
+    };
+    std::array<Timepair, 7> years{
+        Timepair{1615633140, 1615719540}, //2021, Monday
+        Timepair{1457780340, 1457866740}, //2016, Tuesday
+        Timepair{1489229940, 1489316340}, //2017, Wednesday
+        Timepair{1520679540, 1520765940}, //2018, Thursday
+        Timepair{1552129140, 1552215540}, //2019, Friday
+        Timepair{1741431540, 1741517940}, //2025, Saturday
+        Timepair{1583578740, 1583665140}  //2020, Sunday
+    };
+    for (auto year : years)
+    {
+        GncDateTime before{year.before};
+        GncDateTime after{year.after};
+//        std::cerr << before.format_iso8601() << std::endl;
+        EXPECT_EQ(-28800, before.offset());
+        EXPECT_EQ(-25200, after.offset());
+    }
+
 }
 */

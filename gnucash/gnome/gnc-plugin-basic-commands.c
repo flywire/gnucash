@@ -39,6 +39,7 @@
 #include "gnc-plugin-basic-commands.h"
 #include "gnc-ui-util.h"
 
+#include "dialog-doclink.h"
 #include "dialog-book-close.h"
 #include "dialog-file-access.h"
 #include "dialog-fincalc.h"
@@ -47,7 +48,6 @@
 #include "dialog-imap-editor.h"
 #include "dialog-sx-since-last-run.h"
 #include "dialog-totd.h"
-#include "dialog-trans-assoc.h"
 #include "assistant-acct-period.h"
 #include "assistant-loan.h"
 #include "gnc-engine.h"
@@ -91,7 +91,7 @@ static void gnc_main_window_cmd_tools_close_book (GtkAction *action, GncMainWind
 static void gnc_main_window_cmd_tools_find_transactions (GtkAction *action, GncMainWindowActionData *data);
 static void gnc_main_window_cmd_tools_price_editor (GtkAction *action, GncMainWindowActionData *data);
 static void gnc_main_window_cmd_tools_imap_editor (GtkAction *action, GncMainWindowActionData *data);
-static void gnc_main_window_cmd_tools_trans_assoc (GtkAction *action, GncMainWindowActionData *data);
+static void gnc_main_window_cmd_tools_trans_doclink (GtkAction *action, GncMainWindowActionData *data);
 static void gnc_main_window_cmd_tools_commodity_editor (GtkAction *action, GncMainWindowActionData *data);
 static void gnc_main_window_cmd_help_totd (GtkAction *action, GncMainWindowActionData *data);
 
@@ -148,13 +148,13 @@ static GtkActionEntry gnc_plugin_actions [] =
     },
     {
         "EditTaxOptionsAction", NULL,
-        /* Translators: remember to reuse this *
-         * translation in dialog-account.glade */
+        /* Translators: remember to reuse this
+           translation in dialog-account.glade */
         N_("Ta_x Report Options"), NULL,
-        /* Translators: currently implemented are *
-         * US: income tax and                     *
-         * DE: VAT                                *
-         * So adjust this string                  */
+        /* Translators: currently implemented are
+           US: income tax and
+           DE: VAT
+           So adjust this string                  */
         N_("Setup relevant accounts for tax reports, e.g. US income tax"),
         G_CALLBACK (gnc_main_window_cmd_edit_tax_options)
     },
@@ -209,13 +209,13 @@ static GtkActionEntry gnc_plugin_actions [] =
     },
     {
         "ToolsImapEditorAction", NULL, N_("_Import Map Editor"), NULL,
-        N_("View and Delete Bayesian and Non Bayesian information"),
+        N_("View and Delete Bayesian and non-Bayesian information"),
         G_CALLBACK (gnc_main_window_cmd_tools_imap_editor)
     },
     {
-        "ToolsTransAssocAction", NULL, N_("_Transaction Associations"), NULL,
-        N_("View all Transaction Associations"),
-        G_CALLBACK (gnc_main_window_cmd_tools_trans_assoc)
+        "ToolsTransLinkedDocsAction", NULL, N_("_Transaction Linked Documents"), NULL,
+        N_("View all Transaction Linked Documents"),
+        G_CALLBACK (gnc_main_window_cmd_tools_trans_doclink)
     },
 
     /* Help menu */
@@ -449,6 +449,10 @@ gnc_main_window_cmd_file_open (GtkAction *action, GncMainWindowActionData *data)
     if (!gnc_main_window_all_finish_pending())
         return;
 
+    /* Reset the flag that indicates the conversion of the bayes KVP
+     * entries has been run */
+    gnc_account_reset_convert_bayes_to_flat ();
+
     gnc_window_set_progressbar_window (GNC_WINDOW(data->window));
 #ifdef HAVE_DBI_DBI_H
     gnc_ui_file_access_for_open (GTK_WINDOW (data->window));
@@ -520,7 +524,7 @@ gnc_main_window_cmd_edit_tax_options (GtkAction *action, GncMainWindowActionData
 {
     g_return_if_fail (data != NULL);
 
-    gnc_tax_info_dialog (GTK_WIDGET (data->window));
+    gnc_tax_info_dialog (GTK_WIDGET (data->window), NULL);
 }
 
 static void
@@ -603,10 +607,10 @@ gnc_main_window_cmd_tools_imap_editor (GtkAction *action, GncMainWindowActionDat
 }
 
 static void
-gnc_main_window_cmd_tools_trans_assoc (GtkAction *action, GncMainWindowActionData *data)
+gnc_main_window_cmd_tools_trans_doclink (GtkAction *action, GncMainWindowActionData *data)
 {
     gnc_set_busy_cursor (NULL, TRUE);
-    gnc_trans_assoc_dialog (GTK_WINDOW (data->window));
+    gnc_doclink_trans_dialog (GTK_WINDOW (data->window));
     gnc_unset_busy_cursor (NULL);
 }
 

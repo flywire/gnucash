@@ -10,6 +10,8 @@
   ;; if (test-runner-factory gnc:test-runner) is commented out, this
   ;; will create Testing/Temporary/test-asset-performance.log
   (test-check1)
+  (test-check-invalid-field)
+  (test-check-incomplete-export)
   (test-check2)
   (test-check3)
   (test-check4)
@@ -27,6 +29,30 @@
                      'name "Test Report Template"
                      'report-guid "54c2fc051af64a08ba2334c2e9179e23")
   (test-equal "1 report successfully defined"
+    1
+    (length (gnc:all-report-template-guids))))
+
+(define (test-check-incomplete-export)
+  ;; it's not legit to define report with ONLY export-thunk or
+  ;; export-types. both must be defined.
+  (gnc:define-report 'version 3
+                     'name "Test Report Template4"
+                     'export-thunk #t
+                     'report-guid "incomplete-export-guid")
+  (gnc:define-report 'version 3
+                     'name "Test Report Template4"
+                     'export-types #t
+                     'report-guid "incomplete-export-guid")
+  (test-equal "report with incomplete export thunk"
+    1
+    (length (gnc:all-report-template-guids))))
+
+(define (test-check-invalid-field)
+  (gnc:define-report 'version 3
+                     'name "Test Report Template4"
+                     'invalid-field-name 'x
+                     'report-guid "xxx")
+  (test-equal "report with invalid field name: didn't crash"
     1
     (length (gnc:all-report-template-guids))))
 
@@ -150,7 +176,7 @@
    'report-guid test-uuid
    'options-generator gnc:new-options
    'export-types (list (cons "text" 'txt))
-   'export-thunk (lambda (report-obj export-type file-name)
+   'export-thunk (lambda (report-obj export-type)
                    "exported-string")
    'renderer (lambda (obj)
                (let ((options (gnc:report-options obj)))
@@ -167,7 +193,7 @@
       (gnc:report-export-types report))
     (test-equal "gnc:report-export-thunk"
       "exported-string"
-      ((gnc:report-export-thunk report) report 'csv "/tmp/file.txt"))
+      ((gnc:report-export-thunk report) report 'csv))
     (test-equal "gnc:report-menu-name"
       "basic report"
       (gnc:report-menu-name report))

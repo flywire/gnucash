@@ -96,7 +96,7 @@ typedef struct
     GtkWidget   *region_combo;
     GtkWidget   *region_label;
 
-    const gchar *gnc_accounts_dir;
+    gchar *gnc_accounts_dir;
 
     GtkTreeView *categories_tree;
     GtkTreeRowReference *initial_category;
@@ -170,6 +170,8 @@ gnc_hierarchy_destroy_cb (GtkWidget *obj,   hierarchy_data *data)
         g_hash_table_destroy (hash);
         data->balance_hash = NULL;
     }
+
+    g_free (data->gnc_accounts_dir);
 }
 
 static gnc_numeric
@@ -532,8 +534,12 @@ update_language_region_combos (hierarchy_data *data, const gchar *locale_dir)
                 {
                     gtk_list_store_set (region_store, &region_iter, LANGUAGE_STRING, "en", REGION_STRING, "US", -1);
                     lang_name = g_strdup ("en");
-                    g_free (start_region);
-                    start_region = g_strdup (lang_name);
+
+                    if (g_str_has_suffix (locale_dir, name))
+                    {
+                        g_free (start_region);
+                        start_region = g_strdup (lang_name);
+                    }
                 }
                 else
                     lang_name = g_strdup (parts[0]);
@@ -554,7 +560,7 @@ update_language_region_combos (hierarchy_data *data, const gchar *locale_dir)
         g_dir_close (acct_dir);
     }
 
-    // now try and set the language combo to the defualt language
+    // now try and set the language combo to the default language
     valid = gtk_tree_model_get_iter_first (GTK_TREE_MODEL(language_store), &language_iter);
     while (valid)
     {
@@ -578,6 +584,8 @@ update_language_region_combos (hierarchy_data *data, const gchar *locale_dir)
     g_signal_connect (data->region_combo, "changed",
                       G_CALLBACK(region_combo_changed_cb), (gpointer)data);
 
+    g_object_unref (language_store);
+    g_object_unref (region_store);
     g_free (start_region);
 }
 
@@ -1404,7 +1412,8 @@ starting_balance_helper (Account *account, hierarchy_data *data)
     balance = get_final_balance (data->balance_hash, account);
     if (gnc_reverse_balance(account))
         balance = gnc_numeric_neg(balance);
-    if (!gnc_numeric_zero_p (balance))
+    if (!gnc_numeric_zero_p (balance) &&
+        gnc_commodity_is_currency (xaccAccountGetCommodity (account)))
         gnc_account_create_opening_balance (account, balance, gnc_time (NULL),
                                             gnc_get_current_book ());
 }

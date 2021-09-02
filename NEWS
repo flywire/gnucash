@@ -1,5 +1,1142 @@
 Version history:
 ------- -------
+4.7  - 7 March 2021
+The seventh release of the 4.x stable series.
+Between 4.5 and 4.6, the following bugfixes were accomplished:
+
+    Bug 648335 - Display Created Transactions setting
+        Add a preference for the 'Review Created Transactions' setting in
+        the 'Sinse Last Run' dialog so that the default can be specified.
+    Bug 743753 - Nearest in time security price selection is incorrect in
+                 reports
+         Add new price source - 'nearest before report date' will ignore
+         prices *after* report date.
+    Bug 743999 - Deleting a digit from an existing number greater than four
+                 digits in length generates an error message.
+         Because the grouping is off. Checking grouping on input is pointless
+         so just ignore the grouping separator when parsing number input.
+    Bug 753283 - Current Selection Highlight Lost After Transaction Edit in
+                 Scheduled Transaction Window
+    Bug 787813 - Price change from editing a transaction not reflected in
+                 pricedb.
+    Bug 794877 - Intro text of "Online Banking Setup" is outdated
+    Bug 795804 - Extremely slow save
+        Only update the status bar when the percentage changes by at least
+        1% because running the mainloop is expensive on macOS and Microsoft
+        Windows. This speeds up all operations that run the progress bar with
+        overly-fine resolution.
+    Bug 796761 - Newline (char(10)) is inserted into the end of the string if
+                 copy & paste text from excel into the description field of
+                 transaction
+    Bug 797787 - Feature request: preference setting to open new tabs adjacent
+                 to currently active tab
+        Tests preference; if enabled then new tab inserted after current. if
+        disabled then new tab is at the end.
+    Bug 797928 - Since last run asks for security price when no shares traded
+    Bug 798093 - Changing the symbol/abbreviation of a security after the
+                 trading account was created breaks GnuCash.(Reopened)
+    Bug 798133 - Gnucash crash when any custom action is entered
+    Bug 798144 - Reconciliation uses different number than entered
+        If a number was pasted into the balance end value with a currency
+        symbol the number would silently fail on evaluate and cause the wrong
+        value to be used. With previous changes to the GNCAmountEdit widget
+        a warning symbol will indicate a validation error and prevents going
+        forward.
+    Bug 798148 - "Accounts" page Present (USD) column uses future prices
+    Bug 798151 - Value entry box not tied to associated transaction in Since
+                 Last Run assistant
+    Bug 798156 - glib 2.68.0 breaks gnucash
+    Bug 798159 - Keyboard shortcut bug in 'manage document link'
+    Bug 798162 - Type Ahead Initialization Problem
+    Bug 798170 - Unbound variable: gnc-budget-lookup when running saved report
+                 Budget Report via gnucash-cli
+    Bug 798177 - Price of new stock transactions not saved in price database
+    Bug 798186 - Incorrect result editting account in register when
+                 overtyping a part selection.
+    Bug 798188 - The Invoice Editor -> Printable Invoice toolbar button
+                 crashes on Windows
+    Bug 798196 - not building with Boost 1.76
+    Bug 798199 - Pasting invalid value in date column crashes GnuCash
+    Bug 798202 - Register input ignores theme on KDE rendering black text on
+                 black background
+    Bug 798203 - g_assert fault while reversing transaction
+    Bug 798204 - Creation of Imbalance Accounts
+    Bug 798212 - right-click the down-arrow in the date register changes
+                 focus to first split
+
+The following fixes and improvements were not associated with bug reports:
+
+    Improve transaction sorting on effective num field so that alpha
+        charachters and numbers larger than 1 billion will be ordered. Ordering
+        is now numeric for leading numbers (so that 9 sorts before 10) and
+        lexical beginning with the first non-numeric character. Note that if
+        one of the values begins with an alpha character ordering will be
+        entirely lexical. Lexical sorting is localized; as in the rest of
+        GnuCash only standard ASCII numbers (codepoints U+0030 - U+0039) are
+        treated as numbers.
+    Add import preferences for the difference in time considered when matching
+        an existing transaction to an imported one. A difference less than the
+        matching-date-threshold raises the score of the match; a difference
+        greater than match-date-not-threshold lowers the score.
+    Add experimental report "IFRS weighted-average cost basis report". This is
+        a work-in-progress to help calculate the cost basis of securities
+        priced in a foreign currency.
+    [income-gst-statement] amend headers post Brexit. UK left EU, therefore
+        VAT headers have now changed.
+    Plug a bunch of memory leaks.
+    Change how the print_info is obtained for the register: Currently the
+        register sets up some 'print_info' values using the default account
+        but if the register is a stock register they should be obtained from a
+        parent account with a currency.
+    Change monetary value for gnc_default_share_print_info: Share values are
+        not currencies so set the monetary value to 0 for the GNCPrintAmountInfo
+    Parse the register monetary cells for a currency symbol: Add the ability to
+        strip the currency symbol from a registry monetary cell if it is pasted
+        with one so it can be validated.
+    SKR-49 Account Template: Add codes 4500-4504, drop a duplicate, correct
+        code 0674.
+    [gnc-plugin-page-register] Disable reverse on blank split
+    Make balancing transactions with trading accounts easier by removing and
+        recalculating all trading splits. This ensures that there will be only
+        one trading split pair per exchange and relieves the user of having to
+        adjust the trading splits to match the accounting splits.
+    Don't bother scrubbing for orphans if there's no transaction currency. If
+        it found one it would try to create an orphan account with no currency
+        which will crash later.
+    [chartjs] upgrade chartjs to 2.9.4. Fixes CVE-2020-7746
+    [report-core] disallow define-report with incomplete export info. If
+        exporting is allowed, 'export-types and 'export-thunk must both be
+        defined.
+    [test-engine-extras] augment book data generators
+    ignore .vscode folder
+    Reorder and relabel price source list for better coherence
+    Python Bindings: Provide a deprecated GncPriceDB.lookup_latest_before_t64
+        to avoid breaking user scripts.
+    Update gnucash_core.py with gnc-pricedb function name change
+    Change some functions to use const gnc_commodity for gnc_pricedb
+    Reformat schedule transaction source files for white space
+    Add depreciation warnings for the removal of individual option tool tips
+    Remove individual tool tips from radio button options
+    Removes the function gnc_option_permissible_value_description
+    ESC key was not working on load of Scheduled Transaction Editor
+    [budget.scm] show correct tooltip for report option
+    [html-acct-table] Remove unused 'pre-adjusting balances option
+    Bugfix: export-code for category-barchart reports would fail.
+        This stems from trying to handle file-name when calling export code.
+        Export code no longer require file-name, The export-code returns a
+        string in the html-document object instead. Remove all file-name
+        handling in reports. No backward compatibility issues because most
+        users would not copy a GnuCash >=4.6 report code onto a <4.5
+        installation.
+    [gnucash-cli] improve discoverability of export-type. Formerly, selecting
+        --export-type EXT would dump the cryptic "Report REPORTNAME has no
+        export code". Modify to hint the user on acceptable reports with
+        export-code.
+
+New API
+
+    [report-utilities] Functions to dump splits in whole book:
+        gnc:dump-book - splits grouped by account
+        gnc:dump-all-transactions - splits grouped by transaction
+        gnc:dump-split - dumps single split
+
+    Rename a couple of gnc-pricedb functions that have not been used:
+        gnc_pricedb_lookup_latest_before_t64 to
+            gnc_pricedb_lookup_nearest_before_t64
+        gnc_pricedb_lookup_latest_before_any_currency_t64 to
+            gnc_pricedb_lookup_nearest_before_any_currency_t64
+    Add retrieval functions for price before the date given:
+        gnc_pricedb_convert_balance_nearest_before_price_t64 that retrieves
+            the balance using the last price dated before a specified date
+            like today for the preset value.
+        gnc_pricedb_get_nearest_before_price does the retrieval.
+
+Deprecations
+
+    gnc:get-start-next-year
+    gnc:get-end-next-year
+    gnc:get-start-next-month
+    gnc:get-end-next-month
+    gnc:get-start-next-quarter
+    nc:get-end-next-quarter
+    gnc:get-one-month-ago
+    gnc:get-one-month-ahead
+    gnc:account-code-less-p
+    gnc:account-name-less-p
+
+Chinese (Simplified) translation moved from the Gnu Translation Project to weblate
+
+New and Updated Translations: Catalan, Chinese (Simplified), Chinese (Traditional), Croatian, Dutch, French, German, Greek, Hebrew, Indonesian, Italian, Japanese, Norwegian Bokmål, Polish, Portuguese, Portuguese (Brazil), Spanish, Turkish, Ukrainian
+
+4.5  - 28 March 2021
+The sixth release of the 4.x stable series.
+
+Between 4.4 and 4.5, the following bugfixes were accomplished:
+    Bug 783283 - Multi-Currency payments use wrong date
+        Also properly handles the user clicking the cancel button on the
+        transfer dialog. It will now just return to the payment window,
+        waiting for further user input.
+    Bug 797621 - GnuCash freezes temporarily and sometimes crashes when
+        selecting Sales Tax Table in Invoices
+    Bug 797630 - Check for missing dependencies of 'Get Quotes' to avoid
+        Gnucash crash.
+    Bug 797906 - GnuCash data file is locked after a "save-as" to mysql
+        database.
+        It's more general, any save-as to a different backend type, i.e.
+        xml->sql or sql->xml, left the previous book locked.
+    Bug 797924 - Crash when searching for customer to process payment.
+    Bug 797997 - File gnucash could note be found
+        On Microsoft Windows when run from a CMD shell and passing a path
+        that contains non-ASCII characters.
+    Bug 798019 - Currency rates in OFX file are ignored
+        Use currency_rate information from OFX file if available. Requires
+        LibOFX v 0.10.0 or later.
+    Bug 798044 - Adding splits to a lot is extremely slow
+    Bug 798060 - Invoices are missing on Customer report after upgrade
+    Bug 798070 - Opening balance does not update when creating account from
+        Account Hierarchy
+    Bug 798078 - Report 'Income Chart' prints stacktrace when end date before
+        start date
+    Bug 798085 - Incorrect transactions import of entires with large number
+        amount
+        Quicken 2005 introduces U amount which sometimes differs from T amount.
+        U amount has larger range, and must override T amount whenever they're
+        not equal.
+    Bug 798093 - Changing the symbol/abbreviation of a security after the
+        trading account was created breaks GnuCash.
+        Makes it possible for the user to rename trading accounts or securities
+        independent of each other.
+    Bug 798096 - can't duplicate TX previous to red line threshold
+    Bug 798098 - Crash popup show when have 3 Windows in OSX
+    Bug 798100 - Equity totals calculating incorrectly
+        Prevents creation of non-currency opening balance accounts.
+    Bug 798101 - Do not #undef __STRICT_ANSI__
+        Remove defines and undefines for Windows, they were needed with
+        MinGW classic but are not with MinGW-w64.
+    Bug 798104 - Menu item for "Import Account" is wrong in danish
+    Bug 798112 - An error occurred while processing mysql ...
+        A "Feature" of MYSQL is that it allows C-style backslash escapes in
+        string constants and replaces them with the actual character (e.g. \n
+        is converted to 0x0a). This causes round trip problems if the escape
+        is one of the allowed ones and a MYSQL error if it isn't.  Disable the
+        feature so that MYSQL follows the SQL standard.
+    Bug 798132 - Invoice Importing crashes when importing low quantity values.
+    Bug 798135 - GtkEntry text with search list: shows selected entry again
+        for no reason
+    Bug 798147 - Notes entry crashes program
+    Bug 798149 - CSV transaction Import setting loses account name if it is
+        changed after setting is memorized
+        Account guid is saved as well as the full account name and when
+        recalled the account is looked up first by guid, if this fails the
+        full account name is checked which if successful immediately updates
+        the saved base account setting with the account guid for future use.
+        If unsuccessful the account combo is blank with a error message as
+        before. When save CSV settings button is used, both the Guid and full
+        paths are saved so previous versions can still use the full path as
+        before.
+    Bug 798150 - Error on report over time
+        Caused by incorrect handling of Daylight Savings beginning at midnight.
+    Bug 798154 - Tooltips wrong when multiple charts in one report
+
+The following fixes and improvements were not associated with bug reports:
+    Fix building based on unix makefiles
+    Make the chart on the report page icon larger to align better with the
+        account page icon.
+    Allow the context menu when GncCellRendererTextView is in edit mode.
+    Restructure early locale initialization
+        * Move macOS specific bits to its own source file. As this is
+          objective-c use .mm extension
+        * Use common function signature for macOS and Windows init function
+          and include via common header file
+    Fix GncDateTime::format_zulu to emit the UTC timezone instead of the
+        GncDateTime's timezone with the UTC timestamp.
+    Fix the implementations of gnc_foo_get_day_neutral. As implemented these
+        returned 10:59 AM local on the day but neutral time is 10:59 UTC.
+    gnc_invoice_window_print_invoice return NULL if invoice is NULL.
+    [dialog-invoice] invoice editor reuses invoice report tab.
+    Allow for Header Bar use in CSV transaction Assistant
+        There are a couple of action buttons that are added to the CSV
+        transaction assistant with added alignment based on the action area
+        being a GtkBox which causes errors if the header bar is used so test
+        for the action area type and use appropriate specific functions.
+    Drop default locale currency special case for euro
+        The condition mentioned in the comment no longer applies. All European
+        locales on Windows (MingW64) properly present EUR as currency these
+        days.
+    Fix fencepost error in calculating the week_num for POSIX timezone rules.
+    Include the contents of PROJECT_DESCRIPTION in the PACKAGE_PREFIX.
+        If it's defined. PACKAGE_PREFIX is used to name tarballs and set their
+        base directory. The translation project has requested that we name
+        freeze-string tarballs with a pre1 suffix; this makes that possible.
+    Update python/gnucash_business.py to reflect rename of gncOwnerApplyPayment.
+    I18N: don't mark "<<", ">>" translatable
+        They get properly reversed for RTL writing
+    From Budget editor, add toolbar and Edit menu to run budget report
+        This parallels the invoice editor "Print Invoice" functionality.
+        Runs the budget report using current budget.
+    [gnc-plugin-page-budget] change note icon to a note page
+    Allow the find account dialog position to be saved when using 'X'
+    Update price database for imported transactions.
+    Replace g_memdup by memcpy
+        GLib is deprecating g_memdup and will immediately remove it in the
+        next micro-release because of a CVE.
+    [html-fonts] Prevent sup/sub from affecting baseline
+        Source: https://css-tricks.com/snippets/css/prevent-superscripts-and-subscripts-from-affecting-line-height/
+        Previously <sup> and <sub> would cause the baseline to move vertically.
+    Replace stat calls with GFile to retrieve last modified info
+        Avoids code-page problems with non-ASCII characters on Microsoft
+        Windows.
+    [gnc-tree-model-split-reg.c] use xaccSplitListGetUniqueTransactionsReversed
+        which is then reversed if required. this removes the need for double
+        reversal.
+    [Split.c]New function xaccSplitListGetUniqueTransactionsReversed
+        Same as xaccSplitListGetUniqueTransactions but doesn't reverse the
+        list prior to returning. To be used by gnc-tree-model-split-reg.c
+        Several optimizations
+           * doesn't call g_list_find and g_list_append for every iteration
+           * uses g_hash_table to cache list of txns already added instead of
+             g_list_find
+           * does not reverse the result, thereby returning a reversed list.
+    [gnc-recurrence.c] avoid O(N^2) children traversal
+    Ensure that any GncMainWindows containing no tabs are destroyed at shutdown.
+    I18N: drop translatable flag from "xxx" dummies and remove trailing spaces
+        from translatable strings
+    Update Form/Schedule line references for 2020 for the US Income Tax Report.
+    Fix build with glib2 2.67.x.
+        glib headers should not be included with 'extern "C"'.
+    [balsheet-pnl] Use last day of the month prices instead of first day of
+        next month.
+    [options.scm API] Remove canonically-tabbed parent-subtotal-mode
+        This mode had been marked experimental for 17 years and was never
+        improved. Any saved reports with this option will be switched to
+        parent-subtotal-mode enabled.
+    Accommodate Gwenhywfar 5.5.0 signature change for some GUI callbacks.
+        This is a breaking change that matters only in Win32. No ifdeffing
+        because Win32 builds and dependencies are well synchronized.
+    L10N: Move translation authority for Turkish from the GNU Translation
+        Project to Weblate.
+    Make prototypes static for autoclear unit test, fixes build on Debian
+        Buster.
+    [income-gst-statement] trep-engine currency section moved
+        From "General" to "Currency".  Missed out in 854c11782 commit
+    [test-scm-utilities] test-end properly so that test failures set the exit
+        code correctly
+    Create opening balance accounts only when there are opening balances.
+    [qif-file.scm] Don't use match as an identifier
+        It is a (ice-9 match) keyword.
+    Change the CSV export account tree header line
+        Change the headings of the CSV account export header line to be more
+        friendly which uses existing translations.
+    [new-owner-report] Don't create empty rows on report when splits have no
+        entry in the memo field.
+    [gnc-report] dump backtrace to console when report crashes
+        Because gnc:backtrace-if-exception, not used anymore, would dump
+        guile backtrace to console. restore this behaviour.
+    [report-core] remove 2.6/2.4 compatibility code
+    [gnucash-commands.cpp] display report errors to stderr
+
+New API:
+    [report-core.scm] create and expose gnc:render-report
+        similar to gnc:report-run but *always* returns a 2-element list
+        containing data OR captured_error
+    [report-core.scm] create and expose gnc:render-report
+        similar to gnc:report-run but *always* returns a 2-element list
+        containing data OR captured_error
+    [gnc-plugin-page-report] add gnc_plugin_page_report_reload
+        refreshes the report
+
+Deprecations:
+    [c-interface.scm] deprecate gnc:last-captured-error
+    [report-core] deprecate gnc:restore-report-by-guid
+    gnc:get-three-months-ago
+    gnc:get-six-months-ago
+    gnc:get-one-year-ago
+    gnc:get-three-months-ahead
+    gnc:get-six-months-ahead
+    gnc:get-one-year-ahead
+    traverse-list->vec
+    traverse-vec->list
+
+New and Updated Translations: Bodo, Croatian, Danish, Dutch,
+    English (United Kingdom), Finnish, French, German, Greek, Hebrew, Hindi,
+    Indonesian, Italian, Japanese, Lithuanian, Norwegian Bokmål, Polish,
+    Portuguese, Portuguese (Brazil), Russian, Spanish, Turkish, Ukrainian,
+    Urdu, Vietnamese
+
+4.4  - 28 December 2020
+The fifth release of the 4.x stable series, a snap release to fix bug 798063.
+
+Between 4.3 and 4.4, the following bugfixes were accomplished:
+
+    Bug 798038 - Incorrect spelling in german account templates 'common' and
+        'full' part 2: AT
+    Bug 798063 - Crash when opening SX Editor
+
+No other improvements were made.
+Deprecations
+
+    xaccAccountCountSplits: use gnc_account_has_child_splits
+    gnc:html-table-append-column!: Build a new table with all of the columns
+      and copy in the rows.
+
+Updated Translations: German, Italian, Japanese
+
+4.3  - 27 December 2020
+The fourth release of the 4.x stable series.
+
+Between 4.2 and 4.3, the following bugfixes were accomplished:
+
+    Bug 106746 - In Mort. Repay. druid, creating New acct should also select it.
+    Bug 128772 - Account Help Button does not work
+    Bug 309943 - When unable to obtain a lock, no option to open another database.
+    Bug 330930 - Financial Calculator resets payment period to zero if automatic decimal places used
+    Bug 343647 - [rfe] save tab/report location
+    Bug 345924 - RFE: don't disable "OK" button after using "Apply" to modify chart options
+    Bug 355496 - Mark placeholder accounts in account tree window visibly.
+    Bug 355498 - When there is only one result from a 'Find', select it.
+    Bug 571697 - Transaction Status in Since Last Run needs to look clickable.
+    Bug 644242 - Window Panning Oddity.
+    Bug 645379 - When duplicating a transaction, any non-numeric value entered in the "Number" field is discarded.
+    Bug 667490 - Support image-based TAN methods QR, photoTAN, and chipTAN optical "Flicker code"
+
+    Partial: Implements the display of flashing optical TAN challenges (aka flicker) in the "Enter TAN" dialog box.
+    Bug 688917 - Help button not working when editing style sheets.
+    Bug 720564 - Search in General Ledger cannot be cleared.
+    Bug 794807 - Calendar widget current month shown as (null).
+    Bug 797901 - List of Recently Used Files not updated until GnuCash is closed and reopened.
+    Bug 797944 - Crash on use of File-Open
+    Bug 797953 - RFE: provide access to filter-by on right-mouse-click in Accounts register.
+    Bug 797956 - dialog-report-style-sheet.c stylesheet editor does not set transient_for correctly.
+    Bug 797959 - "Exception" when value greater than one million with commas and periods is pasted to register.
+    Bug 797967 - minor ui niggles - some dialogs don't respond to GDK_KEY_Escape
+    Bug 797971 - odd cursor behaviour in register Description.
+    Bug 797972 - Crash on export report CSV
+    Bug 797982 - exchange rates' decimal places (bis)
+    Bug 797983 - v4.2 report numbers change over gnucash restarts; Price Database dropping user:price-editor entries.
+    Bug 797984 - Infinite loop while Check&Repair AR and AP accounts
+    Bug 797989 - Sorting columns by alphabet with non-ASCII characters
+    Bug 797993 - Reverse balance option does not apply to an Account Report
+    Bug 797994 - Account type-ahead search doesn't match accented characters.
+    Bug 798005 - Import of QIF file sets expenses to zero, deposits are fine
+    Bug 798008 - Option '--log' cannot be specified more than once.
+    Bug 798015 - cash flow numerical-overflow
+    Bug 798031 - Date goes to prior year with mm/dd entry to transaction duplicate.
+    Bug 798036 - Transaction Report should offer price source
+    Bug 798038 - Incorrect spelling in german account templates 'common' and 'full'
+    Bug 798039 - Using 'Consolidate Transactions' option on Consolidate Transaction Report returns Error
+    Bug 798041 - Open invoices in new window.
+    Bug 798047 - Crash on delete account.
+    Bug 798050 - error using Reports->Experimental->Income Statement (Multicolumn)
+
+The following fixes and improvements were not associated with bug reports:
+
+    Add custom unbound-variable exception reporter in guile that identifies what module provides the missing symbol.
+    Balsheet-pnl report: show most recent period first by default
+    Change register page icon to a padlock if read only
+    When a resister is read only make whole sheet insensitive.
+    Add account name to the read-only-register dialog box because under some circumstances it may be unclear to which register the message applies.
+    Strictly use use-modules to import Scheme symbols: Guile 3.0 doesn't like the alternatives. This can cause problems resolving symbols if the source of those symbols isn't yet compiled and hasn't been symlinked into the builddir.
+    Don't try to reload report if the first attempt raised an html error.
+    Barcharts: Limit account drill-down depth to 6.
+    I18N:glossary: add mortgage terms ARM, APR, FRM
+    Change the icons used for the file locked dialog box.
+    Add support for the opening balance accounts flag
+
+    Up to now, opening balance accounts have been identified by means of fixed names and their translations. Support Replacing this with a consistent non-translated tag. The actual replacement will be added to Gnucash 4.4; this change is to ensure a migration path.
+    Replace TravisCI with Github actions for CI testing. TravisCI sharply restricted their free support of Free Software projects.
+    Use LTDL_LIBRARY_PATH instead of (DY)LD_LIBRARY_PATH in environment file.
+    Add a few more CSS classes for labels
+    Add GoogleMocks of some engine objects and refine Import-export unit tests using them.
+    Add auto-clear to register page
+    Change source files dialog-dup-trans.* for space and tabs
+    Fix exception when converting to decimal values that reduce to N/1.
+    Add confirmation of Main Window close when more than one window is displayed
+    Add keyboard shortcuts <Ctrl><Alt><Menu> for the notebook page selection menu and <Ctrl><Alt>A to jump to the Accounts page.
+    Allow using the Ctrl+Alt+PgUp/Down to scroll the report view.
+    Fix report page keyboard focus in the scroll window.
+    Fix some incorrect links to the help file
+    Fix section help on windows not working.
+    Set the visibility of the account column in import-main-matcher depending upon the nubmer of accounts being displayed.
+    Add option to hide memo column on import-main-matcher
+    Fix pressing help button in OFX importer causing main-import-matcher to disappear
+    Preferences dialog: Display the invalid account separator message box only when the user closes the Preferences Dialog instead of after every change to any control.
+    Expose ngettext as gnc:ngettext
+    Add tooltip in import matcher window for description and memo column.
+    Put Macs back on WebKit2.
+    CMake: Mute guile-2.2 again
+    Fix several report stylesheet font-handling issues especially on macOS.
+    Fix price-renderer not converting to decimal.
+    Add some additional places where Check&Repair can be aborted
+    Make the price database list obey the force-prices-to-decimal preference.
+    Several improvements to the auto-clear dialog.
+    Fix some errors found by i18nspector in po files
+    Tax Report Options appeared twice on menu for Chart of Accounts
+    General Journal Report: Allow Report Options>General Title to render
+        document title.
+    [options.scm] rename new-owner-report "Links" to "Transaction Links"
+    [new-owner-report] enable doclink links
+    [html-utilities][API] add function gnc:html-invoice-doclink-anchor
+    Disable chart animation that prevented visual comparison of state before
+        and after reload
+    Select the register account if Tax Options dialog opened from a register tab.
+
+Deprecations
+
+    xaccAccountCountSplits.
+    gnc:html-make-exchangerates
+
+
+4.2  - 27 September 2020
+The third release of the 4.x stable series.
+
+Between 4.1 and 4.2, the following bugfixes were accomplished:
+
+    Bug 102787 - Currency selection should do autocompletion
+    Bug 476114 - Goto register by date feature req
+                 Adds ability to jump to arbitrary date.
+    Bug 554391 - Tax Options dialog - can only assign one TXF category at a time
+                 If the Tax options dialog is opened from the Chart of Accounts
+                 and an account is selected then the tax dialog will preselect
+                 that account.
+    Bug 787295 - Allow UI jump from Business accounts to their relevant
+                 invoice/bill/voucher
+    Bug 797514 - Changing transaction unreconciles a split inconsistently
+                 Partial: This make sure that the split's reconcile status
+                 gets updated before the transaction is committed.
+    Bug 797730 - Transaction matching can match multiple imported transactions
+                 to the same existing one
+    Bug 797839 - Auto-complete prevents entering non-ASCII transaction
+                 descriptions
+    Bug 797852 - Error in Accounts Payable Aging re cut off dates
+    Bug 797857 - Edit->Preferences: Help/Close buttons unreachable
+    Bug 797874 - Errors in register and new-account UI
+    Bug 797878 - Pie chart displays fractions and long decimal representations
+                 Ensure amounts rendering is rounded to report-currency SCU
+    Bug 797880 - [gnucash-cli] encoding and font differing from manually
+                 exported reports (Win10, German locale).
+    Bug 797883 - [Transaction Report] non-localized string
+    Bug 797889 - editing amounts in dr / cr behaving oddly
+    Bug 797893 - Unable to change font size in charts
+                 Use the stylesheet font values instead of hard-coded ones.
+    Bug 797895 - Hang for a long time (9 minutes per account) importing a QFX
+                 file.
+    Bug 797896 - [HBCI] crash when downloading transactions.
+    Bug 797897 - Cannot select multiple accounts in Tax Report Options
+    Bug 797898 - [reconciliation] calculated balance amount per reconcilation
+                 date depending on actual time.
+    Bug 797900 - Crash caused by Quitting while Check and Repair All is running
+    Bug 797923 - Running employee report results in "Unbound variable: txn"
+    Bug 797924 - Crash when searching for customer to process payment.
+    Bug 797935 - Strange formal register headers
+                 In languages other than English because of poorly constructed
+                 translatable strings.
+    Bug 797936 - Lot viewer notes field too narrow
+    Bug 797945 - Tools -> Import Map Editor causes GnuCash to lock up
+
+The following fixes and improvements were not associated with bug reports:
+
+    Update version in README, add Boost::program_options to dependencies.
+    [report-utilities] compact functions
+    Small fixes for various translation issues:
+        Deduplicate translatable strings
+        Add context to one-letter strings in guile code
+        Fix typo in linked document gui Align translatable strings
+    Expose C_ function (gettext with context string) to guile code, first use
+        is for the document link short code (L)
+    Improve and repair progress bar display on a variety of reports and
+        windows, improving performance on several by reducing the number of
+        progressbar calls.
+    [gnc-main-window] enable show_text for progressbar, allowing
+        gtk_progress_bar_set_text to actually display the progress text.
+    Fix help_label of dialog-doclink.glade, remove question mark from
+        Available, and insert missing spaces into the Business Item variant.
+    Rename all Transaction and Invoice Association identifiers to DocLink to
+        better reflect the purpose and for consistency with other software
+        (e.g. Libre Office).
+    Rename Transaction and Invoice Associations to Document Links. More clearly
+        describes the actions and is more consistent with other software
+        (e.g. Libre Office).
+    Remove the Remove Linked Document context menu item because that can
+        be done in the Manage dialog box.
+    Fix the horizontal scrollbar in the linked docs window.
+    I18n - deduplicate translatable strings
+    macOS: Give GnuCash time to shut down gracefully instead of letting macOS
+        pull the rug out.
+    I18N: Align glossary to gnucash.pot. Create a similar copyright header.
+        Add missing Report-Msgid-Bugs-To.
+    [report-utilities] More dump data functions:
+        gnc:dump-book - splits grouped by account
+        gnc:dump-all-transactions - splits grouped by transaction
+        gnc:dump-split - dumps single split
+    [business-urls] link to owner report with enddate
+    [dialog-invoice] gnc_business_call_owner_report_with_enddate
+    [new-owner-report][api] owner-report-create-with-enddate; accepts enddate
+        argument like owner-report-create.
+    Enable exporting the tables in charts and some reports as CSV.
+    Tweak a few strings to reuse translations
+    Exported gnc:cmdline-template-export and gnc:cmdline-get-report-id.
+        Handle ambiguous reportnames by returning #f.
+    [price-quotes.scm] ensure missing-alphavantage message can show on console
+    [budget.scm] Fix report crash on books with unreversed budgets
+    [gnucash-cli] -R show should accept & try to load datafile
+    Speed up computation of import match lists by running query only once,
+        committing accounts only once, and doing a bulk insert into the
+        GtkTreeview.
+    Add Python example export_account_totals.py. Exports acount totals of all
+        accounts into a CSV file.
+
+Updated Translations: Dutch, German, Italian, Ukrainian
+New Translations: Estonian, Indonesian
+
+4.1  - 26 July 2020
+The second release of the 4.x stable series.
+
+Between 4.0 and 4.1, the following bugfixes were accomplished:
+
+    Bug 775582 - Change "Petrol" (or Gas if seen in USA) to "Fuel".
+    Bug 797759 - Some transactions are not highlighted in the matching window
+    Bug 797787 - Feature request: preference setting to open new tabs adjacent
+                 to currently active tab (as opposed to at the end of the tab
+                 list).
+    Bug 797825 - OFX import crashes on import of investment transaction
+    Bug 797827 - 4.0.1 gnucash-cli seg faults on macOS Catalina
+    Bug 797828 - Budget Barchart was not upgraded
+                 Upgrade to html-chart: Use period start/end instead of
+                 date start/end
+    Bug 797830 - Expense over time has extra empty row
+    Bug 797831 - Printer not found
+    Bug 797834 - Ctrl+A in account register fields chimes after any element
+                 newly focussed.
+    Bug 797835 - Zero Crossing in 4.0 that wasn't in 3.10
+    Bug 797842 - Windows: Insertion cursor invisible in Edit Account or New
+                 Account windows until text fields have content.
+    Bug 797843 - Quickfill broken with Cyrillic input language
+    Bug 797844 - Typing account number to select account fails
+    Bug 797845 - Backspace key produces incorrect result
+    Bug 797847 - Best match probability calculation on import is too
+                 pessimistic.
+                 Lowering the minimum value for the auto-clear preference.
+                 This is to  allow user to still auto clear even when date
+                 doesn't match exactly.
+    Bug 797850 - Account register credit/debit column headings untranslated
+    Bug 797853 - Crash on "Save As" in MacOS Mojave and Gnucash 4
+    Bug 797854 - Global Register Preference to prompt for interest payment is
+                 not being honored.
+                 Replace the global preference item with a per-account option,
+                 enabled only on those account types where interest might be
+                 paid or charged.
+    Bug 797858 - Transaction date is one day too early from SWIFT MT940 import.
+    Bug 797861 - Yearly / Monthly average reporting displays zeros
+    Bug 797873 - New Account Hierarchy selects en_US
+
+The following fixes and improvements were not associated with bug reports:
+
+    Accommodate Guile-3.0 in Scheme code.
+    [html-style-info] Display fractional amounts as decimal in price-render
+    Warn against using xaccTransGetSplit for iteration instead of encouraging it.
+    Quickfill cells: Remove the selection after a delete.
+    Accommodate AQBanking < 6 use of GWEN_TIME instead of GWEN_DATE.
+    ensure averaging-multipler returns exact numbers rather than floats
+    [gnucash-cli] improve "-R show" to describe report
+    Don't leak the libofx contexts in gnc_file_ofx_import_process_file/
+    Make the edit dialog refresh the auto-interest flag display based on pref
+    Remove global preference for auto-interest-transfer
+    [Reports] Use SRFI-9 records for HTML styling.
+    [html-style-sheet] combine 2 similar functions
+    Let environment override AppleLanguages on Macs.
+    [balsheet-eg] remove unused functions
+    [balsheet-eg] modernize accrec to use srfi-9 record
+    [account.cpp] prevent crash in gnc_account_get_currency_or_parent.
+    CMakeLists: mark deprecation of .scm files
+    [eguile-utilities] Ensure that fmtnumeric renders numbers as decimals instead of exact fractions.
+    [Python Bindings] Implement keyword paramters to selected functions.
+    [Python Bindings] Adapt to use of sessionOpenMode in qof_session_begin
+    introduce python submodule deprecation.
+    Link with libm.so on those platforms that require it.
+    [account-piecharts] round account->balance to report-currency SCU
+    [report-utilities] ensure commodity-collector doesn't round amounts
+    [advanced-portfolio] simplify basis functions
+    [advanced-portfolio] simplify basis-builderand use scheme division which is more accurate than gnc_numeric_div. tests need to change slightly.
+    [git-release-notes.pl] html-escape strings in the html output.
+
+
+Updated Translations: Croatian, Hebrew, Italian, Japanese, Romanian, Ukrainian
+
+4.0  - 28 June 2020
+The first release of the 4.x stable series.
+
+Between 3.906 and 4.0 the following bugfixes were accomplished:
+
+    Bug 787295 - Allow UI jump from Business accounts to their relevant
+		 invoice/bill/voucher
+    Bug 797815 - Obsolete gnucash-launcher.cmd still shipped
+
+Other fixes and improvements were not associated with bug reports:
+
+    Revert the changes made to save Register default layouts as discussed
+      in PR #743
+    Setting a sheet column width to 1 when resizing by dragging
+      Column widths of 0 are not saved by the table and so revert back to
+      calculated widths when reloaded.
+    Disable showing glyphs for associations on MacOS
+   i18n: Fix missing context in single-character translated strings
+    [advanced-portfolio] move helper functions to toplevel for testing
+    [html-utilities] use ice-9 match
+    deprecations: remove functions deprecated in 3.x
+    deprecations: clarify functions deprecated in 4.x.
+
+Updated Translations: Dutch, German
+
+3.11 - 28 June 2020
+The twelfth and final release of the 3.x stable series.
+
+Between 3.10 and 3.11, the following bugfixes were accomplished:
+
+    Bug 782455 - Modify Add Reversing Transaction feature.
+    Bug 797114 - Fixing an SX due to deleted account stuck in an error loop
+    Bug 797351 - General ledger register transaction becomes "zombie" after
+                 deletion.
+    Bug 797648 - Cannot reconcile both splits of a transaction with 2 splits
+                 for bank account subaccounts if only 1 is cleared.
+    Bug 797659 - Liabilities in budget report no longer calculate correctly.
+                 Restores budget-3.7 behaviour for current budgets. Fixes
+                 future budget behaviour. Restore budget-3.7 headings
+                 "Income/Expense/Transfer" Renamed budget-3.7 heading Total
+                 to "Remaining".
+    Bug 797670 - scheduled transaction editor can remain open when switching
+                 file, which causes seg fault when later closed
+    Bug 797677 - Price Database Saving Wrong Price for Foreign Currency.
+    Bug 797684 - GTK_DEBUG=interactive - Bail out -
+                 gdk_window_set_cursor_internal.
+    Bug 797697 - Enable DEP and ASLR for the Windows build.
+    Bug 797707 - CSV Transaction Export: custom dates should be insensitive
+                 by default.
+    Bug 797717 - Summary bar changes height when opening a menu or scrolling
+                 over an option.
+    Bug 797737 - Import matching can match an imported transaction to an
+                 existing, previously matched transaction.
+    Bug 797748 - missing header "algorithm".
+    Bug 797750 - SIGSEV in swig-engine.c
+    Bug 797761 - Customer report beta: opening balance tax column shows garbage
+                 string.
+    Bug 797799 - Add Tip of the Day for "Notes" field
+    Bug 797811 - GnuCash crashes with segfault when saving to mysql when
+                 database already exists.
+
+Other fixes and improvements were not associated with bug reports:
+
+    [eguile-utilities] fmtnumeric displays decimal instead of fraction.
+    L12N: merge recent messages into all po files.
+    Add missing std c++ #includes into gnc-imp-settings-csv-price.cpp.
+    I18N: Improve tooltip about double-line-mode.
+    Update description of gnc_gnome_help and gnc_launch_assoc
+    Remove obsolete documentation files.
+    Move the Windows README files to gnucash-on-windows where they belong.
+    I18N: Fix several issuse with 'Help not found' strings.
+    Fix the crash that occurs when opening a new book when the
+        transaction-matching dialog has been opened then closed.
+    Display report zoom factor with one decimal space to match the paramter.
+    Invoices were setting the transaction post date to midnight local instead
+        of 10:59 UTC normalized time.
+    Add a tip about announcements and other mailing lists to the Tip of the
+        Day list.
+    Fix three problems with setting dates in the Scheduled Transaction editor:
+        * If the recurrence date is before the start date in the current month
+          the SX summary dialog would show the next occurrence in the current
+          month, before the start date.
+        * If the recurrence date is one day before the start date the calendar
+          control would incorrectly mark the first instance in the starting
+          month.
+        * Set a monthly recurrence on the 18th, with a start date on the 20th
+          and an end date on the 17 of the following month. The calendar should
+          show no mark, but fails to erase the marks that were present.
+    Improve python shell output and explanatory comments.
+    Ensure that python help displays help.
+    [fin.scm] return #f instead of -1 if n is out of range
+    Add a "Delete Budget" menu item to Actions>Budgets.
+    [gnc-exp-parser] If gnc:fn returns anything other than a number, abort
+        rather than crash.
+    [window-reconcile] Refactor common actions into WidgetSetAmount.
+    Force WITH_PYTHON=YES for distcheck to ensure that it works from the
+        tarball.
+
+Updated Translations: Croatian, Finnish, German, Hebrew, Ukrainian
+
+3.906 - 21 June 2020
+The fifth unstable release leading to the new 4.x stable series.  This is the release-candidate: Barring any serious bugs it's what we'll release as 4.0.
+
+Between 3.905 and 3.906, the following bugfixes were accomplished. Some of these will also be fixed in GnuCash 3.11, some are for 4.0 only.
+  Bug 797808 - Caps Lock Breaks Almost Everything
+  Bug 797811 - GnuCash crashes with segfault when saving to mysql when
+               database already exists.
+
+The following fixes and improvements were not associated with bug reports or new features:
+    Add missing #includes into gnc-imp-settings-csv-price.cpp
+      Found in failed win maint nightlies.
+    [business-core] string-hash doesn't guarantee unique hash, use guid
+      string instead.
+
+Updated Translations: Ukrainian
+
+3.905 - 14 June 2020
+The fourth unstable release leading to the new 4.x stable series. See 3.902 and 3.903 below for additional requirements and features.
+
+Between 3.904 and 3.905, the following bugfixes were accomplished. Some of
+these will also be fixed in GnuCash 3.11, some are for 4.0 only.
+
+    Bug 796993 - Gnucash should warn the user in case of missing Alphavantage
+                 API key instead of silently failing
+    Bug 797531 - Improve behaviour when following a hyperlink to a split that's
+                 filtered in the register. Currently if a jump to a filtered
+                 register is made, this could be from a report, other register,
+                 reconcile window and transaction associations and the
+                 destination split is not shown the jump will end up at the
+                 last active cell. This could be confusing so add a test for
+                 the destination split being visible and warn the user with an
+                 option to temporarily clear the filter.
+    Bug 797746 - [reports] German umlauts not escaped
+    Bug 797790 - [Transaction Association] Change dialogue: use existing
+                 information to determine the default folder. When there is no
+                 association set, if the file option is chosen set the default
+                 folder for the file chooser to that of the path head
+                 preference.
+    Bug 797791 - [Windows] list of command line options after
+                 'gnucash.exe --help'? Make gnucash-cli a console application
+                 on Windows so that its output will be redirected to the
+                 connected console.
+    Bug 797799 - Add Tip of the Day for "Notes" field
+    Bug 797804 - Date entry field is glitchy (v3.904 regression)
+
+The following fixes and improvements were not associated with bug reports or new features:
+
+    Ensure balance-sheet balances do not ignore closing entries, including
+        them in closing balances from profit&loss.
+    [balsheet-pnl] value-collector doesn't need to ignore closing.
+        The value-collector is only used to tally account balances for
+        asset&liability accounts. These accounts never have closing entries.
+        No need to test closing property.
+    [trep-engine] don't create intermediate cells object.
+        From cell-calculators (a list of column-info), the cells object (list
+        of column-data) was created unnecessarily. use cell-calculators
+        directly.
+    [gnucash-cli] --report show/list outputs to stdout and their error messages
+        output to stderr.
+    I18N: Improve tooltip about double-line-mode.
+        Suggestion by Adrien Monteleone.
+    Drop unused boost::locale::generator instantiations.
+        We now have one single case in gnc-locale-utils and all code uses
+        gnc_get_boost_locale to get the proper locale.
+    Fix translations using boost::locale::translate
+    Fix report dependencies that caused Xcode build failure.
+    Update Schedule Transaction Template dialog status bar.
+        Copy the functions from gnc_main_window that updates the status bar
+        with the action tooltips to gnc_window so that both GncMainWindow
+        and GncEmbeddedWindow can use without duplicating code.
+    Add the Register width menu options to the Scheduled  Transaction Template
+        dialog.
+    [balance-sheet] hide trading-accounts if use-trading-accts? is unset.
+    Fix a null parent error in the New Account Hierarchy Assistant.
+
+Updated Translations: German
+
+3.904 - 7 June 2020
+The third unstable release leading to the new 4.x stable series. See 3.902 and 3.903 below for additional requirements and features.
+
+3.903 was the feature-freeze release. However, the command-line arguments for both gnucash and gnucash-cli have been adjusted as follows:
+
+    --add-price-quotes is changed to --quotes get
+    --run-reports is changed to --report run --name <report name>
+    Added --report list to produce a list of available reports.
+    Added --report show --name to describe the options changed from the default values in the named report.
+
+The intent is to have command categories with subcommands to better enable a richer command line capability as illustrated with the new report commands list and show.
+Between 3.903 and 3.904, the following bugfixes were accomplished. Some of these will also be fixed in GnuCash 3.11, some are for 4.0 only.
+
+  Bug 797739 - Tweak Transaction Report Column Defaults
+  Bug 797774 - Add tooltips to abreviated header columns for all table like
+               GUI elements
+               The Bill/Invoice due reminder has a column header of 'CN?' which
+               was unclear of meaning which is 'Is this xxx a Credit Note'. A
+               tooltip was suggested but a better fix is to change the column
+               to display the 'Type' so you would see Bill, Invoice or
+               'Credit Note' just like you see in the find dialog.
+  Bug 797775 - Rate/Price displayed as fractional in CSV Export
+               Change the CSV transaction exporter to follow the Preference
+               setting of 'General->Force Prices to display as decimals'.
+  Bug 797781 - Num Field Regression - characters in wrong order when typed.
+
+The following fixes and improvements were not associated with bug reports or new features:
+
+  Add a tooltip for the 'C' column in the Chart of Accounts
+     To match existing one character headings for 'Place Holder' and 'Hidden'
+     columns.
+   Add first version of gnucash-cli manpage
+   Rework command line option parsing to store values directly in class member
+      variables
+   [cli-reports] modify to open session readonly
+
+3.903 - 1 June 2020
+The second unstable release leading to the new 4.x stable series. See 3.902
+below for additional requirements and features.
+
+New Dependency: Boost program_options.
+
+New Features:
+
+  A new separate executable, gnucash-cli (gnucash-cli.exe on Microsoft Windows)
+    for doing command-line things like updating the prices in your book.
+    gnucash-cli gains the ability to run reports from the command line. Specify
+    reports to run by name or guid. It also provides an export format and an
+    output file name without which it will output the report to stdout.
+    Report Synopsis:
+      gnucash --run-report=[reportname/guid] datafile.gnucash
+      gnucash --run-report=[reportname/guid] --output-file=x.html datafile.gnucash
+      gnucash --run-report=[reportname/guid] --output-file=x.html --export-type=TYPE datafile.gnucash
+
+  When deleting accounts the destination accounts of moved splits will be
+    checked to ensure that they're the same as the source. If they're not
+    you'll get a warning and the opportunity to pick another account or to
+    carry on regardless.
+
+  New type-ahead search added to sequential search when selecting an account in
+    the register: Instead of typing the first few characters of a top level
+    account, the separator, the first few characters of the next level account
+    and so on you may instead type a few characters of any part of a full
+    account name and the drop-list will be filtered to contain only matching
+    accounts. Once you have a small enough list you can use the arrow keys to
+    select the account that you want.
+
+  Python bindings are now localized and their strings available for translation.
+
+  The new reports introduced in the Experimental Reports menu are moved to the
+    main menu and the old reports hidden; the old reports can be unhidded by
+    running GnuCash from the commandline with the --extra argument. That will
+    cause the old reports to appear in their regular locations on the menu
+    labeled legacy. Note that new reports use different options and layouts and
+    you may need to adjust your saved report configurations.
+
+  A new Transaction Association dialog, available from the new Update
+    Transaction Association item in the register context menu, provides the
+    ability to have multiple associations for a single transaction. Associations
+    may now be easily removed.
+
+  Allow Associations to be added to invoices. The actual association when
+    present is added as a link button which is shown below the notes.
+
+  A symbol is now displayed on transactions in the register when they have an
+    attachment and the selected font supports the symbol.
+
+  The OFX file importer can now import more than one file at a time.
+
+  A new report menu supbmenu Multicolumn contains the old custom-multicolumn
+    report and a new Dashboard report containing Account reports for expenses
+    and income, an income-expense chart, and an account summary.
+
+  When importing, the matcher will no longer offer to match a transaction to
+    one that has already matched in a previous import, nor will it offer to
+    match more than one imported transaction to a single existing transaction.
+
+  When no file is open don't ask to save it when opening another file or
+    quitting GnuCash.
+
+  Support for UK VAT and Australian GST added to the Income-GST report. The
+    reports options are changed from source accounts to source sales and
+    purchase accounts to permit proper reporting of capital purchases.
+    N.B. This is incompatible with previous versions of the report and will
+    require regenerating saved configurations.
+
+  Add option to save Layout for Business items.
+    Add two menu items under windows, one to save an existing layout for
+    Invoices, Bills and Vouchers to there respective default layouts so the
+    user set column widths will be used. The second menu item will reset the
+    column widths to defaults and remove the default layout. Open Business
+    items will also save there column widths to the page section so these can
+    temporarily have different widths.
+
+Newly Revised Reports
+  Income GST
+
+Significant Code Changes:
+
+  gnucash-bin.c has been split into 4 parts, mostly C++:
+    * gnucash.cpp, the GUI executable.
+    * gnucash-cli.cpp, the command-line executable.
+    * gnucash-commands.cpp, implementation for the commands that can be run
+      from the command-line.
+    * gnucash-app-core.cpp, common code required by both the command line and
+      gui programs.
+    * There's also an auxiliarty file, gnucash-windows-locale.c because the
+      localization code proved resistant to compiling as C++. We're planning
+      another auxiliary file for the MacOS localization.
+
+  A new mock facility for several engine classes to permit better-isolated
+    unit testing of components that depend on those classes.
+
+  Register filter and sort values are saved in the book's state file (book.gcm)
+    in the user's configdir instead of in the book.
+
+  QofSession no longer creates its book, instead one must create a book first
+    and pass that to qof_session_new()/QofSession::QofSession().
+
+  Add option to save Layout for Register itemsAdd two menu items under
+    windows, one to save an existing register layout based on the register type
+    to there respective default layouts so the user set column widths will be
+    used when opening registers. The second menu item will reset the column
+    widths to defaults and remove the associated default layout. Open registers
+    will also save there column widths to the page section so these could can
+    temporarily have different widths.
+
+  Add option to save Layout for Business items.
+    Add two menu items under windows, one to save an existing layout for
+    Invoices, Bills and Vouchers to there respective default layouts so the
+    user set column widths will be used. The second menu item will reset the
+    column widths to defaults and remove the default layout. Open Business
+    items will also save there column widths to the page section so these can
+    temporarily have different widths.
+
+  Input Method handling in the register is moved to the GtkEntry where it
+    belongs.
+
+
+Between 3.10 and 3.901, the following bugfixes were accomplished:
+
+  Bug 796531 - transaction report: export file/location associated with
+               transaction.
+               Displays the Transaction Association link in the Transaction
+               Report and when selected will open the association outside of
+               Gnucash as it currently does when opened from the register.
+  Bug 796932 - Invoices order when assigning paymentssorts documents in
+               dialog-payment.c by date, then by document ID.
+  Bug 797052 - Autofill Selection is Corrupted After Clicking Description
+  Bug 797185 - [transaction association window] sorting by column.
+  Bug 797185 - Allow sorting on all Transaction Association columns
+  Bug 797220 - delete account allows move of all transactions to account having
+               non-matching currency
+  Bug 797236 - Regression: Reconcile window transaction list resets to top
+               when new transaction created in account.
+  Bug 797264 - 3.5 can't use Chinese IME input.
+  Bug 797329 - Using Japanese IME to enter transactions results in unexpected
+               field jumps
+  Bug 797388 - GnuCash 3.6 segfaults regularly.
+  Bug 797648 - Cannot reconcile both splits of a transaction with 2 splits for
+               bank account subaccounts if only 1 is cleared
+  Bug 797659 - Liabilities in budget report no longer calculate correctly
+  Bug 797689 - Child dialog windows are demoted behind parent window when task
+               switching.
+  Bug 797707 - CSV Transaction Export: custom dates should be insensitive by
+               default
+  Bug 797717 - Summary bar changes height when opening a menu or scrolling over
+               an option
+  Bug 797737 - Import matching can match an imported transaction to an existing,
+               previously matched transaction
+  Bug 797743 - Monetary amounts are occasionally rendered in fractions
+  Bug 797745 - Unable to change default report currency
+  Bug 797748 - missing header "algorithm"
+  Bug 797750 - SIGSEV in swig-engine.c
+  Bug 797754 - In an account register, scrolling stops working when the mouse
+               pointer re-enters the scrollbar after leaving it.
+  Bug 797760 - Broken register split activity--cannot delete splits, unable to
+               tab complete account name.
+  Bug 797761 - Customer report beta: opening balance tax column shows garbage
+               string
+  Bug 797768 - View Lots sorting numbers not right.
+  Bug 797770 - Reconciliation report does not consider credit transactions
+
+
+ The following fixes and improvements were not associated with bug reports or new features:
+
+  Add an Invoice section to dialog-utils for when the path head changes.
+  Change the position the register pop up so it aligns better.
+  Fix the alignment of the Notes label in Transfer dialog.
+  Set the initial Split horizontal paned position to be half way when the
+    window is realized.
+  Set the expanding columns in the lot viewer to be the 'Title' and the
+    'Description'. Also ellipsize the description to help with long
+    transaction descriptions.
+  Change the alignment of the numeric values in the lot viewer to be right
+    aligned so the numbers line up.
+  [new-aging] speed up split->ownerseveral speed ups
+    1. split->owner will now cache results, bypassing gncOwnerGetOwnerFromLot
+       and gncInvoiceGetInvoiceFromLot for repeated calls to the same split.
+    2. previously each call to split->owner would allocate a new gncOwner. Now
+       a new gncOwner is only allocated during a cache miss. the list of
+       gncOwners is maintained and is purged when split->owner is called with
+       #f. There is no need to maintain a to-free list of gncOwners anymore.
+    3. instead of slow gncOwnerReturnGUID to test equality, use gncOwnerEqual.
+  Fix crash in case filter is less than 4 parameters.
+  Change the Options GtkCheckBox to use its own built-in label and remove the
+    label in the first column.
+    widgets.
+  Enable the Options Checkbox label to be used to toggle values.
+  Add enum SplitRegisterTypeGroup to group registers.
+  Change state_section parameter for gnc_table_save_state
+  Fix clang error about type mismatch GtkWidget* != void* aka gpointer.
+  HIG, I18N: Improve Budget menu entries
+  I18N: fix translator comments in window-reconcile.c
+  I18N: Fix several issuse with 'Help not found' strings
+  [QofLog] Replace hashtable with tree of vectors: 16x speedup.
+  Make qof_log_set_file static. Used only internally.
+  Move QofLogModule typedef to qoflog.h where it belongs.
+  [balsheet-eg] don't use safe-cadr and safe-cdr
+    They are safety hacks which indicate inability to deal with lists. Use
+    lists properly.
+  [eguile-utilities] deprecate single-use function used only by balsheet-eg.scm
+  [balsheet-eg] use "foreign" css class correctly.
+  [eguile-gnc] don't catch errors in eguile-gnc
+  Initially select the last account chosen in the account picker dialogs.
+    Separately keeps track of last investment account, security account, and
+    income account. One issue is that gnc_import_select_account doesn't tell
+    the caller if it put up a dialog or found the online ID on an existing
+    account. This means the last account may be one the user didn't manually
+    select.
+  Transaction matcher dialogue was not closing when changing book.
+  Correct parent widget for import new account dialog.
+  No Selection on load for Bill Terms.
+    Change the selection process so it selects the first entry if present on
+    load and also selects a newly created entry when completed.
+  Change the Tax Table dialogue to be based on a GtkWindow.
+    When using Gnucash on Microsoft Windows and a dialog opens a further dialog
+    when you switch away from the application and back the last dialog that has
+    the focus is behind the parent and it appears like the application has
+    frozen.
+  Fix LIBDBI_DRIVERS_DIR generation.
+  L10N:de: "Für" klein in "Ergebnisrechnung für Periode" etc.
+  I18N: Msgmerge recent changes
+  I18N: Hotfix for bug 797725Add a translator comment
+  L10N:de_CH: Ein weiterer Tippfehler im Kontenrahmen KMU
+  [test-stress-options] fix combinatorics testing
+    Premise: pairwise combinatorics testing is only possible when all options
+    have at least 2 options.  The "General Journal" report is unique because
+    it starts with the Transaction Report options generator, and adds a few
+    hidden options. Unfortunately the Transaction Report receives the
+    "General/Stylesheet" option, with only 1 default stylesheet.  The General
+    Journal report therefore has 1 stylesheet option with only 1 choice, and
+    is not acceptable to jenny for pairwise testing. It would fail the
+    combinatorics testing. Adding other stylesheets did not successfully allow
+    pairwise testing. Therefore the simplest way to test General Journal is to
+    disable multichoice testing whereby num(choices) is only 1.
+  [Account.cpp] more xaccAccountTypeGetFundamental types
+  Fix the crash that occurs when opening a new book when the
+    transaction-matching dialog has been opened then closed.
+  Display report zoom factor with one decimal space.
+  Fix transaction post_date being set to midnight local.
+  Respect the environment LD_LIBRARY_PATH for loading Scheme modules and tests.
+  Add a tip about announcements and other mailing lists.
+  Change occurrences of gdk_display_get_default to gdk_window_get_display()
+  Remove some Gtk version checks in code
+  Remove some Gtk version checks for CSS
+  Fix libgnc-app-utils.dylib install_name_dir. The install location changed as
+    part of expunging libgnc-module.
+
+Updated Translations: German, Swiss German, Ukrainian
+
+ Known Problems:
+
+  Bug 797708 - Reconcile Dialog on Import
+  Bug 797746 - [reports] German umlauts not escaped
+
+
+
 3.902 - 27 April 2020
 The first unstable release leading to the new 4.x stable series.
 
@@ -122,7 +1259,6 @@ The following fixes and improvements were not associated with bug reports:
     Fix failed build of python tests and failed test in 3.10 tarball.
 
 Updated Translations: Croatian, Hebrew, Ukrainian
-
 3.10 - 10 April 2020
 The eleventh release of the 3.x stable series.
 
@@ -254,7 +1390,7 @@ Other repairs or enhancements not marked as bugs:
     [report-utilities] bugfix: aging-list was incorrect. off-by-1 error.
     [report-utilities] bugfix: overpayment works for AP accounts.
     Swap the buttons around on the Budget Open dialogue
-      Swap the OK and Cancel buttons so they conform to the normal layout. 
+      Swap the OK and Cancel buttons so they conform to the normal layout.
     [report-utilities] bugfix: fix overpayment detection
       For 1 payment to >1 invoices, previously would miscalculate
       overpayment.
@@ -297,7 +1433,7 @@ Other repairs or enhancements not marked as bugs:
       Owner: [None:] Transaction:Txn<d:28/10/19> Splits are:
       Split<d:28/10/19,acc:Current,amt:$150.00,val:£150.00>
       Split<d:28/10/19,acc:AR,amt:$0.00,val:-£150.00> Transaction
-      Currency:GBP Client Currency:AUD 
+      Currency:GBP Client Currency:AUD
     Fixed German IBAN error message
     Allow edit of some fields for posted invoice
       Allow editing of some fields for posted invoice. For reasons, see bug
@@ -308,14 +1444,14 @@ Other repairs or enhancements not marked as bugs:
       and QR) inside the enter TAN dialogue.
     [budget] fixcrash: fix crasher for some periods
       eg. the following combo would previously crash: - periods from next
-      to current - use accumulated amounts 
+      to current - use accumulated amounts
     [budget] fixcrash: prevent crash if periods start > end
       It's silly to input start-period > end-period. Nevertheless handle it
       by swapping them instead of crashing. i.e. report budget periods from
-      end to start. 
+      end to start.
     [budget-flow] fixcrash: exchange-fn needs to specify exchange date
       because some exchange-fn *do* require date eg. pricedb-nearest. use
-      the period end-date for the exchange date. 
+      the period end-date for the exchange date.
     [portfolio report] There's no report-currency. Use currency.
     [window-report] show backtrace when report crashes
       * exposes a SCM string last-captured-error containing last backtrace
@@ -464,7 +1600,7 @@ Deprecated API:
     gnc:sum-collector-stocks - Unreachable
 
 
-Updated Translations: German, Hebrew, Ukrainian, 
+Updated Translations: German, Hebrew, Ukrainian,
 New Account Templates: Hebrew-Israel
 
 3.6 - 30 June 2019
@@ -4377,7 +5513,7 @@ Concurrent with the release of Gnucash 2.6.4 we're pleased to also release a new
          source repository and put it into the downloads directory of
          your gnucash build area.
 
-       * Updated AqBanking on Win32.</li>
+       * Updated AqBanking on Win32.
 
  2.3.0 - 14 May 2009
  	 o Welcome to GnuCash 2.3.0 the first of several unstable releases of

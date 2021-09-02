@@ -76,8 +76,6 @@
 #include "gnc-icons.h"
 #include "print-session.h"
 
-#define WINDOW_REPORT_CM_CLASS "window-report"
-
 /* NW: you can add GNC_MOD_REPORT to gnc-engine.h
 or simply define it locally. Any unique string with
 a gnucash- prefix will do. Then just set a log level
@@ -124,6 +122,7 @@ typedef struct GncPluginPageReportPrivate
 
     /* The page is in the process of reloading the html */
     gboolean	reloading;
+    gboolean    loaded;
 
     /// the gnc_html abstraction this PluginPage contains
 //        gnc_html *html;
@@ -153,6 +152,7 @@ static GncPluginPage *gnc_plugin_page_report_recreate_page (GtkWidget *window, G
 static void gnc_plugin_page_report_name_changed (GncPluginPage *page, const gchar *name);
 static void gnc_plugin_page_report_update_edit_menu (GncPluginPage *page, gboolean hide);
 static gboolean gnc_plugin_page_report_finish_pending (GncPluginPage *page);
+static void gnc_plugin_page_report_load_uri (GncPluginPage *page);
 
 static int gnc_plugin_page_report_check_urltype(URLType t);
 //static void gnc_plugin_page_report_load_cb(gnc_html * html, URLType type,
@@ -243,12 +243,25 @@ gnc_plugin_page_report_focus_widget (GncPluginPage *report_plugin_page)
     if (GNC_IS_PLUGIN_PAGE_REPORT(report_plugin_page))
     {
         GncPluginPageReportPrivate *priv = GNC_PLUGIN_PAGE_REPORT_GET_PRIVATE(report_plugin_page);
-        GtkWidget *widget = gnc_html_get_widget (priv->html);
+        GtkWidget *window;
 
-        if (GTK_IS_WIDGET(widget))
+        if (!priv)
+            return FALSE;
+
+        window = gnc_plugin_page_get_window (report_plugin_page);
+
+        if (window && !gnc_main_window_is_restoring_pages (GNC_MAIN_WINDOW(window)))
         {
-            if (!gtk_widget_is_focus (GTK_WIDGET(widget)))
-                gtk_widget_grab_focus (GTK_WIDGET(widget));
+            GtkWidget *widget = gnc_html_get_webview (priv->html);
+
+            if (!priv->loaded) // so we only do the load once
+                gnc_plugin_page_report_load_uri (report_plugin_page);
+
+            if (GTK_IS_WIDGET(widget))
+            {
+                if (!gtk_widget_is_focus (GTK_WIDGET(widget)))
+                    gtk_widget_grab_focus (GTK_WIDGET(widget));
+            }
         }
     }
     return FALSE;
@@ -332,7 +345,7 @@ gnc_plugin_page_report_set_progressbar (GncPluginPage *page, gboolean set)
         gtk_widget_set_size_request (GTK_WIDGET(progressbar), -1, -1); //reset
 }
 
-static gboolean
+static void
 gnc_plugin_page_report_load_uri (GncPluginPage *page)
 {
     GncPluginPageReport *report;
@@ -346,7 +359,7 @@ gnc_plugin_page_report_load_uri (GncPluginPage *page)
     report = GNC_PLUGIN_PAGE_REPORT(page);
     priv = GNC_PLUGIN_PAGE_REPORT_GET_PRIVATE(report);
     if (!priv)
-        return FALSE; // No priv means the page doesn't exist anymore.
+        return; // No priv means the page doesn't exist anymore.
 
     DEBUG( "Load uri id=%d", priv->reportId );
     id_name = g_strdup_printf("id=%d", priv->reportId );
@@ -362,6 +375,8 @@ gnc_plugin_page_report_load_uri (GncPluginPage *page)
 
     gtk_widget_show_all( GTK_WIDGET(priv->container) );
 
+    priv->loaded = TRUE;
+
     // this sets the window for the progressbar
     gnc_window_set_progressbar_window( GNC_WINDOW(page->window) );
 
@@ -375,20 +390,45 @@ gnc_plugin_page_report_load_uri (GncPluginPage *page)
 
     // this resets the window for the progressbar to NULL
     gnc_window_set_progressbar_window( NULL );
-
-    return FALSE;
 }
 
-static void
-gnc_plugin_page_report_realize_uri (GtkWidget *widget, GncPluginPage *page)
+/* used to capture Ctrl+Alt+PgUp/Down for tab selection */
+static gboolean
+webkit_key_press_event_cb (GtkWidget *widget, GdkEventKey *event, gpointer user_data)
 {
-    GtkAllocation allocation;
+    GncPluginPageReport *report = GNC_PLUGIN_PAGE_REPORT(user_data);
+    GncPluginPageReportPrivate *priv = GNC_PLUGIN_PAGE_REPORT_GET_PRIVATE(report);
+    GdkModifierType modifiers = gtk_accelerator_get_default_mod_mask ();
+    GtkWidget *window = gnc_plugin_page_get_window (GNC_PLUGIN_PAGE(report));
 
-    gtk_widget_get_allocation (widget, &allocation);
-    PINFO("Realized Container size is %dw x %dh", allocation.width, allocation.height);
+    if (GNC_PLUGIN_PAGE(report) != gnc_main_window_get_current_page (GNC_MAIN_WINDOW(window)))
+        return FALSE;
 
-    /* load uri when view idle */
-    g_idle_add ((GSourceFunc)gnc_plugin_page_report_load_uri, page);
+    if ((event->keyval == GDK_KEY_Page_Up || event->keyval == GDK_KEY_Page_Down ||
+         event->keyval == GDK_KEY_KP_Page_Up || event->keyval == GDK_KEY_KP_Page_Down)
+          && (event->state & modifiers) == (GDK_CONTROL_MASK | GDK_MOD1_MASK))
+    {
+        GtkNotebook *notebook = GTK_NOTEBOOK(gtk_widget_get_parent (GTK_WIDGET(priv->container)));
+        gint pages = gtk_notebook_get_n_pages (notebook);
+        gint current_page = gtk_notebook_get_current_page (notebook);
+
+        if (event->keyval == GDK_KEY_Page_Up || event->keyval == GDK_KEY_KP_Page_Up)
+        {
+            if (current_page == 0)
+                gtk_notebook_set_current_page (notebook, pages - 1);
+            else
+                gtk_notebook_prev_page (notebook);
+        }
+        else
+        {
+            if (pages == current_page + 1)
+                gtk_notebook_set_current_page (notebook, 0);
+            else
+                gtk_notebook_next_page (notebook);
+        }
+        return TRUE;
+    }
+    return FALSE;
 }
 
 static
@@ -399,6 +439,7 @@ gnc_plugin_page_report_create_widget( GncPluginPage *page )
     GncPluginPageReportPrivate *priv;
     GtkWindow *topLvl;
     GtkAction *action;
+    GtkWidget *webview;
     URLType type;
     char * id_name;
     char * child_name;
@@ -421,6 +462,7 @@ gnc_plugin_page_report_create_widget( GncPluginPage *page )
 //        priv->html = gnc_html_new( topLvl );
     priv->html = gnc_html_factory_create_html();
     gnc_html_set_parent( priv->html, topLvl );
+    priv->loaded = FALSE;
 
     gnc_html_history_set_node_destroy_cb(gnc_html_get_history(priv->html),
                                          gnc_plugin_page_report_history_destroy_cb,
@@ -453,17 +495,27 @@ gnc_plugin_page_report_create_widget( GncPluginPage *page )
     gnc_plugin_page_report_load_cb (priv->html, type, id_name, url_label, report);
     g_free(id_name);
     g_free(child_name);
+    g_free (url_label);
+    g_free (url_location);
 
     // FIXME.  This is f^-1(f(x)), isn't it?
     DEBUG( "id=%d", priv->reportId );
 
-    /* load uri when view is realized */
-    g_signal_connect (G_OBJECT(GTK_WIDGET(priv->container)), "realize",
-                      G_CALLBACK(gnc_plugin_page_report_realize_uri), page);
-
     g_signal_connect (G_OBJECT(page), "inserted",
                       G_CALLBACK(gnc_plugin_page_inserted_cb),
                       NULL);
+
+    // used to capture Ctrl+Alt+PgUp/Down for tab selection
+    webview = gnc_html_get_webview (priv->html);
+    if (webview)
+    {
+        gtk_widget_add_events (webview, gtk_widget_get_events (webview) |
+                               GDK_KEY_PRESS_MASK);
+
+        g_signal_connect (webview, "key-press-event",
+                          G_CALLBACK(webkit_key_press_event_cb),
+                          page);
+    }
 
     gtk_widget_show_all( GTK_WIDGET(priv->container) );
     LEAVE("container %p", priv->container);
@@ -757,14 +809,11 @@ static void
 gnc_plugin_page_report_destroy_widget(GncPluginPage *plugin_page)
 {
     GncPluginPageReportPrivate *priv;
-    GtkWidget *widget;
 
     // FIXME: cleanup other resources.
 
     PINFO("destroy widget");
     priv = GNC_PLUGIN_PAGE_REPORT_GET_PRIVATE(plugin_page);
-
-    widget = gnc_html_get_widget(priv->html);
 
     // Remove the page_changed signal callback
     gnc_plugin_page_disconnect_page_changed (GNC_PLUGIN_PAGE(plugin_page));
@@ -1087,10 +1136,10 @@ static action_toolbar_labels toolbar_labels[] =
     { "ReportExportAction",   N_("Export") },
     { "ReportOptionsAction",  N_("Options") },
     /* Translators: This string is meant to be a short alternative for "Save Report Configuration"
-     * to be used as toolbar button label. */
+       to be used as toolbar button label. */
     { "ReportSaveAction", N_("Save Config") },
     /* Translators: This string is meant to be a short alternative for "Save Report Configuration As..."
-     * to be used as toolbar button label. */
+       to be used as toolbar button label. */
     { "ReportSaveAsAction", N_("Save Config As...") },
     { "FilePrintPDFAction", N_("Make Pdf") },
     { NULL, NULL },
@@ -1145,10 +1194,10 @@ gnc_plugin_page_report_constr_init(GncPluginPageReport *plugin_page, gint report
     gchar *saved_reports_path = gnc_build_userdata_path (SAVED_REPORTS_FILE);
     gchar *report_save_str = g_strdup_printf (
         _("Update the current report's saved configuration. "
-        "The report configuration will be saved in the file %s. "), saved_reports_path);
+          "The report configuration will be saved in the file %s."), saved_reports_path);
     gchar *report_saveas_str = g_strdup_printf (
-        _("Add the current report's configuration to the `Reports->Saved Report Configurations' menu. "
-        "The report configuration will be saved in the file %s. "), saved_reports_path);
+        _("Add the current report's configuration to the 'Reports->Saved Report Configurations' menu. "
+          "The report configuration will be saved in the file %s."), saved_reports_path);
 
     GtkActionEntry report_actions[] =
     {
@@ -1378,6 +1427,12 @@ gnc_plugin_page_report_back_cb( GtkAction *action, GncPluginPageReport *report )
     }
 }
 
+void
+gnc_plugin_page_report_reload (GncPluginPageReport *report)
+{
+    gnc_plugin_page_report_reload_cb (NULL, report);
+}
+
 static void
 gnc_plugin_page_report_reload_cb( GtkAction *action, GncPluginPageReport *report )
 {
@@ -1426,7 +1481,7 @@ gnc_plugin_page_report_stop_cb( GtkAction *action, GncPluginPageReport *report )
 /* Returns SCM_BOOL_F if cancel. Returns SCM_BOOL_T if html.
  * Otherwise returns pair from export_types. */
 static SCM
-gnc_get_export_type_choice (SCM export_types)
+gnc_get_export_type_choice (SCM export_types, GtkWindow *parent)
 {
     GList * choices = NULL;
     gboolean bad = FALSE;
@@ -1469,9 +1524,9 @@ gnc_get_export_type_choice (SCM export_types)
         choices = g_list_prepend (choices, g_strdup (_("HTML")));
 
         choice = gnc_choose_radio_option_dialog
-                 (NULL, _("Choose export format"),
-                  _("Choose the export format for this report:"),
-                  NULL, 0, choices);
+            (GTK_WIDGET (parent), _("Choose export format"),
+             _("Choose the export format for this report:"),
+             NULL, 0, choices);
     }
     else
         choice = -1;
@@ -1494,7 +1549,7 @@ gnc_get_export_type_choice (SCM export_types)
 }
 
 static char *
-gnc_get_export_filename (SCM choice)
+gnc_get_export_filename (SCM choice, GtkWindow *parent)
 {
     char * filepath;
     GStatBuf statbuf;
@@ -1513,8 +1568,8 @@ gnc_get_export_filename (SCM choice)
     title = g_strdup_printf (_("Save %s To File"), type);
     default_dir = gnc_get_default_directory(GNC_PREFS_GROUP_REPORT);
 
-    filepath = gnc_file_dialog (gnc_ui_get_main_window (NULL),
-                                title, NULL, default_dir, GNC_FILE_DIALOG_EXPORT);
+    filepath = gnc_file_dialog (parent, title, NULL, default_dir,
+                                GNC_FILE_DIALOG_EXPORT);
 
     if (filepath != NULL) // test for cancel pressed
     {
@@ -1541,7 +1596,7 @@ gnc_get_export_filename (SCM choice)
         /* %s is the strerror(3) string of the error that occurred. */
         const char *format = _("You cannot save to that filename.\n\n%s");
 
-        gnc_error_dialog (NULL, format, strerror(errno));
+        gnc_error_dialog (parent, format, strerror(errno));
         g_free(filepath);
         return NULL;
     }
@@ -1551,7 +1606,7 @@ gnc_get_export_filename (SCM choice)
     {
         const char *message = _("You cannot save to that file.");
 
-        gnc_error_dialog (NULL, "%s", message);
+        gnc_error_dialog (parent, "%s", message);
         g_free(filepath);
         return NULL;
     }
@@ -1561,7 +1616,7 @@ gnc_get_export_filename (SCM choice)
         const char *format = _("The file %s already exists. "
                                "Are you sure you want to overwrite it?");
 
-        if (!gnc_verify_dialog (NULL, FALSE, format, filepath))
+        if (!gnc_verify_dialog (parent, FALSE, format, filepath))
         {
             g_free(filepath);
             return NULL;
@@ -1642,6 +1697,8 @@ gnc_plugin_page_report_export_cb( GtkAction *action, GncPluginPageReport *report
     SCM export_thunk;
     gboolean result;
     SCM choice;
+    GtkWindow *parent = GTK_WINDOW (gnc_plugin_page_get_window
+                                    (GNC_PLUGIN_PAGE (report)));
 
     priv = GNC_PLUGIN_PAGE_REPORT_GET_PRIVATE(report);
     export_types = scm_call_1 (scm_c_eval_string ("gnc:report-export-types"),
@@ -1651,28 +1708,54 @@ gnc_plugin_page_report_export_cb( GtkAction *action, GncPluginPageReport *report
                                priv->cur_report);
 
     if (scm_is_list (export_types) && scm_is_procedure (export_thunk))
-        choice = gnc_get_export_type_choice (export_types);
+        choice = gnc_get_export_type_choice (export_types, parent);
     else
         choice = SCM_BOOL_T;
 
     if (choice == SCM_BOOL_F)
         return;
 
-    filepath = gnc_get_export_filename (choice);
+    filepath = gnc_get_export_filename (choice, parent);
     if (!filepath)
         return;
 
     if (scm_is_pair (choice))
     {
-        SCM file_scm;
-        SCM res;
+        SCM type = scm_cdr (choice);
+        SCM document = scm_call_2 (export_thunk, priv->cur_report, type);
+        SCM query_result = scm_c_eval_string ("gnc:html-document?");
+        SCM get_export_string = scm_c_eval_string ("gnc:html-document-export-string");
+        SCM get_export_error = scm_c_eval_string ("gnc:html-document-export-error");
 
-        choice = SCM_CDR (choice);
-        file_scm = scm_from_locale_string (filepath);
+        if (scm_is_false (scm_call_1 (query_result, document)))
+            gnc_error_dialog (parent, _("This report must be upgraded to \
+return a document object with export-string or export-error."));
+        else
+        {
+            SCM export_string = scm_call_1 (get_export_string, document);
+            SCM export_error = scm_call_1 (get_export_error, document);
 
-        res = scm_call_3 (export_thunk, priv->cur_report, choice, file_scm);
-
-        result = (res != SCM_BOOL_F);
+            if (scm_is_string (export_string))
+            {
+                GError *err = NULL;
+                gchar *exported = scm_to_utf8_string (export_string);
+                if (!g_file_set_contents (filepath, exported, -1, &err))
+                    gnc_error_dialog (parent, "Error during export: %s", err->message);
+                g_free (exported);
+                if (err)
+                    g_error_free (err);
+            }
+            else if (scm_is_string (export_error))
+            {
+                gchar *str = scm_to_utf8_string (export_error);
+                gnc_error_dialog (parent, "error during export: %s", str);
+                g_free (str);
+            }
+            else
+                gnc_error_dialog (parent, _("This report must be upgraded to \
+return a document object with export-string or export-error."));
+        }
+        result = TRUE;
     }
     else
         result = gnc_html_export_to_file (priv->html, filepath);
@@ -1681,7 +1764,7 @@ gnc_plugin_page_report_export_cb( GtkAction *action, GncPluginPageReport *report
     {
         const char *fmt = _("Could not open the file %s. "
                             "The error is: %s");
-        gnc_error_dialog( NULL, fmt, filepath ? filepath : "(null)",
+        gnc_error_dialog (parent, fmt, filepath ? filepath : "(null)",
                           strerror (errno) ? strerror (errno) : "" );
     }
 
@@ -1725,34 +1808,23 @@ static gchar *report_create_jobname(GncPluginPageReportPrivate *priv)
 
     {
         // Look up the date format that was chosen in the preferences database
-        QofDateFormat date_format_here;
-        QofDateFormat date_format_old = qof_date_format_get();
-        char *format_code = gnc_prefs_get_string(GNC_PREFS_GROUP_REPORT_PDFEXPORT,
-                            GNC_PREF_FILENAME_DATE_FMT);
+        QofDateFormat date_format_here = QOF_DATE_FORMAT_ISO;
+        char *format_code = gnc_prefs_get_string (GNC_PREFS_GROUP_REPORT_PDFEXPORT,
+                                                  GNC_PREF_FILENAME_DATE_FMT);
+        const gchar *date_format_string;
         if (*format_code == '\0')
         {
             g_free(format_code);
             format_code = g_strdup("locale");
         }
 
-        if (gnc_date_string_to_dateformat(format_code, &date_format_here))
-        {
-            PERR("Incorrect date format code");
-            if (format_code != NULL)
-                free(format_code);
-        }
+        if (gnc_date_string_to_dateformat (format_code, &date_format_here))
+            PERR("Incorrect date format code, using ISO-8601.");
 
-        // To apply this chosen date format, temporarily switch the
-        // process-wide default to our chosen date format. Note: It is a
-        // totally brain-dead implementation of qof_print_date() to not offer a
-        // variation where the QofDateFormat can be passed as an argument.
-        // Hrmpf.
-        qof_date_format_set(date_format_here);
+        date_format_string = qof_date_format_get_string (date_format_here);
 
-        job_date = qof_print_date( time( NULL ) );
-
-        // Restore to the original general  date format
-        qof_date_format_set(date_format_old);
+        job_date = gnc_print_time64 (gnc_time (NULL), date_format_string);
+        g_free (format_code);
     }
 
 
@@ -1893,13 +1965,16 @@ gnc_plugin_page_report_exportpdf_cb( GtkAction *action, GncPluginPageReport *rep
             // Yes. In the kvp, look up the key for the Export-PDF output
             // directory. If it exists, prepend this to the job name so that
             // we can export to PDF.
-	    if (dirname && g_file_test(dirname,
-				       G_FILE_TEST_EXISTS | G_FILE_TEST_IS_DIR))
-	    {
-		gchar *tmp = g_build_filename(dirname, job_name, NULL);
-		g_free(job_name);
-		job_name = tmp;
-	    }
+            if (dirname)
+            {
+                if (g_file_test (dirname, G_FILE_TEST_EXISTS | G_FILE_TEST_IS_DIR))
+                {
+                    gchar *tmp = g_build_filename (dirname, job_name, NULL);
+                    g_free (job_name);
+                    job_name = tmp;
+                }
+                g_free (dirname);
+            }
         }
     }
 

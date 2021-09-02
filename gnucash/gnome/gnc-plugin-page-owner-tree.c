@@ -373,6 +373,7 @@ gnc_plugin_page_owner_tree_new (GncOwnerType owner_type)
         g_object_set_property (G_OBJECT(action), "visible", &gvalue);
     }
 
+    g_value_unset (&gvalue);
     LEAVE("new %s tree page %p", gncOwnerTypeToQofIdType(owner_type), plugin_page);
     return GNC_PLUGIN_PAGE(plugin_page);
 }
@@ -975,8 +976,10 @@ static int build_owner_report (GncOwner *owner, Account *acc)
 
     args = SCM_EOL;
 
-    func = scm_c_eval_string ("gnc:owner-report-create");
+    func = scm_c_eval_string ("gnc:owner-report-create-with-enddate");
     g_return_val_if_fail (scm_is_procedure (func), -1);
+
+    args = scm_cons (SCM_BOOL_F, args); /* enddate is #f */
 
     if (acc)
     {

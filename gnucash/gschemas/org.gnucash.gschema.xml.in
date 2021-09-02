@@ -22,8 +22,8 @@
     </key>
     <key name="assoc-head" type="s">
       <default>''</default>
-      <summary>Transaction Associations head path</summary>
-      <description>This is the path head for the Transaction file Associations</description>
+      <summary>Transaction Linked Files head path</summary>
+      <description>This is the path head for the Transaction Linked Files with relative paths</description>
     </key>
     <key name="file-compression" type="b">
       <default>true</default>
@@ -130,6 +130,11 @@
       <summary>Width of notebook tabs</summary>
       <description>This key specifies the maximum width of notebook tabs. If the text in the tab is longer than this value (the test is approximate) then the tab label will have the middle cut and replaced with an ellipsis.</description>
     </key>
+    <key name="tab-open-adjacent" type="b">
+      <default>true</default>
+      <summary>Opens new tab adjacent to current tab instead of at the end</summary>
+      <description>If active, new tabs are opened adjacent to current tab. If inactive, the new tabs are opened instead at the end.</description>
+    </key>
     <key name="currency-choice-locale" type="b">
       <default>true</default>
       <summary>Use the system locale currency for all newly created accounts.</summary>
@@ -166,7 +171,7 @@
       <description>When a date is entered without year it can be completed so that it will be within the current calendar year or close to the current date based on a sliding window starting a set number of months backwards in time.</description>
     </key>
     <key name="date-backmonths" type="d">
-      <default>11.0</default>
+      <default>6.0</default>
       <summary>Maximum number of months to go back.</summary>
       <description>Dates will be completed so that they are close to the current date. Enter the maximum number of months to go backwards in time when completing dates.</description>
     </key>
@@ -282,12 +287,12 @@
     </key>
     <key name="default-style-ledger" type="b">
       <default>true</default>
-      <summary>Show all transactions on one line. (Two in double line mode.)</summary>
+      <summary>Show all transactions on one line or in double line mode on two.</summary>
       <description>This field specifies the default view style when opening a new register window. Possible values are "ledger", "auto-ledger" and "journal". The "ledger" setting says to show each transaction on one or two lines. The "auto-ledger" setting does the same, but also expands only the current transaction to show all splits. The "journal" setting shows all transactions in expanded form.</description>
     </key>
     <key name="default-style-autoledger" type="b">
       <default>false</default>
-      <summary>Automatically expand the current transaction to show all splits. All other transactions are shown on one line. (Two in double line mode.)</summary>
+      <summary>Automatically expand the current transaction to show all splits. All other transactions are shown on one line or in double line mode on two.</summary>
       <description>This field specifies the default view style when opening a new register window. Possible values are "ledger", "auto-ledger" and "journal". The "ledger" setting says to show each transaction on one or two lines. The "auto-ledger" setting does the same, but also expands only the current transaction to show all splits. The "journal" setting shows all transactions in expanded form.</description>
     </key>
     <key name="default-style-journal" type="b">
@@ -297,8 +302,8 @@
     </key>
     <key name="double-line-mode" type="b">
       <default>false</default>
-      <summary>Show two lines of information for each transaction</summary>
-      <description>Show two lines of information for each transaction in a register. This is the default setting for when a register is first opened. The setting can be changed at any time via the "View-&gt;Double Line" menu item.</description>
+      <summary>Show a second line with "Action", "Notes", and "Linked Documents" for each transaction.</summary>
+      <description>Show a second line with "Action", "Notes", and "Linked Documents" for each transaction in a register. This is the default setting for when a register is first opened. The setting can be changed at any time via the "View-&gt;Double Line" menu item.</description>
     </key>
     <key name="show-leaf-account-names" type="b">
       <default>false</default>
@@ -371,7 +376,7 @@ For example setting this to 2.0 will display reports at twice their typical size
     <key name="filename-format" type="s">
       <default>'%1$s-%2$s-%3$s'</default>
       <summary>PDF export file name format</summary>
-      <description>This setting chooses the file name for PDF export. This is a sprintf(3) string with three arguments: "%1$s" is the report name such as "Invoice". "%2$s" is the number of the report, which for an invoice report is the invoice number. "%3$s" is the date of the report, formatted according to the filename-date-format setting. (Note: Any characters that are not allowed in filenames, such as '/', will be replaced with underscores '_' in the resulting file name.)</description>
+      <description>This setting chooses the file name for PDF export. This is a sprintf(3) string with three arguments: "%1$s" is the report name such as "Invoice". "%2$s" is the number of the report, which for an invoice report is the invoice number. "%3$s" is the date of the report, formatted according to the filename-date-format setting. Note: Any characters that are not allowed in filenames, such as '/', will be replaced with underscores '_' in the resulting file name.</description>
     </key>
     <key name="filename-date-format" type="s">
       <default>'locale'</default>

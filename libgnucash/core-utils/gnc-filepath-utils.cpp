@@ -26,6 +26,11 @@
  * @author Copyright (c) 2000 Dave Peticolas
  */
 
+#include <glib.h>
+#include <glib/gi18n.h>
+#include <glib/gprintf.h>
+#include <glib/gstdio.h>
+
 extern "C" {
 #include <config.h>
 
@@ -35,10 +40,6 @@ extern "C" {
 #include <Shlobj.h>
 #endif
 
-#include <glib.h>
-#include <glib/gi18n.h>
-#include <glib/gprintf.h>
-#include <glib/gstdio.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -462,7 +463,7 @@ copy_recursive(const bfs::path& src, const bfs::path& dest)
     }
     catch(const bfs::filesystem_error& ex)
     {
-        g_warning("An error occured while trying to migrate the user configation from\n%s to\n%s"
+        g_warning("An error occurred while trying to migrate the user configation from\n%s to\n%s"
                   "(Error: %s)",
                   src.string().c_str(), gnc_userdata_home_str.c_str(),
                   ex.what());
@@ -589,12 +590,8 @@ static std::string migrate_gnc_datahome()
     bfs::path old_dir(g_get_home_dir(), cvt);
     old_dir /= ".gnucash";
 
-    bl::generator gen;
-    gen.add_messages_path(gnc_path_get_datadir());
-    gen.add_messages_domain(PROJECT_NAME);
-
     std::stringstream migration_msg;
-    migration_msg.imbue(gnc_get_locale());
+    migration_msg.imbue(gnc_get_boost_locale());
 
     /* Step 1: copy directory $HOME/.gnucash to $GNC_DATA_HOME */
     auto full_copy = copy_recursive (old_dir, gnc_userdata_home);
@@ -1177,7 +1174,9 @@ gnc_build_data_path (const gchar *filename)
 gchar *
 gnc_build_scm_path (const gchar *filename)
 {
-    gchar *result = g_build_filename(gnc_path_get_scmdir(), filename, (gchar *)NULL);
+    gchar *scmdir = gnc_path_get_scmdir ();
+    gchar *result = g_build_filename (scmdir, filename, (gchar *)NULL);
+    g_free (scmdir);
     return result;
 }
 
@@ -1193,7 +1192,9 @@ gnc_build_scm_path (const gchar *filename)
 gchar *
 gnc_build_report_path (const gchar *filename)
 {
-    gchar *result = g_build_filename(gnc_path_get_reportdir(), filename, (gchar *)NULL);
+    gchar *rptdir = gnc_path_get_reportdir ();
+    gchar *result = g_build_filename (rptdir, filename, (gchar *)NULL);
+    g_free (rptdir);
     return result;
 }
 
@@ -1209,7 +1210,9 @@ gnc_build_report_path (const gchar *filename)
 gchar *
 gnc_build_reports_path (const gchar *dirname)
 {
-    gchar *result = g_build_filename(gnc_path_get_reportsdir(), dirname, (gchar *)NULL);
+    gchar *rptsdir = gnc_path_get_reportsdir ();
+    gchar *result = g_build_filename (rptsdir, dirname, (gchar *)NULL);
+    g_free (rptsdir);
     return result;
 }
 
@@ -1225,7 +1228,9 @@ gnc_build_reports_path (const gchar *dirname)
 gchar *
 gnc_build_stdreports_path (const gchar *filename)
 {
-    gchar *result = g_build_filename(gnc_path_get_stdreportsdir(), filename, (gchar *)NULL);
+    gchar *stdrptdir = gnc_path_get_stdreportsdir ();
+    gchar *result = g_build_filename (stdrptdir, filename, (gchar *)NULL);
+    g_free (stdrptdir);
     return result;
 }
 
@@ -1239,7 +1244,7 @@ gnc_filepath_locate_file (const gchar *default_path, const gchar *name)
     if (g_path_is_absolute (name))
         fullname = g_strdup (name);
     else if (default_path)
-        fullname = g_build_filename (default_path, name, NULL);
+        fullname = g_build_filename (default_path, name, nullptr);
     else
         fullname = gnc_resolve_file_path (name);
 
@@ -1256,7 +1261,10 @@ gnc_filepath_locate_file (const gchar *default_path, const gchar *name)
 gchar *
 gnc_filepath_locate_data_file (const gchar *name)
 {
-    return gnc_filepath_locate_file (gnc_path_get_pkgdatadir(), name);
+    gchar *pkgdatadir = gnc_path_get_pkgdatadir ();
+    gchar *result = gnc_filepath_locate_file (pkgdatadir, name);
+    g_free (pkgdatadir);
+    return result;
 }
 
 gchar *
@@ -1266,7 +1274,7 @@ gnc_filepath_locate_pixmap (const gchar *name)
     gchar *fullname;
     gchar* pkgdatadir = gnc_path_get_pkgdatadir ();
 
-    default_path = g_build_filename (pkgdatadir, "pixmaps", NULL);
+    default_path = g_build_filename (pkgdatadir, "pixmaps", nullptr);
     g_free(pkgdatadir);
     fullname = gnc_filepath_locate_file (default_path, name);
     g_free(default_path);
@@ -1281,7 +1289,7 @@ gnc_filepath_locate_ui_file (const gchar *name)
     gchar *fullname;
     gchar* pkgdatadir = gnc_path_get_pkgdatadir ();
 
-    default_path = g_build_filename (pkgdatadir, "ui", NULL);
+    default_path = g_build_filename (pkgdatadir, "ui", nullptr);
     g_free(pkgdatadir);
     fullname = gnc_filepath_locate_file (default_path, name);
     g_free(default_path);
@@ -1292,7 +1300,10 @@ gnc_filepath_locate_ui_file (const gchar *name)
 gchar *
 gnc_filepath_locate_doc_file (const gchar *name)
 {
-    return gnc_filepath_locate_file (gnc_path_get_pkgdocdir(), name);
+    gchar *docdir = gnc_path_get_pkgdocdir ();
+    gchar *result = gnc_filepath_locate_file (docdir, name);
+    g_free (docdir);
+    return result;
 }
 
 

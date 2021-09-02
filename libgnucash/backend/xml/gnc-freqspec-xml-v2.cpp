@@ -22,11 +22,11 @@
  *                                                                  *
  *******************************************************************/
 
+#include <glib.h>
+
 extern "C"
 {
 #include <config.h>
-
-#include <glib.h>
 #include <string.h>
 #include "qof.h"
 #include "SchedXaction.h"

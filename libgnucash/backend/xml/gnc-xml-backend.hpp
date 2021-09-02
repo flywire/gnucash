@@ -34,15 +34,16 @@ public:
     GncXmlBackend operator=(const GncXmlBackend&) = delete;
     GncXmlBackend(const GncXmlBackend&&) = delete;
     GncXmlBackend operator=(const GncXmlBackend&&) = delete;
-    ~GncXmlBackend() = default;
-    void session_begin(QofSession* session, const char* book_id,
-                       bool ignore_lock, bool create, bool force) override;
+    ~GncXmlBackend();
+    void session_begin(QofSession* session, const char* new_uri,
+                       SessionOpenMode mode) override;
     void session_end() override;
     void load(QofBook* book, QofBackendLoadType loadType) override;
     /* The XML backend isn't able to do anything with individual instances. */
     void export_coa(QofBook*) override;
     void sync(QofBook* book) override;
     void safe_sync(QofBook* book) override { sync(book); } // XML sync is inherently safe.
+    void commit(QofInstance* instance) override;
     const char * get_filename() { return m_fullpath.c_str(); }
     QofBook* get_book() { return m_book; }
 

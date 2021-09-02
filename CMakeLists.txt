@@ -6,7 +6,7 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.14.0)
 endif()
 
 project (gnucash
-    VERSION 3.902
+    VERSION 4.6
 )
 
 enable_testing()
@@ -207,7 +207,7 @@ pkg_check_modules (GTHREAD REQUIRED gthread-2.0)
 pkg_check_modules (LIBXML2 REQUIRED libxml-2.0>=2.9.4)
 pkg_check_modules (LIBXSLT REQUIRED libxslt)
 if (WITH_GNUCASH)
-  if (WIN32 OR APPLE)
+  if (WIN32)
     pkg_check_modules (WEBKIT REQUIRED IMPORTED_TARGET webkitgtk-3.0)
     set(WEBKIT1 1 CACHE INTERNAL "WebKitGtk")
   else()
@@ -275,41 +275,54 @@ include (${SWIG_USE_FILE})
 string(REGEX MATCH "^[0-9]+[.]" SWIG_MAJOR ${SWIG_VERSION})
 
 # Find Guile and determine which version we are using.
-# Look for guile versions in this order: 2.2 > 2.0
+# Look for guile versions in this order: 3.0 > 2.2 > 2.0
 
 # guile library and include dir
+pkg_check_modules (GUILE3 guile-3.0 QUIET)
 pkg_check_modules (GUILE22 guile-2.2 QUIET)
-if (GUILE22_FOUND) # found guile-2.2
+pkg_check_modules (GUILE2 guile-2.0>=2.0.9 QUIET)
+
+if (GUILE3_FOUND) # found guile-3.0
+  add_definitions (-DHAVE_GUILE30)
+  set(HAVE_GUILE3 TRUE)
+  set(GUILE_EFFECTIVE_VERSION 3.0)
+  set(GUILE_INCLUDE_DIRS ${GUILE3_INCLUDE_DIRS})
+  set(GUILE_LDFLAGS ${GUILE3_LDFLAGS})
+  find_program (GUILD_EXECUTABLE NAMES guild3.0 guild)
+  if (NOT GUILD_EXECUTABLE)
+    message (SEND_ERROR "The guild executable was not found, but is required. Please set GUILD_EXECUTABLE.")
+  endif()
+  message(STATUS "Using guile-3.0.x")
+  find_program (GUILE_EXECUTABLE NAMES guile3.0 guile)
+
+elseif (GUILE22_FOUND) # found guile-2.2
   add_definitions (-DHAVE_GUILE22)
   set(HAVE_GUILE2 TRUE)
   set(GUILE_EFFECTIVE_VERSION 2.2)
   set(GUILE_INCLUDE_DIRS ${GUILE22_INCLUDE_DIRS})
   set(GUILE_LDFLAGS ${GUILE22_LDFLAGS})
-
   find_program (GUILD_EXECUTABLE NAMES guild2.2 guild)
   if (NOT GUILD_EXECUTABLE)
     message (SEND_ERROR "The guild executable was not found, but is required. Please set GUILD_EXECUTABLE.")
   endif()
   message(STATUS "Using guile-2.2.x")
   find_program (GUILE_EXECUTABLE NAMES guile2.2 guile)
-else()
-  pkg_check_modules (GUILE2 guile-2.0>=2.0.9 QUIET)
-  if (GUILE2_FOUND) # found guile-2.0
-    add_definitions (-DHAVE_GUILE20)
-    set(HAVE_GUILE2 TRUE)
-    set(GUILE_EFFECTIVE_VERSION 2.0)
-    set(GUILE_INCLUDE_DIRS ${GUILE2_INCLUDE_DIRS})
-    set(GUILE_LDFLAGS ${GUILE2_LDFLAGS})
 
-    find_program (GUILD_EXECUTABLE NAMES guild2.0 guild)
-    if (NOT GUILD_EXECUTABLE)
-      message (SEND_ERROR "The guild executable was not found, but is required. Please set GUILD_EXECUTABLE.")
-    endif()
-    message(STATUS "Using guile-2.0.x")
-    find_program (GUILE_EXECUTABLE NAMES guile2.0 guile)
-  else()
-    message (FATAL_ERROR "Neither guile 2.2 nor guile 2.0 were found GnuCash can't run without one of them. Ensure that one is installed and can be found with pkg-config.")
+elseif (GUILE2_FOUND) # found guile-2.0
+  add_definitions (-DHAVE_GUILE20)
+  set(HAVE_GUILE2 TRUE)
+  set(GUILE_EFFECTIVE_VERSION 2.0)
+  set(GUILE_INCLUDE_DIRS ${GUILE2_INCLUDE_DIRS})
+  set(GUILE_LDFLAGS ${GUILE2_LDFLAGS})
+  find_program (GUILD_EXECUTABLE NAMES guild2.0 guild)
+  if (NOT GUILD_EXECUTABLE)
+    message (SEND_ERROR "The guild executable was not found, but is required. Please set GUILD_EXECUTABLE.")
   endif()
+  message(STATUS "Using guile-2.0.x")
+  find_program (GUILE_EXECUTABLE NAMES guile2.0 guile)
+
+else()
+  message (FATAL_ERROR "Neither guile 3.0, guile 2.2, nor guile 2.0 were found GnuCash can't run without one of them. Ensure that one is installed and can be found with pkg-config.")
 endif()
 
 if (NOT GUILE_EXECUTABLE)
@@ -391,6 +404,9 @@ int main(int argc, char** argv)
 }
 " HAVE_OFX_BUG_39)
   set(HAVE_OFX_BUG_39 ${HAVE_OFX_BUG_39})
+  if (LIBOFX_VERSION VERSION_GREATER_EQUAL 0.10.0)
+    set(HAVE_LIBOFX_VERSION_0_10 1)
+  endif()
   set(CMAKE_REQUIRED_LIBRARIES)
 endif()
 # ############################################################
@@ -517,13 +533,13 @@ set (Boost_FIND_QUIETLY ON)
 if (NOT DEFINED ${BOOST_ROOT})
   set(BOOST_ROOT $ENV{BOOST_ROOT})
 endif()
-find_package (Boost 1.67.0 COMPONENTS date_time regex locale filesystem system)
+find_package (Boost 1.67.0 COMPONENTS date_time regex locale filesystem system program_options)
 
 if (Boost_FOUND)
   include_directories(${Boost_INCLUDE_DIRS})
   set(HAVE_BOOST 1)
 else()
-  find_package (Boost 1.60.0 REQUIRED COMPONENTS date_time regex locale filesystem system)
+  find_package (Boost 1.60.0 REQUIRED COMPONENTS date_time regex locale filesystem system program_options)
   if (Boost_FOUND)
     include (CheckIncludeFileCXX)
     set(CMAKE_REQUIRED_FLAGS "-std=c++17")
@@ -538,7 +554,7 @@ else()
   endif()
 endif()
 if (NOT HAVE_BOOST)
-message (SEND_ERROR "A suitable Boost is not installed, and is required. GnuCash requires that Boost be compatible and compiled with C++17. Boost 1.67 is the first compatible release but some distributions have patched earlier ones to work with C++17. Please install it and ensure that the following libraries are built: date_time, filesystem, locale, and regex.")
+message (SEND_ERROR "A suitable Boost is not installed, and is required. GnuCash requires that Boost be compatible and compiled with C++17. Boost 1.67 is the first compatible release but some distributions have patched earlier ones to work with C++17. Please install it and ensure that the following libraries are built: date_time, filesystem, locale, regex, program_options and system.")
 endif()
 
 
@@ -636,6 +652,7 @@ set(gnucash_DOCS
     ChangeLog.2017
     ChangeLog.2018
     ChangeLog.2019
+    ChangeLog.2020
     DOCUMENTERS
     HACKING
     LICENSE
@@ -772,6 +789,7 @@ configure_file (${CMAKE_CURRENT_SOURCE_DIR}/common/config.h.cmake.in ${CONFIG_H}
 add_subdirectory (borrowed)
 add_subdirectory (data)
 add_subdirectory (doc)
+# Note: po should be processed before gnucash - it provides LINGUAS, used to generate desktop and appdata files
 add_subdirectory (po)
 add_subdirectory (common)
 add_subdirectory (libgnucash)
@@ -790,7 +808,7 @@ add_subdirectory(cmake)
 
 if (BUILDING_FROM_VCS)
     add_custom_target(ChangeLog ALL
-        COMMAND ${GIT_EXECUTABLE} log --format=\"%ad %aN %n%n%x09* %s%d%n\" --date=short --since=2020-01-01 > ${CMAKE_BINARY_DIR}/ChangeLog
+        COMMAND ${GIT_EXECUTABLE} log --format=\"%ad %aN %n%n%x09* %s%d%n\" --date=short --since=2021-01-01 > ${CMAKE_BINARY_DIR}/ChangeLog
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     )
     install(FILES ${CMAKE_BINARY_DIR}/ChangeLog DESTINATION ${CMAKE_INSTALL_DOCDIR})
@@ -802,6 +820,9 @@ dist_add_generated (${BUILDING_FROM_VCS} ChangeLog)
 ############################ BEGIN MAKE DIST #################
 
 set(PACKAGE_PREFIX "${PROJECT_NAME}-${PROJECT_VERSION}")
+if (PROJECT_DESCRIPTION)
+  string(APPEND PACKAGE_PREFIX "-${PROJECT_DESCRIPTION}")
+endif()
 set(DIST_FILE "${PACKAGE_PREFIX}.tar")
 
 set(toplvl_DIST_local ${gnucash_DOCS}

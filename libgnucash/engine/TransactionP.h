@@ -82,12 +82,12 @@ struct transaction_s
      * It is intended to store a short id number, typically the check number,
      * deposit number, invoice number or other tracking number.
      */
-    char * num;
+    const char *num;
 
     /* The description field is an arbitrary user-assigned value.
      * It is meant to be a short descriptive phrase.
      */
-    char * description;
+    const char *description;
 
     /* The common_currency field is the balancing common currency for
      * all the splits in the transaction.  Alternate, better(?) name:
@@ -120,6 +120,10 @@ struct transaction_s
     char * readonly_reason;
     gboolean reason_cache_valid;
 
+    char * doclink;
+    char * void_reason;
+    char * notes;
+
     /* Cached bool value to indicate whether this is a closing txn. This is
      * cached from the KVP value because it is queried a lot. Tri-state value: -1
      * = uninitialized; 0 = FALSE, 1 = TRUE. */
@@ -137,7 +141,7 @@ struct _TransactionClass
 #define xaccTransSetGUID(t,g) qof_instance_set_guid(QOF_INSTANCE(t),g)
 
 /* This routine makes a 'duplicate' of the indicated transaction.
- * This routine cannot be exposed publically since the duplicate
+ * This routine cannot be exposed publicly since the duplicate
  * is wrong in many ways: it is not issued a unique guid, and thus
  * not a properly registered Entity.  The splits are copied, but
  * these are also funny: they aren't inserted into the accounts

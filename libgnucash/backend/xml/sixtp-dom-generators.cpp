@@ -20,12 +20,13 @@
  * Boston, MA  02110-1301,  USA       gnu@gnu.org                   *
  *                                                                  *
  ********************************************************************/
+#include <glib.h>
+
 extern "C"
 {
 #define __EXTENSIONS__
 
 #include <config.h>
-#include <glib.h>
 
 #include <gnc-date.h>
 }

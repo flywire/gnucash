@@ -141,7 +141,7 @@ flsetup( FlFixture *fixture, gconstpointer pData )
     fixture->ft.m_num = CACHE_INSERT ("FtNum");
     fixture->ft.m_description = CACHE_INSERT ("FtDescription");
     fixture->ft.m_notes = CACHE_INSERT ("FtNotes");
-    fixture->ft.m_association = CACHE_INSERT ("FtAssociation");
+    fixture->ft.m_doclink = CACHE_INSERT ("FtDocLink");
 
     fixture->fs1.m_split = NULL;
     fixture->fs1.m_account = fixture->acc1;
@@ -276,7 +276,7 @@ test_gnc_split_to_float_split (Fixture *fixture, gconstpointer pData)
     g_assert_true (gnc_numeric_equal(fs->m_value, xaccSplitGetValue (s)));
     g_assert_true (gnc_numeric_equal(fs->m_amount, xaccSplitGetAmount (s)));
 
-    g_free (fs);
+    gnc_float_split_free (fs);
 }
 /* gnc_float_split_to_split
 void gnc_float_split_to_split (const FloatingSplit *fs, Split *split)// C: 2 in 1  Local: 1:0:0
@@ -340,8 +340,8 @@ void gnc_float_txn_set_description (FloatingTxn *ft, const char *description)// 
 void gnc_float_txn_set_notes (FloatingTxn *ft, const char *notes)// Local: 0:0:0
 */
 // Not Used
-/* gnc_float_txn_set_association - trivial setter, skipping
-void gnc_float_txn_set_association (FloatingTxn *ft, const char *association)// Local: 0:0:0
+/* gnc_float_txn_set_doclink - trivial setter, skipping
+void gnc_float_txn_set_doclink (FloatingTxn *ft, const char *doclink)// Local: 0:0:0
 */
 // Not Used
 /* gnc_float_txn_set_splits - trivial setter, skipping
@@ -376,7 +376,7 @@ test_gnc_txn_to_float_txn (Fixture *fixture, gconstpointer pData)
     g_assert_null (ft->m_num);
     g_assert_cmpstr (ft->m_description, ==, xaccTransGetDescription (fixture->txn));
     g_assert_cmpstr (ft->m_notes, ==, xaccTransGetNotes (fixture->txn));
-    g_assert_cmpstr (ft->m_association, ==, xaccTransGetAssociation (fixture->txn));
+    g_assert_cmpstr (ft->m_doclink, ==, xaccTransGetDocLink (fixture->txn));
 
     /* Check split fields of first split */
     siter = sl;
@@ -412,9 +412,7 @@ test_gnc_txn_to_float_txn (Fixture *fixture, gconstpointer pData)
 
     g_assert_null (fsiter->next);
 
-    g_list_free_full(ft->m_splits, g_free);
-    ft->m_splits = NULL;
-    g_free (ft);
+    gnc_float_txn_free (ft);
 }
 static void
 test_gnc_txn_to_float_txn_cut_semantics (Fixture *fixture, gconstpointer pData)
@@ -435,7 +433,7 @@ test_gnc_txn_to_float_txn_cut_semantics (Fixture *fixture, gconstpointer pData)
     g_assert_cmpstr (ft->m_num, ==, xaccTransGetNum (fixture->txn));
     g_assert_cmpstr (ft->m_description, ==, xaccTransGetDescription (fixture->txn));
     g_assert_cmpstr (ft->m_notes, ==, xaccTransGetNotes (fixture->txn));
-    g_assert_cmpstr (ft->m_association, ==, xaccTransGetAssociation (fixture->txn));
+    g_assert_cmpstr (ft->m_doclink, ==, xaccTransGetDocLink (fixture->txn));
 
     /* Check split fields of first split */
     siter = sl;
@@ -471,9 +469,7 @@ test_gnc_txn_to_float_txn_cut_semantics (Fixture *fixture, gconstpointer pData)
 
     g_assert_null (fsiter->next);
 
-    g_list_free_full(ft->m_splits, g_free);
-    ft->m_splits = NULL;
-    g_free (ft);
+    gnc_float_txn_free (ft);
 }
 
 
@@ -557,7 +553,7 @@ test_gnc_float_txn_to_txn_swap_accounts (FlFixture *fixture, gconstpointer pData
     g_assert_cmpstr (fixture->ft.m_description, ==, "FtDescription");
     g_assert_cmpstr (fixture->ft.m_num, ==, "FtNum");
     g_assert_cmpstr (fixture->ft.m_notes, ==, "FtNotes");
-    g_assert_cmpstr (fixture->ft.m_association, ==, "FtAssociation");
+    g_assert_cmpstr (fixture->ft.m_doclink, ==, "FtDocLink");
     g_assert_cmpint (fixture->ft.m_date_posted, ==, xaccTransGetDate (txn));
 
     /* Next compare values for first split */

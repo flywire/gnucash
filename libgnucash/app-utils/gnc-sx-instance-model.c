@@ -32,6 +32,7 @@
 
 #include <config.h>
 #include <glib.h>
+#include <glib/gi18n.h>
 #include <glib-object.h>
 #include <stdlib.h>
 
@@ -66,6 +67,13 @@ static QofLogModule log_module = G_LOG_DOMAIN;
 
 static GObjectClass *parent_class = NULL;
 
+typedef struct _SxTxnCreationData
+{
+    GncSxInstance *instance;
+    GList **created_txn_guids;
+    GList **creation_errors;
+} SxTxnCreationData;
+
 static void gnc_sx_instance_model_class_init (GncSxInstanceModelClass *klass);
 static void gnc_sx_instance_model_init(GTypeInstance *instance, gpointer klass);
 static GncSxInstanceModel* gnc_sx_instance_model_new(void);
@@ -77,7 +85,7 @@ static gint _get_vars_helper(Transaction *txn, void *var_hash_data);
 static GncSxVariable* gnc_sx_variable_new(gchar *name);
 
 static void _gnc_sx_instance_event_handler(QofInstance *ent, QofEventId event_type, gpointer user_data, gpointer evt_data);
-
+static gnc_commodity* get_transaction_currency(SxTxnCreationData *creation_data, SchedXaction *sx, Transaction *template_txn);
 /* ------------------------------------------------------------ */
 
 static gboolean
@@ -158,6 +166,27 @@ _wipe_parsed_sx_var(gchar *key, GncSxVariable *var, gpointer unused_user_data)
     var->value = gnc_numeric_error(GNC_ERROR_ARG);
 }
 
+static gboolean
+split_is_marker(Split *split)
+{
+    gchar *credit_formula = NULL;
+    gchar *debit_formula = NULL;
+    gboolean split_is_marker = TRUE;
+
+    qof_instance_get (QOF_INSTANCE (split),
+                      "sx-credit-formula", &credit_formula,
+                      "sx-debit-formula", &debit_formula,
+                      NULL);
+
+    if ((credit_formula && *credit_formula) ||
+        (debit_formula && *debit_formula))
+        split_is_marker = FALSE;
+
+    g_free(credit_formula);
+    g_free(debit_formula);
+    return split_is_marker;
+}
+
 /**
  * @return caller-owned.
  **/
@@ -236,6 +265,19 @@ gnc_sx_variable_free(GncSxVariable *var)
     g_free(var);
 }
 
+static inline gchar*
+var_name_from_commodities(gnc_commodity* split_c, gnc_commodity* txn_c)
+{
+    const gchar* split_m = gnc_commodity_get_mnemonic(split_c);
+    const gchar* txn_m = gnc_commodity_get_mnemonic(txn_c);
+    gchar* var_name = g_strdup_printf ("%s -> %s",
+                                       split_m ? split_m : "(null)",
+                                       txn_m ? txn_m : "(null)");
+
+    g_debug("var_name is %s", var_name);
+    return var_name;
+}
+
 static gint
 _get_vars_helper(Transaction *txn, void *var_hash_data)
 {
@@ -244,7 +286,7 @@ _get_vars_helper(Transaction *txn, void *var_hash_data)
     Split *s;
     gchar *credit_formula = NULL;
     gchar *debit_formula = NULL;
-    gnc_commodity *first_cmdty = NULL;
+    gnc_commodity *txn_cmdty = get_transaction_currency(NULL, NULL, txn);
 
     split_list = xaccTransGetSplitList(txn);
     if (split_list == NULL)
@@ -283,23 +325,15 @@ _get_vars_helper(Transaction *txn, void *var_hash_data)
 	g_free (credit_formula);
 	g_free (debit_formula);
 
-        if (!split_is_marker && first_cmdty == NULL)
-        {
-            first_cmdty = split_cmdty;
-        }
+        if (split_is_marker)
+            continue;
 
-        if (!split_is_marker &&
-            ! gnc_commodity_equal(split_cmdty, first_cmdty))
+        if (! gnc_commodity_equal(split_cmdty, txn_cmdty))
         {
             GncSxVariable *var;
             gchar *var_name;
-            const gchar *split_mnemonic, *first_mnemonic;
 
-            split_mnemonic = gnc_commodity_get_mnemonic(split_cmdty);
-            first_mnemonic = gnc_commodity_get_mnemonic(first_cmdty);
-            var_name = g_strdup_printf ("%s -> %s",
-                            split_mnemonic ? split_mnemonic : "(null)",
-                            first_mnemonic ? first_mnemonic : "(null)");
+            var_name = var_name_from_commodities(split_cmdty, txn_cmdty);
             var = gnc_sx_variable_new(var_name);
             g_hash_table_insert(var_hash, g_strdup(var->name), var);
         }
@@ -521,9 +555,10 @@ gnc_sx_get_instances(const GDate *range_end, gboolean include_disabled)
             SchedXaction *sx = (SchedXaction*)sx_iter->data;
             if (xaccSchedXactionGetEnabled(sx))
             {
-                enabled_sxes = g_list_append(enabled_sxes, sx);
+                enabled_sxes = g_list_prepend (enabled_sxes, sx);
             }
         }
+        enabled_sxes = g_list_reverse (enabled_sxes);
         instances->sx_instance_list = gnc_g_list_map(enabled_sxes, (GncGMapFunc)_gnc_sx_gen_instances, (gpointer)range_end);
         g_list_free(enabled_sxes);
     }
@@ -963,13 +998,6 @@ increment_sx_state(GncSxInstance *inst, GDate **last_occur_date, int *instance_c
     }
 }
 
-typedef struct _SxTxnCreationData
-{
-    GncSxInstance *instance;
-    GList **created_txn_guids;
-    GList **creation_errors;
-} SxTxnCreationData;
-
 static gboolean
 _get_template_split_account(const SchedXaction* sx,
 			    const Split *template_split,
@@ -982,11 +1010,11 @@ _get_template_split_account(const SchedXaction* sx,
 		      "sx-account", &acct_guid,
 		      NULL);
     *split_acct = xaccAccountLookup(acct_guid, gnc_get_current_book());
-    if (*split_acct == NULL)
+    if (!*split_acct && sx && creation_errors)
     {
         char guid_str[GUID_ENCODING_LENGTH+1];
 /* Translators: A list of error messages from the Scheduled Transactions (SX).
- * They might appear in their editor or in "Since last run".                  */
+   They might appear in their editor or in "Since last run".                  */
         gchar* err = N_("Unknown account for guid [%s], cancelling SX [%s] creation.");
         guid_to_string_buff((const GncGUID*)acct_guid, guid_str);
         REPORT_ERROR(creation_errors, err, guid_str, xaccSchedXactionGetName(sx));
@@ -1104,7 +1132,7 @@ split_apply_formulas (const Split *split, SxTxnCreationData* creation_data)
 
 static void
 split_apply_exchange_rate (Split *split, GHashTable *bindings,
-                           gnc_commodity *first_cmdty,
+                           gnc_commodity *txn_cmdty,
                            gnc_commodity *split_cmdty, gnc_numeric *final)
 {
     gchar *exchange_rate_var_name;
@@ -1112,13 +1140,7 @@ split_apply_exchange_rate (Split *split, GHashTable *bindings,
     gnc_numeric amt;
     gnc_numeric exchange_rate = gnc_numeric_create (1, 1);
 
-    exchange_rate_var_name = g_strdup_printf ("%s -> %s",
-                    gnc_commodity_get_mnemonic(first_cmdty),
-                    gnc_commodity_get_mnemonic(split_cmdty));
-
-    g_debug("var_name is %s -> %s", gnc_commodity_get_mnemonic(first_cmdty),
-            gnc_commodity_get_mnemonic(split_cmdty));
-
+    exchange_rate_var_name = var_name_from_commodities(split_cmdty, txn_cmdty);
     exchange_rate_var =
         (GncSxVariable*)g_hash_table_lookup(bindings,
                                             exchange_rate_var_name);
@@ -1153,7 +1175,7 @@ split_apply_exchange_rate (Split *split, GHashTable *bindings,
  * the template_transaction's commodity.
  *
  * Since we're going through the split commodities anyway, check that they all
- * have useable values. If we find an error return NULL as a signal to
+ * have usable values. If we find an error return NULL as a signal to
  * create_each_transaction_helper to bail out.
  */
 
@@ -1165,6 +1187,8 @@ get_transaction_currency(SxTxnCreationData *creation_data,
     gboolean err_flag = FALSE, txn_cmdty_in_splits = FALSE;
     gnc_commodity *txn_cmdty = xaccTransGetCurrency (template_txn);
     GList* txn_splits = xaccTransGetSplitList (template_txn);
+    GList** creation_errors =
+        creation_data ? creation_data->creation_errors : NULL;
 
     if (txn_cmdty)
         g_debug("Template txn currency is %s.",
@@ -1177,12 +1201,19 @@ get_transaction_currency(SxTxnCreationData *creation_data,
         Split* t_split = (Split*)txn_splits->data;
         Account* split_account = NULL;
         gnc_commodity *split_cmdty = NULL;
+
         if (!_get_template_split_account(sx, t_split, &split_account,
-                                         creation_data->creation_errors))
+                                         creation_errors))
         {
             err_flag = TRUE;
             break;
         }
+        /* Don't consider the commodity of a transaction that has
+         * neither a credit nor a debit formula. */
+
+        if (split_is_marker(t_split))
+             continue;
+
         split_cmdty = xaccAccountGetCommodity (split_account);
         if (!txn_cmdty)
             txn_cmdty = split_cmdty;
@@ -1245,6 +1276,7 @@ create_each_transaction_helper(Transaction *template_txn, void *user_data)
                      g_date_get_month(&creation_data->instance->date),
                      g_date_get_year(&creation_data->instance->date));
 
+    xaccTransSetDateEnteredSecs(new_txn, gnc_time(NULL));
     template_splits = xaccTransGetSplitList(template_txn);
     txn_splits = xaccTransGetSplitList(new_txn);
     if ((template_splits == NULL) || (txn_splits == NULL))

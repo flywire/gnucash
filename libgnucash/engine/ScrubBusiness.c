@@ -38,6 +38,7 @@
 #include "Account.h"
 #include "gncInvoice.h"
 #include "gncInvoiceP.h"
+#include "Scrub.h"
 #include "Scrub2.h"
 #include "ScrubBusiness.h"
 #include "Transaction.h"
@@ -399,9 +400,10 @@ gncScrubLotDanglingPayments (GNCLot *lot)
         if (gnc_numeric_compare (gnc_numeric_abs (free_val), gnc_numeric_abs (ll_val)) > 0)
             continue;
 
-        filtered_list = g_list_append(filtered_list, free_split);
+        filtered_list = g_list_prepend (filtered_list, free_split);
     }
 
+    filtered_list = g_list_reverse (filtered_list);
     match_list = gncSLFindOffsSplits (filtered_list, ll_val);
     g_list_free (filtered_list);
 
@@ -581,13 +583,14 @@ gncScrubBusinessSplit (Split *split)
          * Such splits may be the result of scrubbing the business lots, which can
          * merge splits together while reducing superfluous lot links
          */
-        else if (gnc_numeric_zero_p (xaccSplitGetAmount(split)) && !gncInvoiceGetInvoiceFromTxn (txn))
+        else if (gnc_numeric_zero_p (xaccSplitGetAmount(split)) && !gncInvoiceGetInvoiceFromTxn (txn) && !is_void)
         {
             GNCLot *lot = xaccSplitGetLot (split);
             time64 pdate = xaccTransGetDate (txn);
             gchar *pdatestr = gnc_ctime (&pdate);
             PINFO ("Destroying empty split %p from transaction %s (%s)", split, pdatestr, xaccTransGetDescription(txn));
             xaccSplitDestroy (split);
+            g_free (pdatestr);
 
             // Also delete the lot containing this split if it was the last split in that lot
             if (lot && (gnc_lot_count_splits (lot) == 0))
@@ -614,13 +617,17 @@ gncScrubBusinessAccountLots (Account *acc, QofPercentageFunc percentagefunc)
     const char *message = _( "Checking business lots in account %s: %u of %u");
 
     if (!acc) return;
+
+    if (gnc_get_abort_scrub())
+        (percentagefunc)(NULL, -1.0);
+
     if (FALSE == xaccAccountIsAPARType (xaccAccountGetType (acc))) return;
 
     str = xaccAccountGetName(acc);
     str = str ? str : "(null)";
 
     ENTER ("(acc=%s)", str);
-    PINFO ("Cleaning up superfluous lot links in account %s \n", str);
+    PINFO ("Cleaning up superfluous lot links in account %s\n", str);
     xaccAccountBeginEdit(acc);
 
     lots = xaccAccountGetLotList(acc);
@@ -664,13 +671,17 @@ gncScrubBusinessAccountSplits (Account *acc, QofPercentageFunc percentagefunc)
     const char *message = _( "Checking business splits in account %s: %u of %u");
 
     if (!acc) return;
+
+    if (gnc_get_abort_scrub())
+        (percentagefunc)(NULL, -1.0);
+
     if (FALSE == xaccAccountIsAPARType (xaccAccountGetType (acc))) return;
 
     str = xaccAccountGetName(acc);
     str = str ? str : "(null)";
 
     ENTER ("(acc=%s)", str);
-    PINFO ("Cleaning up superfluous lot links in account %s \n", str);
+    PINFO ("Cleaning up superfluous lot links in account %s\n", str);
     xaccAccountBeginEdit(acc);
 
 restart:
@@ -683,6 +694,9 @@ restart:
 
         PINFO("Start processing split %d of %d",
               curr_split_no + 1, split_count);
+
+        if (gnc_get_abort_scrub ())
+            break;
 
         if (curr_split_no % 100 == 0)
         {

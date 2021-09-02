@@ -66,18 +66,10 @@
      (gnc:make-multichoice-option
       (N_ "Hello, World!") (N_ "Multi Choice Option")
       "b" (N_ "This is a multi choice option.") 'third
-      (list (vector 'first
-                    (N_ "First Option")
-                    (N_ "Help for first option."))
-            (vector 'second
-                    (N_ "Second Option")
-                    (N_ "Help for second option."))
-            (vector 'third
-                    (N_ "Third Option")
-                    (N_ "Help for third option."))
-            (vector 'fourth
-                    (N_ "Fourth Options")
-                    (N_ "The fourth option rules!")))))
+      (list (vector 'first (N_ "First Option"))
+            (vector 'second (N_ "Second Option"))
+            (vector 'third (N_ "Third Option"))
+            (vector 'fourth (N_ "Fourth Options")))))
     
     ;; This is a string option. Users can type anything they want
     ;; as a value. The default value is "Hello, World". This is
@@ -187,15 +179,9 @@
       (N_ "Hello Again") (N_ "A list option")
       "h" (N_ "This is a list option.")
       '(good)
-      (list (vector 'good
-                    (N_ "The Good")
-                    (N_ "Good option."))
-            (vector 'bad
-                    (N_ "The Bad")
-                    (N_ "Bad option."))
-            (vector 'ugly
-                    (N_ "The Ugly")
-                    (N_ "Ugly option.")))))
+      (list (vector 'good (N_ "The Good"))
+            (vector 'bad (N_ "The Bad"))
+            (vector 'ugly (N_ "The Ugly")))))
     
     ;; This option is for testing. When true, the report generates
     ;; an exception.
@@ -324,7 +310,7 @@ option like this.")
       ;; translation of the given string is available for the
       ;; current locale, then the translation is returned,
       ;; otherwise the original string is returned.
-      (gnc:html-document-set-title! document (_ "Hello, World"))
+      (gnc:html-document-set-title! document (G_ "Hello, World"))
 
       ;; we make a "text object" to add a bunch of text to.
       ;; the function gnc:make-html-text can take any number of 
@@ -339,68 +325,68 @@ option like this.")
        (gnc:make-html-text         
         (gnc:html-markup-p
          (gnc:html-markup/format
-          (_ "This is a sample GnuCash report. \
+          (G_ "This is a sample GnuCash report. \
 See the guile (scheme) source code in the scm/report directory \
 for details on writing your own reports, \
 or extending existing reports.")))
         (gnc:html-markup-p
          (gnc:html-markup/format
-          (_ "For help on writing reports, or to contribute your brand \
+          (G_ "For help on writing reports, or to contribute your brand \
 new, totally cool report, consult the mailing list ~a.")
           (gnc:html-markup-anchor 
            "mailto:gnucash-devel@gnucash.org"
            (gnc:html-markup-tt "gnucash-devel@gnucash.org")))
-         (_ "For details on subscribing to that list, see &lt;https://www.gnucash.org/&gt;.")
-         (_ "You can learn more about writing scheme at &lt;https://www.scheme.com/tspl2d/&gt;."))
+         (G_ "For details on subscribing to that list, see &lt;https://www.gnucash.org/&gt;.")
+         (G_ "You can learn more about writing scheme at &lt;https://www.scheme.com/tspl2d/&gt;."))
 
         (gnc:html-markup-p
          (gnc:html-markup/format
-          (_ "The current time is ~a.") 
+          (G_ "The current time is ~a.") 
           (gnc:html-markup-b time-string)))
 
         (gnc:html-markup-p
          (gnc:html-markup/format
-          (_ "The boolean option is ~a.")
-          (gnc:html-markup-b (if bool-val (_ "true") (_ "false")))))
+          (G_ "The boolean option is ~a.")
+          (gnc:html-markup-b (if bool-val (G_ "true") (G_ "false")))))
 
         (gnc:html-markup-p
          (gnc:html-markup/format
-          (_ "The radio button option is ~a.")
+          (G_ "The radio button option is ~a.")
           (gnc:html-markup-b radio-val)))
 
         (gnc:html-markup-p
          (gnc:html-markup/format
-          (_ "The multi-choice option is ~a.")
+          (G_ "The multi-choice option is ~a.")
           (gnc:html-markup-b (symbol->string mult-val))))
 
         (gnc:html-markup-p
          (gnc:html-markup/format
-          (_ "The string option is ~a.") 
+          (G_ "The string option is ~a.") 
           (gnc:html-markup-b string-val)))
 
         (gnc:html-markup-p
          (gnc:html-markup/format
-          (_ "The date option is ~a.") 
+          (G_ "The date option is ~a.") 
           (gnc:html-markup-b date-string)))
 
         (gnc:html-markup-p
          (gnc:html-markup/format
-          (_ "The date and time option is ~a.") 
+          (G_ "The date and time option is ~a.") 
           (gnc:html-markup-b date-string2)))
 
         (gnc:html-markup-p
          (gnc:html-markup/format 
-          (_ "The relative date option is ~a.")
+          (G_ "The relative date option is ~a.")
           (gnc:html-markup-b rel-date-string)))
 
         (gnc:html-markup-p
          (gnc:html-markup/format 
-          (_ "The combination date option is ~a.")
+          (G_ "The combination date option is ~a.")
           (gnc:html-markup-b combo-date-string)))
 
         (gnc:html-markup-p
          (gnc:html-markup/format 
-          (_ "The number option is ~a.")
+          (G_ "The number option is ~a.")
           (gnc:html-markup-b (number->string num-val))))
 
         ;; Here we print the value of the number option formatted as
@@ -411,7 +397,7 @@ new, totally cool report, consult the mailing list ~a.")
         ;; it yourself -- it will be wrong in other locales.
         (gnc:html-markup-p 
          (gnc:html-markup/format
-          (_ "The number option formatted as currency is ~a.")
+          (G_ "The number option formatted as currency is ~a.")
           (gnc:html-markup-b
            (xaccPrintAmount
             (inexact->exact num-val)
@@ -423,21 +409,23 @@ new, totally cool report, consult the mailing list ~a.")
       (gnc:html-document-add-object!
        document
        (gnc:make-html-text
-        (gnc:html-markup-p (_ "Items you selected:"))))
+        (gnc:html-markup-p (G_ "Items you selected:"))))
 
       (if (not (null? list-val))
           (let ((table (gnc:make-html-table)))
-            (gnc:html-table-append-column! 
-             table (map symbol->string list-val))
+            (for-each
+             (lambda (cell)
+               (gnc:html-table-append-row! table (list (symbol->string cell))))
+             list-val)
             (gnc:html-table-set-style! table "table"
              'attribute (list "style" "width:200px"))
             (gnc:html-table-set-caption! table 
-                                         (_ "List items selected"))
+                                         (G_ "List items selected"))
             (gnc:html-document-add-object! document table))
           (let ((txt (gnc:make-html-text)))
             (gnc:html-text-append!
              txt
-             (gnc:html-markup-p (_ "(You selected no list items.)")))
+             (gnc:html-markup-p (G_ "(You selected no list items.)")))
             (gnc:html-document-add-object! document txt)))
       
       ;; here's a bullet list of accounts.  We can mark up the
@@ -473,17 +461,17 @@ new, totally cool report, consult the mailing list ~a.")
           (gnc:html-document-add-object!
            document
            (gnc:make-html-text
-            (gnc:html-markup-p (_ "You have selected no accounts.")))))
+            (gnc:html-markup-p (G_ "You have selected no accounts.")))))
             
       (gnc:html-document-add-object! 
        document 
        (gnc:make-html-text 
-        (gnc:html-markup-anchor (gnc-build-url URL-TYPE-HELP "gnucash-guide" "") (_ "Display help"))))
+        (gnc:html-markup-anchor (gnc-build-url URL-TYPE-HELP "gnucash-guide" "") (G_ "Display help"))))
 
       (gnc:html-document-add-object! 
        document 
        (gnc:make-html-text 
-        (gnc:html-markup-p (_ "Have a nice day!"))))
+        (gnc:html-markup-p (G_ "Have a nice day!"))))
       
       document)))
 

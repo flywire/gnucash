@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Generated with glade 3.22.1 -->
+<!-- Generated with glade 3.36.0 -->
 <interface>
-  <requires lib="gtk+" version="3.10"/>
+  <requires lib="gtk+" version="3.22"/>
   <object class="GtkAdjustment" id="atm_fee_adj">
     <property name="upper">1000</property>
     <property name="step_increment">0.01</property>
@@ -14,7 +14,7 @@
     <property name="page_increment">10</property>
   </object>
   <object class="GtkAdjustment" id="auto_clear_adj">
-    <property name="lower">6</property>
+    <property name="lower">5</property>
     <property name="upper">12</property>
     <property name="step_increment">1</property>
     <property name="page_increment">10</property>
@@ -47,23 +47,23 @@
     </columns>
     <data>
       <row>
-        <col id="0" translatable="yes">US</col>
-        <col id="1" translatable="yes">07/31/2013</col>
+        <col id="0" translatable="yes" comments="Date format label for 07/31/2013">US</col>
+        <col id="1" comments="Translation is futile here">07/31/2013</col>
       </row>
       <row>
-        <col id="0" translatable="yes">UK</col>
-        <col id="1" translatable="yes">31/07/2013</col>
+        <col id="0" translatable="yes" comments="Date format label for 31/07/2013">UK</col>
+        <col id="1">31/07/2013</col>
       </row>
       <row>
-        <col id="0" translatable="yes">Europe</col>
-        <col id="1" translatable="yes">31.07.2013</col>
+        <col id="0" translatable="yes" comments="Date format label for 31.07.2013">Europe</col>
+        <col id="1">31.07.2013</col>
       </row>
       <row>
-        <col id="0" translatable="yes">ISO</col>
-        <col id="1" translatable="yes">2013-07-31</col>
+        <col id="0" translatable="yes" comments="Date format label for 2013-07-31">ISO</col>
+        <col id="1">2013-07-31</col>
       </row>
       <row>
-        <col id="0" translatable="yes">Locale</col>
+        <col id="0" translatable="yes" comments="Label for locale settings of formats, …">Locale</col>
         <col id="1" comments="Because it will be overwritten no translation is reqired">(dummy)</col>
       </row>
     </data>
@@ -72,13 +72,20 @@
     <property name="lower">1</property>
     <property name="upper">10</property>
     <property name="value">1</property>
-    <property name="step_increment">0.10000000000000001</property>
+    <property name="step_increment">0.1</property>
     <property name="page_increment">1</property>
   </object>
   <object class="GtkAdjustment" id="key_length_adj">
     <property name="lower">1</property>
     <property name="upper">999</property>
     <property name="value">2</property>
+    <property name="step_increment">1</property>
+    <property name="page_increment">10</property>
+  </object>
+  <object class="GtkAdjustment" id="likely_day_threshold">
+    <property name="lower">1</property>
+    <property name="upper">30</property>
+    <property name="value">4</property>
     <property name="step_increment">1</property>
     <property name="page_increment">10</property>
   </object>
@@ -113,10 +120,132 @@
     <property name="step_increment">1</property>
     <property name="page_increment">10</property>
   </object>
+  <object class="GtkDialog" id="separator_validation_dialog">
+    <property name="can_focus">False</property>
+    <property name="modal">True</property>
+    <property name="default_width">600</property>
+    <property name="destroy_with_parent">True</property>
+    <property name="type_hint">dialog</property>
+    <child internal-child="vbox">
+      <object class="GtkBox">
+        <property name="can_focus">False</property>
+        <property name="orientation">vertical</property>
+        <property name="spacing">2</property>
+        <child internal-child="action_area">
+          <object class="GtkButtonBox">
+            <property name="can_focus">False</property>
+            <property name="layout_style">end</property>
+            <child>
+              <object class="GtkButton" id="button1">
+                <property name="label" translatable="yes">_Reset</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+                <property name="use_underline">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkButton" id="button2">
+                <property name="label" translatable="yes">_Close</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="can_default">True</property>
+                <property name="has_default">True</property>
+                <property name="receives_default">True</property>
+                <property name="use_underline">True</property>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">False</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkBox">
+            <property name="visible">True</property>
+            <property name="can_focus">False</property>
+            <property name="orientation">vertical</property>
+            <property name="spacing">6</property>
+            <child>
+              <object class="GtkLabel" id="sep_label">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="label" translatable="yes">&lt;b&gt;Separator Character&lt;/b&gt;</property>
+                <property name="use_markup">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkLabel" id="conflict_message">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="wrap">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">1</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkLabel" id="message">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <property name="margin_top">12</property>
+                <property name="label" translatable="yes">Press 'Reset' to use the original account separator and close the preference window
+Press 'Close' to return to the preference window
+</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">True</property>
+                <property name="position">2</property>
+              </packing>
+            </child>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+      </object>
+    </child>
+    <action-widgets>
+      <action-widget response="-3">button1</action-widget>
+      <action-widget response="-7">button2</action-widget>
+    </action-widgets>
+    <child type="titlebar">
+      <placeholder/>
+    </child>
+  </object>
   <object class="GtkAdjustment" id="tab_width_adj">
     <property name="lower">1</property>
     <property name="upper">100</property>
     <property name="value">30</property>
+    <property name="step_increment">1</property>
+    <property name="page_increment">10</property>
+  </object>
+  <object class="GtkAdjustment" id="unlikely_day_threshold">
+    <property name="lower">1</property>
+    <property name="upper">50</property>
+    <property name="value">14</property>
     <property name="step_increment">1</property>
     <property name="page_increment">10</property>
   </object>
@@ -126,10 +255,8 @@
     <property name="default_width">600</property>
     <property name="default_height">400</property>
     <property name="type_hint">normal</property>
+    <signal name="delete-event" handler="gnc_preferences_delete_event_cb" swapped="no"/>
     <signal name="response" handler="gnc_preferences_response_cb" swapped="no"/>
-    <child type="titlebar">
-      <placeholder/>
-    </child>
     <child internal-child="vbox">
       <object class="GtkBox">
         <property name="visible">True</property>
@@ -247,8 +374,10 @@
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="halign">start</property>
-                    <property name="label" translatable="yes">&lt;b&gt;Start Date&lt;/b&gt;</property>
-                    <property name="use_markup">True</property>
+                    <property name="label" translatable="yes">Start Date</property>
+                    <attributes>
+                      <attribute name="weight" value="bold"/>
+                    </attributes>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
@@ -260,8 +389,10 @@
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="halign">start</property>
-                    <property name="label" translatable="yes">&lt;b&gt;End Date&lt;/b&gt;</property>
-                    <property name="use_markup">True</property>
+                    <property name="label" translatable="yes">End Date</property>
+                    <attributes>
+                      <attribute name="weight" value="bold"/>
+                    </attributes>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
@@ -452,6 +583,7 @@
             </child>
             <child>
               <object class="GtkGrid" id="table1">
+                <property name="name">accounts_page</property>
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <property name="border_width">6</property>
@@ -477,7 +609,7 @@
                     <property name="can_focus">True</property>
                     <property name="receives_default">False</property>
                     <property name="has_tooltip">True</property>
-                    <property name="tooltip_markup">Use only &amp;apos;debit&amp;apos; and &amp;apos;credit&amp;apos; instead of informal synonyms.</property>
+                    <property name="tooltip_markup">Use only &apos;debit&apos; and &apos;credit&apos; instead of informal synonyms.</property>
                     <property name="tooltip_text" translatable="yes">Use only 'debit' and 'credit' instead of informal synonyms.</property>
                     <property name="halign">start</property>
                     <property name="use_underline">True</property>
@@ -518,7 +650,7 @@
                     <property name="can_focus">True</property>
                     <property name="receives_default">False</property>
                     <property name="has_tooltip">True</property>
-                    <property name="tooltip_markup">Don&amp;apos;t sign reverse any accounts.</property>
+                    <property name="tooltip_markup">Don&apos;t sign reverse any accounts.</property>
                     <property name="tooltip_text" translatable="yes">Don't sign reverse any accounts.</property>
                     <property name="halign">start</property>
                     <property name="use_underline">True</property>
@@ -679,8 +811,10 @@
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="halign">start</property>
-                    <property name="label" translatable="yes">&lt;b&gt;Account Color&lt;/b&gt;</property>
-                    <property name="use_markup">True</property>
+                    <property name="label" translatable="yes">Account Color</property>
+                    <attributes>
+                      <attribute name="weight" value="bold"/>
+                    </attributes>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
@@ -742,6 +876,7 @@
                         <property name="can_focus">False</property>
                         <property name="halign">start</property>
                         <property name="icon_name">dialog-warning</property>
+                        <property name="icon_size">3</property>
                       </object>
                       <packing>
                         <property name="expand">False</property>
@@ -761,7 +896,6 @@
                         <property name="primary_icon_activatable">False</property>
                         <property name="secondary_icon_activatable">False</property>
                         <signal name="changed" handler="gnc_account_separator_pref_changed_cb" swapped="no"/>
-                        <signal name="focus-out-event" handler="gnc_account_separator_validate_cb" swapped="no"/>
                       </object>
                       <packing>
                         <property name="expand">True</property>
@@ -881,12 +1015,14 @@
                   <object class="GtkLabel" id="label104">
                     <property name="can_focus">False</property>
                     <property name="halign">start</property>
-                    <property name="label" translatable="yes">&lt;b&gt;Fancy Date Format&lt;/b&gt;</property>
-                    <property name="use_markup">True</property>
+                    <property name="label" translatable="yes">Fancy Date Format</property>
+                    <attributes>
+                      <attribute name="weight" value="bold"/>
+                    </attributes>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">6</property>
+                    <property name="top_attach">9</property>
                   </packing>
                 </child>
                 <child>
@@ -896,7 +1032,7 @@
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">5</property>
+                    <property name="top_attach">8</property>
                   </packing>
                 </child>
                 <child>
@@ -904,12 +1040,14 @@
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="halign">start</property>
-                    <property name="label" translatable="yes">&lt;b&gt;Date Format&lt;/b&gt;</property>
-                    <property name="use_markup">True</property>
+                    <property name="label" translatable="yes">Date Format</property>
+                    <attributes>
+                      <attribute name="weight" value="bold"/>
+                    </attributes>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">3</property>
+                    <property name="top_attach">6</property>
                   </packing>
                 </child>
                 <child>
@@ -922,7 +1060,7 @@
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">0</property>
+                    <property name="top_attach">16</property>
                   </packing>
                 </child>
                 <child>
@@ -932,7 +1070,7 @@
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">2</property>
+                    <property name="top_attach">15</property>
                   </packing>
                 </child>
                 <child>
@@ -950,7 +1088,7 @@
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">1</property>
+                    <property name="top_attach">17</property>
                   </packing>
                 </child>
                 <child>
@@ -963,7 +1101,7 @@
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">8</property>
+                    <property name="top_attach">11</property>
                   </packing>
                 </child>
                 <child>
@@ -976,7 +1114,7 @@
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">9</property>
+                    <property name="top_attach">12</property>
                   </packing>
                 </child>
                 <child>
@@ -995,7 +1133,7 @@
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">10</property>
+                    <property name="top_attach">13</property>
                   </packing>
                 </child>
                 <child>
@@ -1015,7 +1153,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">11</property>
+                    <property name="top_attach">14</property>
                   </packing>
                 </child>
                 <child>
@@ -1027,7 +1165,7 @@ many months before the current month</property>
                     <property name="tooltip_text" translatable="yes">Enter number of months.</property>
                     <property name="halign">start</property>
                     <property name="invisible_char">●</property>
-                    <property name="text" translatable="yes">6</property>
+                    <property name="text">6</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
                     <property name="adjustment">date_backmonth_adj</property>
@@ -1036,7 +1174,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">1</property>
-                    <property name="top_attach">11</property>
+                    <property name="top_attach">14</property>
                   </packing>
                 </child>
                 <child>
@@ -1063,8 +1201,141 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
+                    <property name="top_attach">7</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="label49">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="halign">start</property>
+                    <property name="label" translatable="yes">&lt;b&gt;Numbers&lt;/b&gt;</property>
+                    <property name="use_markup">True</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">0</property>
+                    <property name="top_attach">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkCheckButton" id="pref/general/force-price-decimal">
+                    <property name="label" translatable="yes">Force P_rices to display as decimals</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">False</property>
+                    <property name="has_tooltip">True</property>
+                    <property name="tooltip_markup">Force prices to display as decimals even if they must be rounded.</property>
+                    <property name="tooltip_text" translatable="yes">If active, GnuCash will round prices as necessary to display them as decimals instead of displaying the exact fraction if the fractional part cannot be exactly represented as a decimal.</property>
+                    <property name="halign">start</property>
+                    <property name="use_underline">True</property>
+                    <property name="draw_indicator">True</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">0</property>
+                    <property name="top_attach">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkCheckButton" id="pref/general/negative-in-red">
+                    <property name="label" translatable="yes">Display ne_gative amounts in red</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">False</property>
+                    <property name="has_tooltip">True</property>
+                    <property name="tooltip_markup">Display negative amounts in red.</property>
+                    <property name="tooltip_text" translatable="yes">Display negative amounts in red.</property>
+                    <property name="halign">start</property>
+                    <property name="use_underline">True</property>
+                    <property name="draw_indicator">True</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">0</property>
+                    <property name="top_attach">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkCheckButton" id="pref/general/auto-decimal-point">
+                    <property name="label" translatable="yes">_Automatic decimal point</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">False</property>
+                    <property name="has_tooltip">True</property>
+                    <property name="tooltip_markup">Automatically insert a decimal point into values that are entered without one.</property>
+                    <property name="tooltip_text" translatable="yes">Automatically insert a decimal point into values that are entered without one.</property>
+                    <property name="halign">start</property>
+                    <property name="use_underline">True</property>
+                    <property name="draw_indicator">True</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">0</property>
+                    <property name="top_attach">3</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="label17">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="halign">start</property>
+                    <property name="label" translatable="yes">_Decimal places</property>
+                    <property name="use_underline">True</property>
+                    <property name="mnemonic_widget">pref/general/auto-decimal-places</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">0</property>
                     <property name="top_attach">4</property>
                   </packing>
+                </child>
+                <child>
+                  <object class="GtkSpinButton" id="pref/general/auto-decimal-places">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="has_tooltip">True</property>
+                    <property name="tooltip_markup">How many automatic decimal places will be filled in.</property>
+                    <property name="tooltip_text" translatable="yes">How many automatic decimal places will be filled in.</property>
+                    <property name="invisible_char">●</property>
+                    <property name="text">2</property>
+                    <property name="primary_icon_activatable">False</property>
+                    <property name="secondary_icon_activatable">False</property>
+                    <property name="adjustment">auto_decimal_places_adj</property>
+                    <property name="climb_rate">1</property>
+                    <property name="value">2</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">1</property>
+                    <property name="top_attach">4</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="label">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">0</property>
+                    <property name="top_attach">5</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="label25">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">0</property>
+                    <property name="top_attach">10</property>
+                  </packing>
+                </child>
+                <child>
+                  <placeholder/>
+                </child>
+                <child>
+                  <placeholder/>
+                </child>
+                <child>
+                  <placeholder/>
+                </child>
+                <child>
+                  <placeholder/>
                 </child>
                 <child>
                   <placeholder/>
@@ -1112,7 +1383,7 @@ many months before the current month</property>
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <property name="halign">start</property>
-                <property name="label" translatable="yes">Date/Time</property>
+                <property name="label" translatable="yes">Numbers, Date, Time</property>
               </object>
               <packing>
                 <property name="position">2</property>
@@ -1131,8 +1402,10 @@ many months before the current month</property>
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="halign">start</property>
-                    <property name="label" translatable="yes" comments="Preferences Dialog, General Tab">&lt;b&gt;General&lt;/b&gt;</property>
-                    <property name="use_markup">True</property>
+                    <property name="label" translatable="yes" comments="Preferences Dialog, General Tab">General</property>
+                    <attributes>
+                      <attribute name="weight" value="bold"/>
+                    </attributes>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
@@ -1207,7 +1480,7 @@ many months before the current month</property>
                         <property name="tooltip_markup">How many days to keep old log/backup files.</property>
                         <property name="tooltip_text" translatable="yes">How many days to keep old log/backup files.</property>
                         <property name="invisible_char">●</property>
-                        <property name="text" translatable="yes">30</property>
+                        <property name="text">30</property>
                         <property name="primary_icon_activatable">False</property>
                         <property name="secondary_icon_activatable">False</property>
                         <property name="adjustment">retain_days_adj</property>
@@ -1235,7 +1508,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">1</property>
-                    <property name="top_attach">24</property>
+                    <property name="top_attach">17</property>
                   </packing>
                 </child>
                 <child>
@@ -1250,7 +1523,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">22</property>
+                    <property name="top_attach">15</property>
                   </packing>
                 </child>
                 <child>
@@ -1268,7 +1541,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">16</property>
+                    <property name="top_attach">9</property>
                   </packing>
                 </child>
                 <child>
@@ -1281,7 +1554,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">15</property>
+                    <property name="top_attach">8</property>
                   </packing>
                 </child>
                 <child>
@@ -1295,114 +1568,13 @@ many months before the current month</property>
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLabel" id="label17">
-                    <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <property name="halign">start</property>
-                    <property name="label" translatable="yes">_Decimal places</property>
-                    <property name="use_underline">True</property>
-                    <property name="mnemonic_widget">pref/general/auto-decimal-places</property>
-                  </object>
-                  <packing>
-                    <property name="left_attach">0</property>
-                    <property name="top_attach">13</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkSpinButton" id="pref/general/auto-decimal-places">
-                    <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="has_tooltip">True</property>
-                    <property name="tooltip_markup">How many automatic decimal places will be filled in.</property>
-                    <property name="tooltip_text" translatable="yes">How many automatic decimal places will be filled in.</property>
-                    <property name="invisible_char">●</property>
-                    <property name="text" translatable="yes">2</property>
-                    <property name="primary_icon_activatable">False</property>
-                    <property name="secondary_icon_activatable">False</property>
-                    <property name="adjustment">auto_decimal_places_adj</property>
-                    <property name="climb_rate">1</property>
-                    <property name="value">2</property>
-                  </object>
-                  <packing>
-                    <property name="left_attach">1</property>
-                    <property name="top_attach">13</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkCheckButton" id="pref/general/auto-decimal-point">
-                    <property name="label" translatable="yes">_Automatic decimal point</property>
-                    <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="receives_default">False</property>
-                    <property name="has_tooltip">True</property>
-                    <property name="tooltip_markup">Automatically insert a decimal point into values that are entered without one.</property>
-                    <property name="tooltip_text" translatable="yes">Automatically insert a decimal point into values that are entered without one.</property>
-                    <property name="halign">start</property>
-                    <property name="use_underline">True</property>
-                    <property name="draw_indicator">True</property>
-                  </object>
-                  <packing>
-                    <property name="left_attach">0</property>
-                    <property name="top_attach">12</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkCheckButton" id="pref/general/negative-in-red">
-                    <property name="label" translatable="yes">Display ne_gative amounts in red</property>
-                    <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="receives_default">False</property>
-                    <property name="has_tooltip">True</property>
-                    <property name="tooltip_markup">Display negative amounts in red.</property>
-                    <property name="tooltip_text" translatable="yes">Display negative amounts in red.</property>
-                    <property name="halign">start</property>
-                    <property name="use_underline">True</property>
-                    <property name="draw_indicator">True</property>
-                  </object>
-                  <packing>
-                    <property name="left_attach">0</property>
-                    <property name="top_attach">11</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkCheckButton" id="pref/general/force-price-decimal">
-                    <property name="label" translatable="yes">Force P_rices to display as decimals</property>
-                    <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="receives_default">False</property>
-                    <property name="has_tooltip">True</property>
-                    <property name="tooltip_markup">Force prices to display as decimals even if they must be rounded.</property>
-                    <property name="tooltip_text" translatable="yes">If active, GnuCash will round prices as necessary to display them as decimals instead of displaying the exact fraction if the fractional part cannot be exactly represented as a decimal.</property>
-                    <property name="halign">start</property>
-                    <property name="use_underline">True</property>
-                    <property name="draw_indicator">True</property>
-                  </object>
-                  <packing>
-                    <property name="left_attach">0</property>
-                    <property name="top_attach">10</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkLabel" id="label49">
-                    <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <property name="halign">start</property>
-                    <property name="label" translatable="yes">&lt;b&gt;Numbers&lt;/b&gt;</property>
-                    <property name="use_markup">True</property>
-                  </object>
-                  <packing>
-                    <property name="left_attach">0</property>
-                    <property name="top_attach">9</property>
-                  </packing>
-                </child>
-                <child>
                   <object class="GtkLabel" id="label51">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">8</property>
+                    <property name="top_attach">7</property>
                   </packing>
                 </child>
                 <child>
@@ -1415,7 +1587,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">30</property>
+                    <property name="top_attach">23</property>
                   </packing>
                 </child>
                 <child>
@@ -1429,7 +1601,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">31</property>
+                    <property name="top_attach">24</property>
                   </packing>
                 </child>
                 <child>
@@ -1437,10 +1609,10 @@ many months before the current month</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="has_tooltip">True</property>
-                    <property name="tooltip_markup">Default to &amp;apos;new search&amp;apos; if fewer than this number of items is returned.</property>
+                    <property name="tooltip_markup">Default to &apos;new search&apos; if fewer than this number of items is returned.</property>
                     <property name="tooltip_text" translatable="yes">Default to 'new search' if fewer than this number of items is returned.</property>
                     <property name="invisible_char">●</property>
-                    <property name="text" translatable="yes">1</property>
+                    <property name="text">1</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
                     <property name="adjustment">new_search_limit_adj</property>
@@ -1449,7 +1621,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">1</property>
-                    <property name="top_attach">31</property>
+                    <property name="top_attach">24</property>
                   </packing>
                 </child>
                 <child>
@@ -1481,7 +1653,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">18</property>
+                    <property name="top_attach">11</property>
                   </packing>
                 </child>
                 <child>
@@ -1497,7 +1669,7 @@ many months before the current month</property>
                         <property name="tooltip_markup">The number of minutes until saving of the data file to harddisk will be started automatically. If zero, no saving will be started automatically.</property>
                         <property name="tooltip_text" translatable="yes">The number of minutes until saving of the data file to harddisk will be started automatically. If zero, no saving will be started automatically.</property>
                         <property name="invisible_char">●</property>
-                        <property name="text" translatable="yes">3</property>
+                        <property name="text">3</property>
                         <property name="primary_icon_activatable">False</property>
                         <property name="secondary_icon_activatable">False</property>
                         <property name="adjustment">autosave_interval_minutes_adj</property>
@@ -1525,7 +1697,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">1</property>
-                    <property name="top_attach">18</property>
+                    <property name="top_attach">11</property>
                   </packing>
                 </child>
                 <child>
@@ -1543,7 +1715,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">17</property>
+                    <property name="top_attach">10</property>
                   </packing>
                 </child>
                 <child>
@@ -1553,7 +1725,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">21</property>
+                    <property name="top_attach">14</property>
                   </packing>
                 </child>
                 <child>
@@ -1571,7 +1743,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">23</property>
+                    <property name="top_attach">16</property>
                   </packing>
                 </child>
                 <child>
@@ -1589,7 +1761,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">24</property>
+                    <property name="top_attach">17</property>
                   </packing>
                 </child>
                 <child>
@@ -1607,7 +1779,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">25</property>
+                    <property name="top_attach">18</property>
                   </packing>
                 </child>
                 <child>
@@ -1624,7 +1796,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">19</property>
+                    <property name="top_attach">12</property>
                   </packing>
                 </child>
                 <child>
@@ -1632,14 +1804,14 @@ many months before the current month</property>
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="halign">start</property>
-                    <property name="margin_left">12</property>
+                    <property name="margin_start">12</property>
                     <property name="label" translatable="yes">Time to _wait for answer</property>
                     <property name="use_underline">True</property>
                     <property name="mnemonic_widget">pref/general/autosave-interval-minutes</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">20</property>
+                    <property name="top_attach">13</property>
                   </packing>
                 </child>
                 <child>
@@ -1653,7 +1825,7 @@ many months before the current month</property>
                         <property name="can_focus">True</property>
                         <property name="tooltip_text" translatable="yes">The number of seconds to wait before the question window will be closed and the changes saved automatically.</property>
                         <property name="invisible_char">●</property>
-                        <property name="text" translatable="yes">20</property>
+                        <property name="text">20</property>
                         <property name="primary_icon_activatable">False</property>
                         <property name="secondary_icon_activatable">False</property>
                         <property name="adjustment">save_on_close_adj</property>
@@ -1681,7 +1853,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">1</property>
-                    <property name="top_attach">20</property>
+                    <property name="top_attach">13</property>
                   </packing>
                 </child>
                 <child>
@@ -1691,21 +1863,21 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">26</property>
+                    <property name="top_attach">19</property>
                   </packing>
                 </child>
                 <child>
                   <object class="GtkBox" id="pref/general/assoc-head">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="tooltip_markup" translatable="yes">Path head for Transaction Associated files </property>
+                    <property name="tooltip_markup" translatable="yes">Path head for Linked Files Relative Paths</property>
                     <child>
                       <placeholder/>
                     </child>
                   </object>
                   <packing>
                     <property name="left_attach">1</property>
-                    <property name="top_attach">28</property>
+                    <property name="top_attach">21</property>
                   </packing>
                 </child>
                 <child>
@@ -1716,7 +1888,7 @@ many months before the current month</property>
                       <object class="GtkLabel" id="label20">
                         <property name="visible">True</property>
                         <property name="can_focus">False</property>
-                        <property name="label" translatable="yes">Path head for Transaction Association Files</property>
+                        <property name="label" translatable="yes">Path head for Linked Files Relative Paths</property>
                         <property name="use_markup">True</property>
                       </object>
                       <packing>
@@ -1740,7 +1912,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">28</property>
+                    <property name="top_attach">21</property>
                   </packing>
                 </child>
                 <child>
@@ -1782,12 +1954,12 @@ many months before the current month</property>
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="halign">start</property>
-                    <property name="label" translatable="yes">&lt;b&gt;Transaction Association&lt;/b&gt;</property>
+                    <property name="label" translatable="yes">&lt;b&gt;Linked Files&lt;/b&gt;</property>
                     <property name="use_markup">True</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">27</property>
+                    <property name="top_attach">20</property>
                   </packing>
                 </child>
                 <child>
@@ -1797,32 +1969,8 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">29</property>
+                    <property name="top_attach">22</property>
                   </packing>
-                </child>
-                <child>
-                  <placeholder/>
-                </child>
-                <child>
-                  <placeholder/>
-                </child>
-                <child>
-                  <placeholder/>
-                </child>
-                <child>
-                  <placeholder/>
-                </child>
-                <child>
-                  <placeholder/>
-                </child>
-                <child>
-                  <placeholder/>
-                </child>
-                <child>
-                  <placeholder/>
-                </child>
-                <child>
-                  <placeholder/>
                 </child>
                 <child>
                   <placeholder/>
@@ -1906,7 +2054,7 @@ many months before the current month</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">False</property>
                     <property name="has_tooltip">True</property>
-                    <property name="tooltip_markup">Enable the SKIP action in the transaction matcher. If enabled, a transaction whose best match&amp;apos;s score is in the yellow zone (above the Auto-ADD threshold but below the Auto-CLEAR threshold) will be skipped by default.</property>
+                    <property name="tooltip_markup">Enable the SKIP action in the transaction matcher. If enabled, a transaction whose best match&apos;s score is in the yellow zone (above the Auto-ADD threshold but below the Auto-CLEAR threshold) will be skipped by default.</property>
                     <property name="tooltip_text" translatable="yes">Enable the SKIP action in the transaction matcher. If enabled, a transaction whose best match's score is in the yellow zone (above the Auto-ADD threshold but below the Auto-CLEAR threshold) will be skipped by default.</property>
                     <property name="halign">start</property>
                     <property name="use_underline">True</property>
@@ -1925,7 +2073,7 @@ many months before the current month</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">False</property>
                     <property name="has_tooltip">True</property>
-                    <property name="tooltip_markup">Enable the UPDATE AND RECONCILE action in the transaction matcher. If enabled, a transaction whose best match&amp;apos;s score is above the Auto-CLEAR threshold and has a different date or amount than the matching existing transaction will cause the existing transaction to be updated and cleared by default.</property>
+                    <property name="tooltip_markup">Enable the UPDATE AND RECONCILE action in the transaction matcher. If enabled, a transaction whose best match&apos;s score is above the Auto-CLEAR threshold and has a different date or amount than the matching existing transaction will cause the existing transaction to be updated and cleared by default.</property>
                     <property name="tooltip_text" translatable="yes">Enable the UPDATE AND RECONCILE action in the transaction matcher. If enabled, a transaction whose best match's score is above the Auto-CLEAR threshold and has a different date or amount than the matching existing transaction will cause the existing transaction to be updated and cleared by default.</property>
                     <property name="halign">start</property>
                     <property name="use_underline">True</property>
@@ -1942,8 +2090,10 @@ many months before the current month</property>
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="halign">start</property>
-                    <property name="label" translatable="yes">&lt;b&gt;General&lt;/b&gt;</property>
-                    <property name="use_markup">True</property>
+                    <property name="label" translatable="yes">General</property>
+                    <attributes>
+                      <attribute name="weight" value="bold"/>
+                    </attributes>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
@@ -1956,10 +2106,10 @@ many months before the current month</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="has_tooltip">True</property>
-                    <property name="tooltip_markup">In some places commercial ATMs (not belonging to a financial institution) are installed in places like convenience stores. These ATMs add their fee directly to the amount instead of showing up as a separate transaction or in your monthly banking fees. For example, you withdraw $100, and you are charged $101,50 plus Interac fees. If you manually entered that $100, the amounts won&amp;apos;t match. You should set this to whatever is the maximum such fee in your area (in units of your local currency), so the transaction will be recognised as a match.</property>
+                    <property name="tooltip_markup">In some places commercial ATMs (not belonging to a financial institution) are installed in places like convenience stores. These ATMs add their fee directly to the amount instead of showing up as a separate transaction or in your monthly banking fees. For example, you withdraw $100, and you are charged $101,50 plus Interac fees. If you manually entered that $100, the amounts won&apos;t match. You should set this to whatever is the maximum such fee in your area (in units of your local currency), so the transaction will be recognised as a match.</property>
                     <property name="tooltip_text" translatable="yes">In some places commercial ATMs (not belonging to a financial institution) are installed in places like convenience stores. These ATMs add their fee directly to the amount instead of showing up as a separate transaction or in your monthly banking fees. For example, you withdraw $100, and you are charged $101,50 plus Interac fees. If you manually entered that $100, the amounts won't match. You should set this to whatever is the maximum such fee in your area (in units of your local currency), so the transaction will be recognised as a match.</property>
                     <property name="invisible_char">●</property>
-                    <property name="text" translatable="yes">2,00</property>
+                    <property name="text">2.00</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
                     <property name="adjustment">atm_fee_adj</property>
@@ -1971,7 +2121,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">1</property>
-                    <property name="top_attach">7</property>
+                    <property name="top_attach">9</property>
                   </packing>
                 </child>
                 <child>
@@ -1979,10 +2129,10 @@ many months before the current month</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="has_tooltip">True</property>
-                    <property name="tooltip_markup">A transaction whose best match&amp;apos;s score is in the green zone (above or equal to the Auto-CLEAR threshold) will be CLEARed by default.</property>
+                    <property name="tooltip_markup">A transaction whose best match&apos;s score is in the green zone (above or equal to the Auto-CLEAR threshold) will be CLEARed by default.</property>
                     <property name="tooltip_text" translatable="yes">A transaction whose best match's score is in the green zone (above or equal to the Auto-CLEAR threshold) will be CLEARed by default.</property>
                     <property name="invisible_char">●</property>
-                    <property name="text" translatable="yes">6</property>
+                    <property name="text">6</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
                     <property name="adjustment">auto_clear_adj</property>
@@ -2001,10 +2151,10 @@ many months before the current month</property>
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="has_tooltip">True</property>
-                    <property name="tooltip_markup">A transaction whose best match&amp;apos;s score is in the red zone (above the display threshold but below or equal to the Auto-ADD threshold) will be ADDed by default.</property>
+                    <property name="tooltip_markup">A transaction whose best match&apos;s score is in the red zone (above the display threshold but below or equal to the Auto-ADD threshold) will be ADDed by default.</property>
                     <property name="tooltip_text" translatable="yes">A transaction whose best match's score is in the red zone (above the display threshold but below or equal to the Auto-ADD threshold) will be ADDed by default.</property>
                     <property name="invisible_char">●</property>
-                    <property name="text" translatable="yes">1</property>
+                    <property name="text">1</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
                     <property name="adjustment">auto_add_adj</property>
@@ -2026,7 +2176,7 @@ many months before the current month</property>
                     <property name="tooltip_markup">The minimum score a potential match must have to be displayed in the match list.</property>
                     <property name="tooltip_text" translatable="yes">The minimum score a potential match must have to be displayed in the match list.</property>
                     <property name="invisible_char">●</property>
-                    <property name="text" translatable="yes">1</property>
+                    <property name="text">1</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
                     <property name="adjustment">match_adj</property>
@@ -2051,7 +2201,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">7</property>
+                    <property name="top_attach">9</property>
                   </packing>
                 </child>
                 <child>
@@ -2129,8 +2279,78 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">8</property>
+                    <property name="top_attach">10</property>
                     <property name="width">2</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="label26">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="halign">start</property>
+                    <property name="label" translatable="yes" comments="Preferences-&gt;Online Banking:Generic">Likely match _day threshold</property>
+                    <property name="use_underline">True</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">0</property>
+                    <property name="top_attach">7</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="label27">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="halign">start</property>
+                    <property name="label" translatable="yes" comments="Preferences-&gt;Online Banking:Generic">_Unlikely match day threshold</property>
+                    <property name="use_underline">True</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">0</property>
+                    <property name="top_attach">8</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkSpinButton" id="pref/dialogs.import.generic/match-date-threshold">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="has_tooltip">True</property>
+                    <property name="tooltip_markup">A transaction whose date is within the threshold is likely to be a match. Default is 4 days.</property>
+                    <property name="tooltip_text" translatable="yes">A transaction whose date is within the threshold is likely to be a match. Default is 4 days.</property>
+                    <property name="invisible_char">●</property>
+                    <property name="text">6</property>
+                    <property name="primary_icon_activatable">False</property>
+                    <property name="secondary_icon_activatable">False</property>
+                    <property name="adjustment">likely_day_threshold</property>
+                    <property name="climb_rate">1</property>
+                    <property name="snap_to_ticks">True</property>
+                    <property name="numeric">True</property>
+                    <property name="value">4</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">1</property>
+                    <property name="top_attach">7</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkSpinButton" id="pref/dialogs.import.generic/match-date-not-threshold">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="has_tooltip">True</property>
+                    <property name="tooltip_markup">A transaction whose date is outside the threshold is unlikely to be a match. Default is 14 days.</property>
+                    <property name="tooltip_text" translatable="yes">A transaction whose date is outside the threshold is unlikely to be a match. Default is 14 days.</property>
+                    <property name="invisible_char">●</property>
+                    <property name="text">6</property>
+                    <property name="primary_icon_activatable">False</property>
+                    <property name="secondary_icon_activatable">False</property>
+                    <property name="adjustment">unlikely_day_threshold</property>
+                    <property name="climb_rate">1</property>
+                    <property name="snap_to_ticks">True</property>
+                    <property name="numeric">True</property>
+                    <property name="value">14</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">1</property>
+                    <property name="top_attach">8</property>
                   </packing>
                 </child>
               </object>
@@ -2210,7 +2430,7 @@ many months before the current month</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">False</property>
                     <property name="has_tooltip">True</property>
-                    <property name="tooltip_markup">Print &amp;apos;***&amp;apos; before and after each text field on the check.</property>
+                    <property name="tooltip_markup">Print &apos;***&apos; before and after each text field on the check.</property>
                     <property name="tooltip_text" translatable="yes">Print '***' before and after each text field on the check.</property>
                     <property name="halign">start</property>
                     <property name="use_underline">True</property>
@@ -2289,7 +2509,7 @@ many months before the current month</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">False</property>
                     <property name="has_tooltip">True</property>
-                    <property name="tooltip_markup">If checked, pressing the &amp;apos;Enter&amp;apos; key will move to the location of the blank transaction in the register. If clear, pressing the &amp;apos;Enter&amp;apos; key will move down one row.</property>
+                    <property name="tooltip_markup">If checked, pressing the &apos;Enter&apos; key will move to the location of the blank transaction in the register. If clear, pressing the &apos;Enter&apos; key will move down one row.</property>
                     <property name="tooltip_text" translatable="yes">If checked, pressing the 'Enter' key will move to the location of the blank transaction in the register. If clear, pressing the 'Enter' key will move down one row.</property>
                     <property name="halign">start</property>
                     <property name="use_underline">True</property>
@@ -2378,24 +2598,6 @@ many months before the current month</property>
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkCheckButton" id="pref/dialogs.reconcile/auto-interest-transfer">
-                    <property name="label" translatable="yes">Automatic _interest transfer</property>
-                    <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="receives_default">False</property>
-                    <property name="has_tooltip">True</property>
-                    <property name="tooltip_markup">Prior to reconciling an account which charges or pays interest, prompt the user to enter a transaction for the interest charge or payment. Currently only enabled for Bank, Credit, Mutual, Asset, Receivable, Payable, and Liability accounts.</property>
-                    <property name="tooltip_text" translatable="yes">Prior to reconciling an account which charges or pays interest, prompt the user to enter a transaction for the interest charge or payment. Currently only enabled for Bank, Credit, Mutual, Asset, Receivable, Payable, and Liability accounts.</property>
-                    <property name="halign">start</property>
-                    <property name="use_underline">True</property>
-                    <property name="draw_indicator">True</property>
-                  </object>
-                  <packing>
-                    <property name="left_attach">0</property>
-                    <property name="top_attach">7</property>
-                  </packing>
-                </child>
-                <child>
                   <object class="GtkCheckButton" id="pref/dialogs.reconcile/auto-cc-payment">
                     <property name="label" translatable="yes">Automatic credit card _payment</property>
                     <property name="visible">True</property>
@@ -2410,7 +2612,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">8</property>
+                    <property name="top_attach">7</property>
                   </packing>
                 </child>
                 <child>
@@ -2420,7 +2622,7 @@ many months before the current month</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">False</property>
                     <property name="has_tooltip">True</property>
-                    <property name="tooltip_markup">Always open the reconcile dialog using today&amp;apos;s date for the statement date, regardless of previous reconciliations.</property>
+                    <property name="tooltip_markup">Always open the reconcile dialog using today&apos;s date for the statement date, regardless of previous reconciliations.</property>
                     <property name="tooltip_text" translatable="yes">Always open the reconcile dialog using today's date for the statement date, regardless of previous reconciliations.</property>
                     <property name="halign">start</property>
                     <property name="use_underline">True</property>
@@ -2428,7 +2630,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">9</property>
+                    <property name="top_attach">8</property>
                   </packing>
                 </child>
                 <child>
@@ -2438,7 +2640,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">10</property>
+                    <property name="top_attach">9</property>
                   </packing>
                 </child>
                 <child>
@@ -2451,7 +2653,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">11</property>
+                    <property name="top_attach">10</property>
                   </packing>
                 </child>
                 <child>
@@ -2469,7 +2671,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">12</property>
+                    <property name="top_attach">11</property>
                   </packing>
                 </child>
                 <child>
@@ -2487,7 +2689,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">13</property>
+                    <property name="top_attach">12</property>
                   </packing>
                 </child>
                 <child>
@@ -2505,7 +2707,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">14</property>
+                    <property name="top_attach">13</property>
                   </packing>
                 </child>
                 <child>
@@ -2523,6 +2725,16 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
+                    <property name="top_attach">14</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">0</property>
                     <property name="top_attach">15</property>
                   </packing>
                 </child>
@@ -2530,23 +2742,15 @@ many months before the current month</property>
                   <object class="GtkLabel">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
+                    <property name="halign">start</property>
+                    <property name="label" translatable="yes">Layout</property>
+                    <attributes>
+                      <attribute name="weight" value="bold"/>
+                    </attributes>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
                     <property name="top_attach">16</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkLabel">
-                    <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <property name="halign">start</property>
-                    <property name="label" translatable="yes">&lt;b&gt;Layout&lt;/b&gt;</property>
-                    <property name="use_markup">True</property>
-                  </object>
-                  <packing>
-                    <property name="left_attach">0</property>
-                    <property name="top_attach">17</property>
                   </packing>
                 </child>
                 <child>
@@ -2564,7 +2768,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">18</property>
+                    <property name="top_attach">17</property>
                   </packing>
                 </child>
               </object>
@@ -2634,8 +2838,8 @@ many months before the current month</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">False</property>
                     <property name="has_tooltip">True</property>
-                    <property name="tooltip_markup">Show all transactions on one line. (Two in double line mode.)</property>
-                    <property name="tooltip_text" translatable="yes">Show all transactions on one line. (Two in double line mode.)</property>
+                    <property name="tooltip_markup">Show all transactions on one line or in double line mode on two.</property>
+                    <property name="tooltip_text" translatable="yes">Show all transactions on one line or in double line mode on two.</property>
                     <property name="halign">start</property>
                     <property name="use_underline">True</property>
                     <property name="active">True</property>
@@ -2653,8 +2857,8 @@ many months before the current month</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">False</property>
                     <property name="has_tooltip">True</property>
-                    <property name="tooltip_markup">Automatically expand the current transaction to show all splits. All other transactions are shown on one line. (Two in double line mode.)</property>
-                    <property name="tooltip_text" translatable="yes">Automatically expand the current transaction to show all splits. All other transactions are shown on one line. (Two in double line mode.)</property>
+                    <property name="tooltip_markup">Automatically expand the current transaction to show all splits. All other transactions are shown on one line or in double line mode on two.</property>
+                    <property name="tooltip_text" translatable="yes">Automatically expand the current transaction to show all splits. All other transactions are shown on one line or in double line mode on two.</property>
                     <property name="halign">start</property>
                     <property name="use_underline">True</property>
                     <property name="draw_indicator">True</property>
@@ -2706,7 +2910,7 @@ many months before the current month</property>
                     <property name="tooltip_markup">Show this many transactions in a register. A value of zero means show all transactions.</property>
                     <property name="tooltip_text" translatable="yes">Show this many transactions in a register. A value of zero means show all transactions.</property>
                     <property name="invisible_char">●</property>
-                    <property name="text" translatable="yes">0</property>
+                    <property name="text">0</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
                     <property name="adjustment">max_transactions_adj</property>
@@ -2796,7 +3000,7 @@ many months before the current month</property>
                     <property name="tooltip_markup">This sets the number of characters before auto complete starts for description, notes and memo fields.</property>
                     <property name="tooltip_text" translatable="yes" comments="Register2 feature">This sets the number of characters before auto complete starts for description, notes and memo fields.</property>
                     <property name="invisible_char">●</property>
-                    <property name="text" translatable="yes">2</property>
+                    <property name="text">2</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
                     <property name="adjustment">key_length_adj</property>
@@ -3022,8 +3226,10 @@ many months before the current month</property>
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="halign">start</property>
-                    <property name="label" translatable="yes">&lt;b&gt;Default zoom level&lt;/b&gt;</property>
-                    <property name="use_markup">True</property>
+                    <property name="label" translatable="yes">Default zoom level</property>
+                    <attributes>
+                      <attribute name="weight" value="bold"/>
+                    </attributes>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
@@ -3085,7 +3291,7 @@ many months before the current month</property>
                     <property name="can_focus">True</property>
                     <property name="tooltip_text" translatable="yes">On high resolution screens reports tend to be hard to read. This option allows you to scale reports up by the set factor. For example setting this to 2.0 will display reports at twice their typical size.</property>
                     <property name="halign">start</property>
-                    <property name="text" translatable="yes">1</property>
+                    <property name="text">1</property>
                     <property name="adjustment">default_zoom_adj</property>
                     <property name="digits">1</property>
                     <property name="value">1</property>
@@ -3206,7 +3412,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">5</property>
+                    <property name="top_attach">6</property>
                     <property name="width">2</property>
                   </packing>
                 </child>
@@ -3217,7 +3423,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">7</property>
+                    <property name="top_attach">8</property>
                   </packing>
                 </child>
                 <child>
@@ -3230,7 +3436,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">8</property>
+                    <property name="top_attach">9</property>
                   </packing>
                 </child>
                 <child>
@@ -3249,7 +3455,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">9</property>
+                    <property name="top_attach">10</property>
                   </packing>
                 </child>
                 <child>
@@ -3268,7 +3474,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">10</property>
+                    <property name="top_attach">11</property>
                   </packing>
                 </child>
                 <child>
@@ -3287,7 +3493,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">11</property>
+                    <property name="top_attach">12</property>
                   </packing>
                 </child>
                 <child>
@@ -3306,7 +3512,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">12</property>
+                    <property name="top_attach">13</property>
                   </packing>
                 </child>
                 <child>
@@ -3319,7 +3525,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">1</property>
-                    <property name="top_attach">8</property>
+                    <property name="top_attach">9</property>
                   </packing>
                 </child>
                 <child>
@@ -3338,7 +3544,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">1</property>
-                    <property name="top_attach">9</property>
+                    <property name="top_attach">10</property>
                   </packing>
                 </child>
                 <child>
@@ -3357,7 +3563,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">1</property>
-                    <property name="top_attach">10</property>
+                    <property name="top_attach">11</property>
                   </packing>
                 </child>
                 <child>
@@ -3390,7 +3596,7 @@ many months before the current month</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">False</property>
                     <property name="has_tooltip">True</property>
-                    <property name="tooltip_markup">Show a close button on each notebook tab. These function identically to the &amp;apos;Close&amp;apos; menu item.</property>
+                    <property name="tooltip_markup">Show a close button on each notebook tab. These function identically to the &apos;Close&apos; menu item.</property>
                     <property name="tooltip_text" translatable="yes">Show a close button on each notebook tab. These function identically to the 'Close' menu item.</property>
                     <property name="halign">start</property>
                     <property name="use_underline">True</property>
@@ -3414,7 +3620,7 @@ many months before the current month</property>
                         <property name="tooltip_markup">If the text in the tab is longer than this value (the test is approximate) then the tab label will have the middle cut and replaced with an ellipsis.</property>
                         <property name="tooltip_text" translatable="yes">If the text in the tab is longer than this value (the test is approximate) then the tab label will have the middle cut and replaced with an ellipsis.</property>
                         <property name="invisible_char">●</property>
-                        <property name="text" translatable="yes">30</property>
+                        <property name="text">30</property>
                         <property name="primary_icon_activatable">False</property>
                         <property name="secondary_icon_activatable">False</property>
                         <property name="adjustment">tab_width_adj</property>
@@ -3443,7 +3649,7 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">1</property>
-                    <property name="top_attach">6</property>
+                    <property name="top_attach">7</property>
                   </packing>
                 </child>
                 <child>
@@ -3457,7 +3663,26 @@ many months before the current month</property>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
-                    <property name="top_attach">6</property>
+                    <property name="top_attach">7</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkCheckButton" id="pref/general/tab-open-adjacent">
+                    <property name="label" translatable="yes">Open new tabs _adjacent to current tab</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">True</property>
+                    <property name="has_tooltip">True</property>
+                    <property name="tooltip_markup">Opens new tab adjacent to current tab instead of at the end</property>
+                    <property name="tooltip_text" translatable="yes">Opens new tab adjacent to current tab instead of at the end.</property>
+                    <property name="halign">start</property>
+                    <property name="use_underline">True</property>
+                    <property name="draw_indicator">True</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">0</property>
+                    <property name="top_attach">5</property>
+                    <property name="width">2</property>
                   </packing>
                 </child>
                 <child>
@@ -3531,8 +3756,10 @@ many months before the current month</property>
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="halign">start</property>
-                    <property name="label" translatable="yes">&lt;b&gt;Online Quotes&lt;/b&gt;</property>
-                    <property name="use_markup">True</property>
+                    <property name="label" translatable="yes">Online Quotes</property>
+                    <attributes>
+                      <attribute name="weight" value="bold"/>
+                    </attributes>
                   </object>
                   <packing>
                     <property name="left_attach">0</property>
@@ -3572,5 +3799,8 @@ many months before the current month</property>
       <action-widget response="-11">helpbutton2</action-widget>
       <action-widget response="-7">closebutton2</action-widget>
     </action-widgets>
+    <child type="titlebar">
+      <placeholder/>
+    </child>
   </object>
 </interface>

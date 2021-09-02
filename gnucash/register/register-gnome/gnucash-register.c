@@ -182,6 +182,33 @@ gnucash_register_refresh_from_prefs (GnucashRegister *reg)
     gnc_header_request_redraw (GNC_HEADER(sheet->header_item));
 }
 
+void
+gnucash_register_reset_sheet_layout (GnucashRegister *reg)
+{
+    GNCHeaderWidths widths;
+    GnucashSheet *sheet;
+    gint current_width;
+
+    g_return_if_fail (reg != NULL);
+
+    sheet = GNUCASH_SHEET(reg->sheet);
+
+    g_return_if_fail (sheet != NULL);
+    g_return_if_fail (GNUCASH_IS_SHEET (sheet));
+
+    current_width = sheet->window_width - 1;
+
+    widths = gnc_header_widths_new ();
+    gnucash_sheet_set_header_widths (sheet, widths);
+
+    gnucash_sheet_styles_set_dimensions (sheet, current_width);
+
+    gnucash_sheet_compile_styles (sheet);
+    gnucash_sheet_table_load (sheet, TRUE);
+    gnucash_sheet_cursor_set_from_table (sheet, TRUE);
+    gnucash_sheet_redraw_all (sheet);
+    gnc_header_widths_destroy (widths);
+}
 
 void
 gnucash_register_goto_virt_cell (GnucashRegister *reg,
@@ -455,7 +482,7 @@ gnucash_register_attach_popup (GnucashRegister *reg,
  *  to pass NULL as second parameter. */
 
 static void
-gnucash_register_configure (GnucashSheet *sheet, gchar * state_section)
+gnucash_register_configure (GnucashSheet *sheet, const gchar * state_section)
 {
     GNCHeaderWidths widths;
     Table *table;
@@ -516,31 +543,6 @@ gnucash_register_configure (GnucashSheet *sheet, gchar * state_section)
     LEAVE(" ");
 }
 
-static gboolean
-gnucash_register_enter_scrollbar (GtkWidget *widget,
-                                  GdkEvent *event, gpointer user_data)
-{
-    GnucashRegister *reg = user_data;
-    GnucashSheet *sheet = GNUCASH_SHEET(reg->sheet);
-    GtkWidget *vscrollbar = sheet->vscrollbar;
-    GtkWidget *hscrollbar = sheet->hscrollbar;
-
-    // There seems to be a problem with the scrollbar slider not being
-    // updated as the mouse moves possibly related to the following bug
-    // https://bugs.gnucash.org/show_bug.cgi?id=765410
-    // If they are hidden and shown it seems to fix it.
-
-    gtk_widget_hide (GTK_WIDGET(vscrollbar));
-    gtk_widget_show (GTK_WIDGET(vscrollbar));
-
-    if (gtk_widget_is_visible (hscrollbar))
-    {
-        gtk_widget_hide (GTK_WIDGET(hscrollbar));
-        gtk_widget_show (GTK_WIDGET(hscrollbar));
-    }
-    return FALSE;
-}
-
 
 static GtkWidget *
 gnucash_register_create_widget (Table *table)
@@ -587,9 +589,6 @@ gnucash_register_create_widget (Table *table)
     gtk_widget_show (scrollbar);
     GNUCASH_SHEET(sheet)->vscrollbar = scrollbar;
 
-    g_signal_connect(G_OBJECT(scrollbar), "enter-notify-event",
-                      G_CALLBACK(gnucash_register_enter_scrollbar), reg);
-
     scrollbar = gtk_scrollbar_new (GTK_ORIENTATION_HORIZONTAL, GNUCASH_SHEET(sheet)->hadj);
     gtk_grid_attach (GTK_GRID(widget), GTK_WIDGET(scrollbar), 0, 2, 1, 1);
     gtk_widget_set_hexpand (GTK_WIDGET(scrollbar), TRUE);
@@ -602,9 +601,6 @@ gnucash_register_create_widget (Table *table)
     reg->hscrollbar_visible = TRUE;
     GNUCASH_SHEET(sheet)->hscrollbar = scrollbar;
 
-    g_signal_connect(G_OBJECT(scrollbar), "enter-notify-event",
-                      G_CALLBACK(gnucash_register_enter_scrollbar), reg);
-
     g_signal_connect (GNUCASH_SHEET(sheet)->hadj, "changed",
                       G_CALLBACK (gnucash_register_update_hadjustment), reg);
 
@@ -613,7 +609,7 @@ gnucash_register_create_widget (Table *table)
 
 
 GtkWidget *
-gnucash_register_new (Table *table, gchar *state_section)
+gnucash_register_new (Table *table, const gchar *state_section)
 {
     GnucashRegister *reg;
     GtkWidget *widget;
@@ -647,4 +643,19 @@ GnucashSheet *gnucash_register_get_sheet (GnucashRegister *reg)
 
     return GNUCASH_SHEET(reg->sheet);
 }
+
+
+void
+gnucash_register_set_open_doclink_cb (GnucashRegister *reg,
+                                      GFunc cb, gpointer cb_data)
+{
+    GnucashSheet *sheet;
+
+    if (!reg || !reg->sheet)
+        return;
+    sheet = GNUCASH_SHEET(reg->sheet);
+    sheet->open_doclink_cb = cb;
+    sheet->open_doclink_cb_data = cb_data;
+}
+
 

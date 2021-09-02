@@ -1,4 +1,5 @@
 set (register_core_SOURCES
+  doclinkcell.c
   basiccell.c
   cell-factory.c
   cellblock.c
@@ -18,6 +19,7 @@ set (register_core_SOURCES
 
 
 set (register_core_HEADERS
+  doclinkcell.h
   basiccell.h
   cell-factory.h
   cellblock.h

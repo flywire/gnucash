@@ -69,11 +69,12 @@
 (define-module (gnucash reports locale-specific de_DE taxtxf))
 (use-modules (gnucash engine))
 (use-modules (gnucash utilities)) 
-(use-modules (gnucash core-utils)) ; for gnc:version and (_ ...)
+(use-modules (gnucash core-utils)) ; for gnc:version and (G_ ...)
 (use-modules (gnucash app-utils))
 (use-modules (gnucash locale de_DE tax))
 (use-modules (gnucash report))
 (use-modules (srfi srfi-1))
+(use-modules (srfi srfi-26))
 
 (define reportname (N_ "Tax Report / TXF Export"))
 
@@ -150,24 +151,16 @@
     gnc:pagename-general (N_ "Alternate Period")
     "c" (N_ "Override or modify From: & To:.")
     (if after-tax-day 'from-to 'last-year)
-    (list (vector 'from-to (N_ "Use From - To") (N_ "Use From - To period."))
-          (vector '1st-est (N_ "1st Est Tax Quarter") (N_ "Jan 1 - Mar 31."))
-          (vector '2nd-est (N_ "2nd Est Tax Quarter") (N_ "Apr 1 - May 31."))
-          (vector '3rd-est (N_ "3rd Est Tax Quarter") (N_ "Jun 1 - Aug 31."))
-          (vector '4th-est (N_ "4th Est Tax Quarter") (N_ "Sep 1 - Dec 31."))
-          (vector 'last-year (N_ "Last Year") (N_ "Last Year."))
-          (vector '1st-last
-                  (N_ "Last Yr 1st Est Tax Qtr")
-                  (N_ "Jan 1 - Mar 31, Last year."))
-          (vector '2nd-last
-                  (N_ "Last Yr 2nd Est Tax Qtr")
-                  (N_ "Apr 1 - May 31, Last year."))
-          (vector '3rd-last
-                  (N_ "Last Yr 3rd Est Tax Qtr")
-                  (N_ "Jun 1 - Aug 31, Last year."))
-          (vector '4th-last
-                  (N_ "Last Yr 4th Est Tax Qtr")
-                  (N_ "Sep 1 - Dec 31, Last year.")))))
+    (list (vector 'from-to (N_ "Use From - To"))
+          (vector '1st-est (N_ "1st Est Tax Quarter (Jan 1 - Mar 31)"))
+          (vector '2nd-est (N_ "2nd Est Tax Quarter (Apr 1 - May 31)"))
+          (vector '3rd-est (N_ "3rd Est Tax Quarter (Jun 1 - Aug 31)"))
+          (vector '4th-est (N_ "4th Est Tax Quarter (Sep 1 - Dec 31)"))
+          (vector 'last-year (N_ "Last Year"))
+          (vector '1st-last (N_ "Last Yr 1st Est Tax Qtr (Jan 1 - Mar 31)"))
+          (vector '2nd-last (N_ "Last Yr 2nd Est Tax Qtr (Apr 1 - May 31)"))
+          (vector '3rd-last (N_ "Last Yr 3rd Est Tax Qtr (Jun 1 - Aug 31)"))
+          (vector '4th-last (N_ "Last Yr 4th Est Tax Qtr (Sep 1 - Dec 31)")))))
 
   (gnc:register-tax-option
    (gnc:make-account-list-option
@@ -262,7 +255,7 @@
            (gnc:html-markup-p
             (gnc:html-markup
              "blue"
-             (_ "WARNING: There are duplicate TXF codes assigned\
+             (G_ "WARNING: There are duplicate TXF codes assigned\
  to some accounts. Only TXF codes with payer sources may be repeated."))))
           (map (lambda (s)
                  (gnc:html-text-append!
@@ -287,10 +280,10 @@
   (gnc:html-table-prepend-row!
    table
    (append (list (gnc:make-html-table-header-cell/markup
-                  "account-header" (_ "Account Name")))
+                  "account-header" (G_ "Account Name")))
            (make-sub-headers max-level)
            (list (gnc:make-html-table-header-cell/markup
-                  "number-header" (_ "Total"))))))
+                  "number-header" (G_ "Total"))))))
 
 (define (make-sub-headers max-level)
   (if (<= max-level 1)
@@ -455,8 +448,7 @@
 (define (generate-tax-or-txf report-name
                              report-description
                              report-obj
-                             tax-mode?
-                             file-name)
+                             tax-mode?)
 
   (define (get-option pagename optname)
     (gnc:option-value
@@ -470,9 +462,8 @@
 		 (txf-special-split? (gnc:account-get-txf-code account)))
 	    (+ gen 1)		; Est Fed Tax has a extra generation
 	    gen)	       		; no kids, return input
-	(apply max (gnc:account-map-children
-		    (lambda (x) (num-generations x (+ 1 gen)))
-		    account))))
+	(apply max (map (lambda (x) (num-generations x (1+ gen)))
+                        (or (gnc-account-get-children-sorted account) '())))))
 
   (gnc:report-starting reportname)
   (let* ((from-value (gnc:date-option-absolute-time 
@@ -561,7 +552,7 @@
                              (set-tm:mon bdtm 7))
                             ((4th-est 4th-last last-year) ; Dec 31
                              (set-tm:mon bdtm 11)) 
-                            (else (set! bdtm (gnc-mktime to-value))))
+                            (else (set! bdtm (gnc-localtime to-value))))
                           ;; Tax quaters equal Real quarters
                           (case alt-period
                             ((1st-est 1st-last) ; Mar 31
@@ -575,7 +566,7 @@
                             ((4th-est 4th-last last-year) ; Dec 31
                              (set-tm:mon bdtm 11))
                             (else 
-                             (set! bdtm (gnc-mktime to-value)))))
+                             (set! bdtm (gnc-localtime to-value)))))
                       (set-tm:isdst bdtm -1)
                       (gnc-mktime bdtm))))
 
@@ -771,34 +762,20 @@
 
       (if (not tax-mode?)		; Do Txf mode
           (begin
-            (if file-name		; cancel TXF if no file selected
-                (let* ((port (open-output-file file-name))    
-                       (output
-                        (map (lambda (x) (handle-level-x-account 1 x))
-                             selected-accounts))
-		       ;; FIXME: Print the leading and trailing bits here
-                       (output-txf (list
-                                    "<WinstonAusgang>" crlf
-				    "  <Formular Typ=\"UST\"></Formular>" crlf
-				    ;; FIXME: Get this Ordnungsnummer somehow
-				    "  <Ordnungsnummer>"
-				    tax-nr
-				    "</Ordnungsnummer>" crlf
-                                    ;;"<software>GnuCash</software>" crlf
-				    ;;"<version>" gnc:version "</version>" crlf
-                                    ;; today-date crlf
-				    "  <AnmeldeJahr>" to-year "</AnmeldeJahr>" crlf
-				    ;; FIXME: Find out what this should mean
-				    "  <AnmeldeZeitraum>" "1" "</AnmeldeZeitraum>" crlf
-                                    output
-				    "</WinstonAusgang>")))
-
-                  (gnc:display-report-list-item output-txf port
-                                                "taxtxf-de.scm - ")
-                  (close-output-port port)
-                  #t)
-                #f))
-
+            (gnc:html-document-set-export-string
+             doc (call-with-output-string
+                   (lambda (port)
+                     (gnc:display-report-list-item
+                      (list
+                       "<WinstonAusgang>" crlf
+                       "  <Formular Typ=\"UST\"></Formular>" crlf
+                       "  <Ordnungsnummer>" tax-nr "</Ordnungsnummer>" crlf
+                       "  <AnmeldeJahr>" to-year "</AnmeldeJahr>" crlf
+                       "  <AnmeldeZeitraum>1</AnmeldeZeitraum>" crlf
+                       (map (cut handle-level-x-account 1 <>) selected-accounts)
+                       "</WinstonAusgang>")
+                      port "taxtxf-de.scm - "))))
+            doc)
           (begin			; else do tax report
             (gnc:html-document-set-style! 
              doc "blue"
@@ -828,7 +805,7 @@
                    "center"
                    (gnc:html-markup-p
                     (gnc:html-markup/format
-                     (_ "Period from ~a to ~a") from-date to-date)))))
+                     (G_ "Period from ~a to ~a") from-date to-date)))))
             
             (gnc:html-document-add-object!
              doc (gnc:make-html-text
@@ -871,18 +848,16 @@ Gehen Sie zu Bearbeiten -> Optionen Steuerbericht, um Konten entsprechend einzur
  'options-generator tax-options-generator
  'renderer (lambda (report-obj)
              (generate-tax-or-txf
-              (_ "Taxable Income / Deductible Expenses")
-              (_ "This report shows your Taxable Income and \
+              (G_ "Taxable Income / Deductible Expenses")
+              (G_ "This report shows your Taxable Income and \
 Deductible Expenses.")
               report-obj
-              #t
-              #f))
- 'export-types (list (cons (_ "XML") 'txf))
- 'export-thunk (lambda (report-obj choice file-name)
+              #t))
+ 'export-types (list (cons (G_ "XML") 'txf))
+ 'export-thunk (lambda (report-obj choice)
                  (generate-tax-or-txf
-                  (_ "Taxable Income / Deductible Expenses")
-                  (_ "This page shows your Taxable Income and \
+                  (G_ "Taxable Income / Deductible Expenses")
+                  (G_ "This page shows your Taxable Income and \
 Deductible Expenses.")
                   report-obj
-                  #f
-                  file-name)))
+                  #f)))

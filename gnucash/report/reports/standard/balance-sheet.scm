@@ -26,7 +26,6 @@
 ;;    
 ;;    Line & column alignments still do not conform with
 ;;    textbook accounting practice (they're close though!).
-;;    The 'canonically-tabbed option is currently broken.
 ;;    
 ;;    Progress bar functionality is currently mostly broken.
 ;;    
@@ -154,7 +153,7 @@
     (add-option
       (gnc:make-string-option
       gnc:pagename-general optname-report-title
-      "a" opthelp-report-title (_ reportname)))
+      "a" opthelp-report-title (G_ reportname)))
     (add-option
       (gnc:make-string-option
       gnc:pagename-general optname-party-name
@@ -309,7 +308,7 @@
          (parent-balance-mode (get-option gnc:pagename-display
                                           optname-parent-balance-mode))
          (parent-total-mode
-          (assq-ref '((t . #t) (f . #f) (canonically-tabbed . canonically-tabbed))
+          (assq-ref '((t . #t) (f . #f))
                     (get-option gnc:pagename-display optname-parent-total-mode)))
          (show-zb-accts? (get-option gnc:pagename-display optname-show-zb-accts))
          (omit-zb-bals? (get-option gnc:pagename-display optname-omit-zb-bals))
@@ -343,6 +342,7 @@
          (tree-depth (if (eq? depth-limit 'all)
                          (gnc:get-current-account-tree-depth)
                          depth-limit))
+         (price-fn (gnc:case-price-fn price-source report-commodity reportdate))
          ;; exchange rates calculation parameters
          (exchange-fn
           (gnc:case-exchange-fn price-source report-commodity reportdate)))
@@ -383,11 +383,11 @@
       (let* ((liability-table
               (gnc:make-html-acct-table/env/accts table-env liability-accounts)))
         (when label-liabilities?
-          (add-subtotal-line  parent-table (_ "Liabilities") #f #f))
+          (add-subtotal-line  parent-table (G_ "Liabilities") #f #f))
         (gnc:html-table-add-account-balances parent-table liability-table params)
         (when total-liabilities?
           (add-subtotal-line
-           parent-table (_ "Total Liabilities") #f liability-balance))
+           parent-table (G_ "Total Liabilities") #f liability-balance))
         (add-rule parent-table)))
 
     (define (get-total-value-fn account)
@@ -421,7 +421,9 @@
                  (account-list-balance income-expense-accounts reportdate)))
 
                (trading-balance
-                (gnc:collector- (account-list-balance trading-accounts reportdate)))
+                (if use-trading-accts?
+                    (gnc:collector- (account-list-balance trading-accounts reportdate))
+                    (gnc:collector+)))
 
                (unrealized-gain-collector
                 (if use-trading-accts?
@@ -480,10 +482,10 @@
           (gnc:report-percent-done 80)
 
           (when label-assets?
-            (add-subtotal-line left-table (_ "Assets") #f #f))
+            (add-subtotal-line left-table (G_ "Assets") #f #f))
           (gnc:html-table-add-account-balances left-table asset-table params)
           (when total-assets?
-            (add-subtotal-line left-table (_ "Total Assets") #f asset-balance))
+            (add-subtotal-line left-table (G_ "Total Assets") #f asset-balance))
 
           (when report-form?
             (add-rule left-table)
@@ -497,29 +499,29 @@
           (gnc:report-percent-done 88)
 
           (when label-equity?
-            (add-subtotal-line right-table (_ "Equity") #f #f))
+            (add-subtotal-line right-table (G_ "Equity") #f #f))
           (gnc:html-table-add-account-balances right-table equity-table params)
           ;; we omit retained earnings & unrealized gains
           ;; from the balance report, if zero, since they
           ;; are not present on normal balance sheets
           (unless (gnc-commodity-collector-allzero? retained-earnings)
             (add-subtotal-line right-table
-                               (_ "Retained Earnings")
-                               (_ "Retained Losses")
+                               (G_ "Retained Earnings")
+                               (G_ "Retained Losses")
                                retained-earnings))
           (unless (gnc-commodity-collector-allzero? trading-balance)
             (add-subtotal-line right-table
-                               (_ "Trading Gains")
-                               (_ "Trading Losses")
+                               (G_ "Trading Gains")
+                               (G_ "Trading Losses")
                                trading-balance))
           (unless (gnc-commodity-collector-allzero? unrealized-gain-collector)
             (add-subtotal-line right-table
-                               (_ "Unrealized Gains")
-                               (_ "Unrealized Losses")
+                               (G_ "Unrealized Gains")
+                               (G_ "Unrealized Losses")
                                unrealized-gain-collector))
           (when total-equity?
             (add-subtotal-line
-             right-table (_ "Total Equity") #f total-equity-balance))
+             right-table (G_ "Total Equity") #f total-equity-balance))
 
           (add-rule right-table)
 
@@ -529,7 +531,7 @@
                                  total-liabilities? liability-balance))
 
           (add-subtotal-line
-           right-table (gnc:html-string-sanitize (_ "Total Liabilities & Equity"))
+           right-table (gnc:html-string-sanitize (G_ "Total Liabilities & Equity"))
            #f liability-plus-equity)
 
           (gnc:html-document-add-object!
@@ -548,7 +550,7 @@
           (gnc:report-percent-done 90)
           (when show-rates?
             (gnc:html-document-add-object!
-             doc (gnc:html-make-exchangerates report-commodity exchange-fn accounts)))
+             doc (gnc:html-make-rates-table report-commodity price-fn accounts)))
 
           (gnc:report-percent-done 100)))
 

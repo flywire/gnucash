@@ -14,7 +14,6 @@
 ;;    
 ;;    Line & column alignments may still not conform with
 ;;    textbook accounting practice (they're close though!).
-;;    The 'canonically-tabbed option is currently broken.
 ;;    
 ;;    Progress bar functionality is currently mostly broken.
 ;;    
@@ -146,7 +145,7 @@
     (add-option
       (gnc:make-string-option
       gnc:pagename-general optname-report-title
-      "a" opthelp-report-title (_ reportname)))
+      "a" opthelp-report-title (G_ reportname)))
     (add-option
       (gnc:make-string-option
       gnc:pagename-general optname-party-name
@@ -265,7 +264,7 @@
     (add-option
       (gnc:make-string-option
       pagename-entries optname-closing-pattern
-      "a" opthelp-closing-pattern (_ "Closing Entries")))
+      "a" opthelp-closing-pattern (G_ "Closing Entries")))
     (add-option
      (gnc:make-simple-boolean-option
       pagename-entries optname-closing-casing
@@ -290,7 +289,7 @@
     (gnc:option-value
      (gnc:lookup-option 
       (gnc:report-options report-obj) pagename optname)))
-  
+
   (gnc:report-starting reportname)
   
   ;; get all option's values
@@ -325,7 +324,7 @@
          (parent-balance-mode (get-option gnc:pagename-display
                                            optname-parent-balance-mode))
          (parent-total-mode
-	  (assq-ref '((t . #t) (f . #f) (canonically-tabbed . canonically-tabbed))
+	  (assq-ref '((t . #t) (f . #f))
 		    (get-option gnc:pagename-display
 				optname-parent-total-mode)))
          (show-zb-accts? (get-option gnc:pagename-display
@@ -382,7 +381,7 @@
          ;; exchange rates calculation parameters
 	 (exchange-fn
 	  (gnc:case-exchange-fn price-source report-commodity end-date))
-	 )
+         (price-fn (gnc:case-price-fn price-source report-commodity end-date)))
 
     ;; Wrapper to call gnc:html-table-add-labeled-amount-line!
     ;; with the proper arguments.
@@ -404,7 +403,7 @@
       (gnc:html-table-append-ruler! table (* 2 tree-depth)))
 
     (gnc:html-document-set-title!
-     doc (format #f (string-append "~a ~a " (_ "For Period Covering ~a to ~a"))
+     doc (format #f (string-append "~a ~a " (G_ "For Period Covering ~a to ~a"))
                   company-name report-title
                   (qof-print-date start-date-printable)
                   (qof-print-date end-date)))
@@ -478,7 +477,7 @@
                (trading-table
                 (gnc:make-html-acct-table/env/accts table-env trading-accounts))
 
-               (period-for (string-append " " (_ "for Period"))))
+               (period-for (string-append " " (G_ "for Period"))))
 
           ;; a helper to add a line to our report
           (define (add-report-line
@@ -502,28 +501,28 @@
           (gnc:report-percent-done 80)
 
           (when label-revenue?
-            (add-subtotal-line inc-table (_ "Revenues") #f #f))
+            (add-subtotal-line inc-table (G_ "Revenues") #f #f))
           (gnc:html-table-add-account-balances inc-table revenue-table params)
           (when total-revenue?
-            (add-subtotal-line inc-table (_ "Total Revenue") #f revenue-total))
+            (add-subtotal-line inc-table (G_ "Total Revenue") #f revenue-total))
           (gnc:report-percent-done 85)
 
           (when label-expense?
-            (add-subtotal-line exp-table (_ "Expenses") #f #f))
+            (add-subtotal-line exp-table (G_ "Expenses") #f #f))
           (gnc:html-table-add-account-balances exp-table expense-table params)
           (when total-expense?
-            (add-subtotal-line exp-table (_ "Total Expenses") #f expense-total))
+            (add-subtotal-line exp-table (G_ "Total Expenses") #f expense-total))
 
           (when label-trading?
-            (add-subtotal-line tra-table (_ "Trading") #f #f))
+            (add-subtotal-line tra-table (G_ "Trading") #f #f))
           (gnc:html-table-add-account-balances tra-table trading-table params)
           (when total-trading?
-            (add-subtotal-line tra-table (_ "Total Trading") #f trading-total))
+            (add-subtotal-line tra-table (G_ "Total Trading") #f trading-total))
 
           (add-report-line
            (if standard-order? exp-table inc-table)
-           (string-append (_ "Net income") period-for)
-           (string-append (_ "Net loss") period-for)
+           (string-append (G_ "Net income") period-for)
+           (string-append (G_ "Net loss") period-for)
            net-income (* 2 (1- tree-depth)) exchange-fn #f #f)
 
           ;; add the sections in the desired order to document
@@ -561,8 +560,8 @@
           (gnc:report-percent-done 90)
           (when show-rates?
             (gnc:html-document-add-object!
-             doc (gnc:html-make-exchangerates
-                  report-commodity exchange-fn accounts)))
+             doc (gnc:html-make-rates-table
+                  report-commodity price-fn accounts)))
           (gnc:report-percent-done 100)))
 
     (gnc:report-finished)

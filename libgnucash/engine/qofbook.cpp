@@ -32,6 +32,7 @@
  * Copyright (c) 2000 Dave Peticolas
  * Copyright (c) 2007 David Hampton <hampton@employees.org>
  */
+#include <glib.h>
 
 extern "C"
 {
@@ -41,7 +42,6 @@ extern "C"
 #include <stdlib.h>
 #include <string.h>
 
-#include <glib.h>
 #ifdef GNC_PLATFORM_WINDOWS
   /* Mingw disables the standard type macros for C++ without this override. */
 #define __STDC_FORMAT_MACROS = 1
@@ -509,6 +509,7 @@ qof_book_get_session_dirty_time (const QofBook *book)
 void
 qof_book_set_dirty_cb(QofBook *book, QofBookDirtyCB cb, gpointer user_data)
 {
+    g_return_if_fail(book);
     if (book->dirty_cb)
         PWARN("Already existing callback %p, will be overwritten by %p\n",
                   book->dirty_cb, cb);
@@ -612,7 +613,7 @@ qof_book_get_collection (const QofBook *book, QofIdType entity_type)
         col = qof_collection_new (entity_type);
         g_hash_table_insert(
             book->hash_of_collections,
-            qof_string_cache_insert(entity_type), col);
+            (gpointer)qof_string_cache_insert(entity_type), col);
     }
     return col;
 }
@@ -941,7 +942,7 @@ qof_book_normalize_counter_format_internal(const gchar *p,
 
     /* Copy the string we have so far and add normalized format specifier for long int */
     aux_str = g_strndup (base, p - base);
-    normalized_str = g_strconcat (aux_str, PRIi64, NULL);
+    normalized_str = g_strconcat (aux_str, PRIi64, nullptr);
     g_free (aux_str);
 
     /* Skip length modifier / conversion specifier */
@@ -973,7 +974,7 @@ qof_book_normalize_counter_format_internal(const gchar *p,
 
     /* Add the suffix to our normalized string */
     aux_str = normalized_str;
-    normalized_str = g_strconcat (aux_str, tmp, NULL);
+    normalized_str = g_strconcat (aux_str, tmp, nullptr);
     g_free (aux_str);
 
     /* If we end up here, the string was valid, so return no error
@@ -1031,13 +1032,11 @@ qof_book_get_default_gain_loss_acct_guid (QofBook *book)
 gboolean
 qof_book_use_trading_accounts (const QofBook *book)
 {
-    const char *opt = NULL;
-    qof_instance_get (QOF_INSTANCE (book),
-              "trading-accts", &opt,
-              NULL);
-    if (opt && opt[0] == 't' && opt[1] == 0)
-        return TRUE;
-    return FALSE;
+    char *opt = nullptr;
+    qof_instance_get (QOF_INSTANCE (book), "trading-accts", &opt, nullptr);
+    auto retval = (opt && opt[0] == 't' && opt[1] == 0);
+    g_free (opt);
+    return retval;
 }
 
 /* Returns TRUE if this book uses split action field as the 'Num' field, FALSE
@@ -1045,12 +1044,12 @@ qof_book_use_trading_accounts (const QofBook *book)
 gboolean
 qof_book_use_split_action_for_num_field (const QofBook *book)
 {
-    g_assert(book);
+    g_return_val_if_fail (book, FALSE);
     if (!book->cached_num_field_source_isvalid)
     {
         // No cached value? Then do the expensive KVP lookup
         gboolean result;
-        const char *opt = NULL;
+        char *opt = NULL;
         qof_instance_get (QOF_INSTANCE (book),
                           PARAM_NAME_NUM_FIELD_SOURCE, &opt,
                           NULL);
@@ -1059,6 +1058,7 @@ qof_book_use_split_action_for_num_field (const QofBook *book)
             result = TRUE;
         else
             result = FALSE;
+        g_free (opt);
 
         // We need to const_cast the "book" argument into a non-const pointer,
         // but as we are dealing only with cache variables, I think this is

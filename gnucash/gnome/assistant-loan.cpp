@@ -23,11 +23,13 @@
  * Boston, MA  02110-1301,  USA       gnu@gnu.org                   *
 \********************************************************************/
 
+#include <glib.h>
+#include <glib/gi18n.h>
+#include <gtk/gtk.h>
+
 extern "C"
 {
 #include <config.h>
-#include <gtk/gtk.h>
-#include <glib/gi18n.h>
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
@@ -614,7 +616,10 @@ gnc_loan_assistant_create( LoanAssistantData *ldd )
 
             gtk_widget_set_halign (GTK_WIDGET(ldd->prmOrigPrincGAE), GTK_ALIGN_FILL);
             gtk_widget_set_hexpand (GTK_WIDGET(ldd->prmOrigPrincGAE), FALSE);
-            g_object_set (GTK_WIDGET(ldd->prmOrigPrincGAE), "margin", 2, NULL);
+            g_object_set (GTK_WIDGET(ldd->prmOrigPrincGAE), "margin", 2, nullptr);
+
+            g_signal_connect (G_OBJECT(ldd->prmOrigPrincGAE), "changed",
+                              G_CALLBACK(loan_info_page_valid_cb), ldd);
 
             for ( i = 0; gas_data[i].loc != NULL; i++ )
             {
@@ -637,7 +642,8 @@ gnc_loan_assistant_create( LoanAssistantData *ldd )
 
                 gtk_widget_set_halign (GTK_WIDGET(gas), GTK_ALIGN_FILL);
                 gnc_account_sel_set_hexpand (GNC_ACCOUNT_SEL(gas), true);
-                g_object_set (GTK_WIDGET(gas), "margin", 2, NULL);
+                gnc_account_sel_set_new_account_modal (GNC_ACCOUNT_SEL(gas), true);
+                g_object_set (GTK_WIDGET(gas), "margin", 2, nullptr);
                 *(gas_data[i].loc) = gas;
             }
         }
@@ -679,7 +685,7 @@ gnc_loan_assistant_create( LoanAssistantData *ldd )
 
                 gtk_widget_set_halign (GTK_WIDGET( *gde_data[i].loc ), GTK_ALIGN_START);
                 gtk_widget_set_hexpand (GTK_WIDGET( *gde_data[i].loc ), FALSE);
-                g_object_set (GTK_WIDGET( *gde_data[i].loc ), "margin", 0, NULL);
+                g_object_set (GTK_WIDGET( *gde_data[i].loc ), "margin", 0, nullptr);
             }
 
         }
@@ -730,6 +736,7 @@ gnc_loan_assistant_create( LoanAssistantData *ldd )
         gtk_widget_set_sensitive( GTK_WIDGET(ldd->optEscrowHBox), FALSE );
         ldd->optEscrowGAS = GNC_ACCOUNT_SEL(gnc_account_sel_new());
         gnc_account_sel_set_hexpand (GNC_ACCOUNT_SEL(ldd->optEscrowGAS), true);
+        gnc_account_sel_set_new_account_modal (GNC_ACCOUNT_SEL(ldd->optEscrowGAS), true);
         gnc_account_sel_set_new_account_ability( ldd->optEscrowGAS, TRUE );
         gtk_container_add( GTK_CONTAINER(ldd->optEscrowHBox),
                            GTK_WIDGET(ldd->optEscrowGAS) );
@@ -759,7 +766,7 @@ gnc_loan_assistant_create( LoanAssistantData *ldd )
                 /* Add payment checkbox. */
 
                 /* Translators: %s is "Taxes",
-                 * "Insurance", or similar. */
+                   "Insurance", or similar. */
                 g_string_printf( str, _("... pay \"%s\"?"),
                                  rouid->optData->name );
                 rouid->optCb =
@@ -1057,10 +1064,26 @@ gboolean
 loan_info_page_complete( GtkAssistant *assistant, gpointer user_data )
 {
     LoanAssistantData *ldd = static_cast<LoanAssistantData*> (user_data);
+    GNCPrintAmountInfo print_info;
+    gnc_commodity *currency;
+    gint result;
+    gnc_numeric value;
 
     ldd->ld.primaryAcct = gnc_account_sel_get_account( ldd->prmAccountGAS );
     /* Test for valid Account */
     if ( ldd->ld.primaryAcct == NULL )
+        return FALSE;
+
+    /* Test for loan amount */
+    currency = xaccAccountGetCommodity (ldd->ld.primaryAcct);
+    print_info = gnc_commodity_print_info (currency, FALSE);
+    gnc_amount_edit_set_print_info (GNC_AMOUNT_EDIT(ldd->prmOrigPrincGAE), print_info);
+    gnc_amount_edit_set_fraction (GNC_AMOUNT_EDIT(ldd->prmOrigPrincGAE),
+                                  gnc_commodity_get_fraction (currency));
+
+    result = gnc_amount_edit_expr_is_valid (GNC_AMOUNT_EDIT(ldd->prmOrigPrincGAE),
+                                            &value, FALSE, nullptr);
+    if (result == 1)
         return FALSE;
 
     return TRUE;
@@ -1858,25 +1881,25 @@ loan_rev_prep( GtkAssistant *assistant, gpointer user_data )
     renderer = gtk_cell_renderer_text_new();
     column = gtk_tree_view_column_new_with_attributes(_("Date"), renderer,
              "text", LOAN_COL_DATE,
-             NULL);
+             nullptr);
     gtk_tree_view_append_column(ldd->revView, column);
 
     renderer = gtk_cell_renderer_text_new();
     column = gtk_tree_view_column_new_with_attributes(_("Payment"), renderer,
              "text", LOAN_COL_PAYMENT,
-             NULL);
+             nullptr);
     gtk_tree_view_append_column(ldd->revView, column);
 
     renderer = gtk_cell_renderer_text_new();
     column = gtk_tree_view_column_new_with_attributes(_("Principal"), renderer,
              "text", LOAN_COL_PRINCIPAL,
-             NULL);
+             nullptr);
     gtk_tree_view_append_column(ldd->revView, column);
 
     renderer = gtk_cell_renderer_text_new();
     column = gtk_tree_view_column_new_with_attributes(_("Interest"), renderer,
              "text", LOAN_COL_INTEREST,
-             NULL);
+             nullptr);
     gtk_tree_view_append_column(ldd->revView, column);
 
     /* move the appropriate names over into the title array */
@@ -1891,7 +1914,7 @@ loan_rev_prep( GtkAssistant *assistant, gpointer user_data )
             column = gtk_tree_view_column_new_with_attributes
                      (ldd->ld.repayOpts[i]->name, renderer,
                       "text", LOAN_COL_INTEREST + col,
-                      NULL);
+                      nullptr);
             gtk_tree_view_append_column(ldd->revView, column);
             col++;
         }
@@ -3011,13 +3034,15 @@ loan_create_sxes( LoanAssistantData *ldd )
             g_string_free( gstr, TRUE );
             gstr = NULL;
 
-            repaySXes = g_list_append( repaySXes, tcSX );
+            repaySXes = g_list_prepend (repaySXes, tcSX);
 
         }
 
         /* repayment */
         ld_setup_repayment_sx( ldd, rod, paymentSX, tcSX );
     }
+
+    repaySXes = g_list_reverse (repaySXes);
     /* Create the SXes */
     {
         GList *l;

@@ -55,7 +55,7 @@ typedef struct
     const char *m_num;
     const char *m_description;
     const char *m_notes;
-    const char *m_association;
+    const char *m_doclink;
     SplitList *m_splits;
 } FloatingTxn;
 
@@ -84,6 +84,8 @@ void gnc_float_split_set_value (FloatingSplit *fs, gnc_numeric value);
 FloatingSplit *gnc_split_to_float_split (Split *split);
 void gnc_float_split_to_split (const FloatingSplit *fs, Split *split);
 
+void gnc_float_split_free (FloatingSplit *fs);
+
 /* accessors */
 Transaction *gnc_float_txn_get_txn (const FloatingTxn *ft);
 gnc_commodity *gnc_float_txn_get_currency (const FloatingTxn *ft);
@@ -92,7 +94,7 @@ time64 gnc_float_txn_get_date_posted (const FloatingTxn *ft);
 const char *gnc_float_txn_get_num (const FloatingTxn *ft);
 const char *gnc_float_txn_get_description (const FloatingTxn *ft);
 const char *gnc_float_txn_get_notes (const FloatingTxn *ft);
-const char *gnc_float_txn_get_association (const FloatingTxn *ft);
+const char *gnc_float_txn_get_doclink (const FloatingTxn *ft);
 SplitList *gnc_float_txn_get_splits (const FloatingTxn *ft);
 
 FloatingSplit *gnc_float_txn_get_float_split (const FloatingTxn *ft, guint index);
@@ -106,7 +108,7 @@ void gnc_float_txn_set_date_posted (FloatingTxn *ft, time64 date_posted);
 void gnc_float_txn_set_num (FloatingTxn *ft, const char *num);
 void gnc_float_txn_set_description (FloatingTxn *ft, const char *description);
 void gnc_float_txn_set_notes (FloatingTxn *ft, const char *notes);
-void gnc_float_txn_set_association (FloatingTxn *ft, const char *association);
+void gnc_float_txn_set_doclink (FloatingTxn *ft, const char *doclink);
 void gnc_float_txn_set_splits (FloatingTxn *ft, SplitList *splits);
 
 void gnc_float_txn_append_float_split (FloatingTxn *ft, FloatingSplit *fs);
@@ -115,5 +117,7 @@ FloatingTxn *gnc_txn_to_float_txn (Transaction *txn, gboolean use_cut_semantics)
 
 void gnc_float_txn_to_txn (const FloatingTxn *ft, Transaction *txn, gboolean do_commit);
 void gnc_float_txn_to_txn_swap_accounts (const FloatingTxn *ft, Transaction *txn, Account *acct1, Account *acct2, gboolean do_commit);
+
+void gnc_float_txn_free (FloatingTxn *ft);
 
 #endif

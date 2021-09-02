@@ -1,7 +1,7 @@
- N_( "1The GnuCash online manual has lots of helpful information. \
+ N_( "The GnuCash online manual has lots of helpful information. \
 You can access the manual under the Help menu.")
 
-/* Translators: You can replace the link, if a transated page exists. */
+/* Translators: You can replace the link, if a translated page exists. */
  N_( "Mailing lists are the preferred form of communication in the \
 GnuCash community. For announcements of new releases, user groups etc. \
 see the table at https://wiki.gnucash.org/wiki/Mailing_Lists")
@@ -35,6 +35,12 @@ account details. For more information on choosing an account type \
 or setting up a chart of accounts, please see the GnuCash online \
 manual.")
 
+N_( "Every transaction has a \"Notes\" field where you can put useful \
+information.\n\n\
+To make it visible\n\
+select \"View\" in the menu bar and check \"Double Line\" or\n\
+check \"Double Line Mode\" in Preferences:Register Defaults.")
+
  N_( "To enter multiple-split transactions such as a paycheck with \
 multiple deductions, click the Split button in the tool bar. \
 Alternatively, in the View menu, you can choose the register \
@@ -54,7 +60,7 @@ the remainder of the transaction as it was last entered.")
 Transfer register column, and GnuCash will complete the name from \
 your list of accounts. For subaccounts, type the first letter(s) \
 of the parent account, followed by ':' and the first letter(s) of \
-the subaccount (e.g. A:C for Assets:Cash.)")
+the subaccount (e.g. A:C for Assets:Cash).")
 
  N_( "Want to see all your subaccount transactions in one register? \
 From the Accounts tab in the main window, highlight the parent account \
@@ -81,7 +87,7 @@ of a security, which makes it easy to see which online sources your \
 securities use. Click the triangle at the far right of the column \
 headings to change the display.")
 
- N_( "You can pack multiple reports into a single window,  \
+ N_( "You can pack multiple reports into a single window, \
 providing all the financial information you want at a glance. \
 To do so, use the Sample & Custom->\"Custom Multicolumn Report\" \
 report.")

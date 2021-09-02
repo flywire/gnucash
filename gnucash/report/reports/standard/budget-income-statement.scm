@@ -13,7 +13,6 @@
 ;;    
 ;;    Line & column alignments may still not conform with
 ;;    textbook accounting practice (they're close though!).
-;;    The 'canonically-tabbed option is currently broken.
 ;;    
 ;;    Progress bar functionality is currently mostly broken.
 ;;    
@@ -46,6 +45,7 @@
 (use-modules (gnucash core-utils))
 (use-modules (gnucash app-utils))
 (use-modules (gnucash report))
+(use-modules (ice-9 format))
 
 ;; define all option's names and help text so that they are properly
 ;; defined in *one* place.
@@ -120,7 +120,6 @@
 (define optname-show-rates (N_ "Show Exchange Rates"))
 (define opthelp-show-rates (N_ "Show the exchange rates used."))
 
-(define pagename-entries (N_ "Entries"))
 (define optname-two-column
   (N_ "Display as a two column report"))
 (define opthelp-two-column
@@ -141,7 +140,7 @@
     (add-option
       (gnc:make-string-option
       gnc:pagename-general optname-report-title
-      "a" opthelp-report-title (_ reportname)))
+      "a" opthelp-report-title (G_ reportname)))
     (add-option
       (gnc:make-string-option
       gnc:pagename-general optname-party-name
@@ -360,7 +359,7 @@
          (parent-balance-mode (get-option gnc:pagename-display
                                            optname-parent-balance-mode))
          (parent-total-mode
-	  (assq-ref '((t . #t) (f . #f) (canonically-tabbed . canonically-tabbed))
+	  (assq-ref '((t . #t) (f . #f))
 		    (get-option gnc:pagename-display
 				optname-parent-total-mode)))
          (show-zb-accts? (get-option gnc:pagename-display
@@ -401,7 +400,8 @@
          ;; exchange rates calculation parameters
 	 (exchange-fn
 	  (gnc:case-exchange-fn price-source report-commodity date-t64))
-	 )
+
+         (price-fn (gnc:case-price-fn price-source report-commodity date-t64)))
     
     (define (add-subtotal-line table pos-label neg-label signed-balance)
       (let* ((neg? (and signed-balance neg-label
@@ -415,10 +415,6 @@
 	 table (* tree-depth 2) "primary-subheading" #f label 0 1 "total-label-cell"
 	 (gnc:sum-collector-commodity balance report-commodity exchange-fn)
 	 (1- (* tree-depth 2)) 1 "total-number-cell")))
-    
-    ;; wrapper around gnc:html-table-append-ruler!
-    (define (add-rule table)
-      (gnc:html-table-append-ruler! table (* 2 tree-depth)))
 
     (cond
      ((null? accounts)
@@ -439,7 +435,7 @@
       (gnc:html-document-add-object!
        doc (gnc:html-make-generic-simple-warning
             report-title
-            (_ "Reporting range end period cannot be less than start period."))))
+            (G_ "Reporting range end period cannot be less than start period."))))
 
      (else
       ;; Get all the balances for each of the account types.
@@ -507,20 +503,20 @@
               (let ((table (gnc:make-html-table)))
                 (gnc:html-table-append-row! table space)
                 (when label-revenue?
-                  (add-subtotal-line table (_ "Revenues") #f #f))
+                  (add-subtotal-line table (G_ "Revenues") #f #f))
                 (gnc:html-table-add-account-balances table revenue-table params)
                 (when total-revenue?
-                  (add-subtotal-line table (_ "Total Revenue") #f revenue-total))
+                  (add-subtotal-line table (G_ "Total Revenue") #f revenue-total))
                 table))
 
              (exp-table
               (let ((table (gnc:make-html-table)))
                 (gnc:html-table-append-row! table space)
                 (when label-expense?
-                  (add-subtotal-line table (_ "Expenses") #f #f))
+                  (add-subtotal-line table (G_ "Expenses") #f #f))
                 (gnc:html-table-add-account-balances table expense-table params)
                 (when total-expense?
-                  (add-subtotal-line table (_ "Total Expenses") #f expense-total))
+                  (add-subtotal-line table (G_ "Total Expenses") #f expense-total))
                 table))
 
              (budget-name (gnc-budget-get-name budget))
@@ -528,12 +524,12 @@
              (period-for
               (cond
                ((not use-budget-period-range?)
-                (format #f (_ "for Budget ~a") budget-name))
+                (format #f (G_ "for Budget ~a") budget-name))
                ((= user-budget-period-start user-budget-period-end)
-                (format #f (_ "for Budget ~a Period ~d")
+                (format #f (G_ "for Budget ~a Period ~d")
                         budget-name user-budget-period-start))
                (else
-                (format #f (_ "for Budget ~a Periods ~d - ~d")
+                (format #f (G_ "for Budget ~a Periods ~d - ~d")
                         budget-name user-budget-period-start
                         user-budget-period-end)))))
 
@@ -561,8 +557,8 @@
 
         (report-line
          (if standard-order? exp-table inc-table)
-         (string-append (_ "Net income") " " period-for)
-         (string-append (_ "Net loss") " " period-for)
+         (string-append (G_ "Net income") " " period-for)
+         (string-append (G_ "Net loss") " " period-for)
          net-income
          (* 2 (1- tree-depth)) exchange-fn #f #f)
 
@@ -595,7 +591,7 @@
         (gnc:report-percent-done 90)
         (when show-rates?
           (gnc:html-document-add-object!
-           doc (gnc:html-make-exchangerates report-commodity exchange-fn accounts)))
+           doc (gnc:html-make-rates-table report-commodity price-fn accounts)))
         (gnc:report-percent-done 100))))
     
     (gnc:report-finished)

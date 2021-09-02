@@ -100,6 +100,7 @@ gnc_copy_split_onto_split (Split* from, Split* to, gboolean use_cut_semantics)
         return;
 
     gnc_float_split_to_split (fs, to);
+    gnc_float_split_free (fs);
 }
 
 void
@@ -117,6 +118,7 @@ gnc_copy_trans_onto_trans (Transaction* from, Transaction* to,
         return;
 
     gnc_float_txn_to_txn (ft, to, do_commit);
+    gnc_float_txn_free (ft);
 }
 
 static int
@@ -571,6 +573,7 @@ gnc_split_register_duplicate_current (SplitRegister* reg)
     }
     else
     {
+        Account* account;
         NumCell* num_cell;
         Transaction* new_trans;
         int trans_split_index;
@@ -579,7 +582,7 @@ gnc_split_register_duplicate_current (SplitRegister* reg)
         const char* in_tnum = NULL;
         char* out_num = NULL;
         char* out_tnum = NULL;
-        char* out_tassoc = NULL;
+        char* out_tdoclink = NULL;
         time64 date;
         gboolean use_autoreadonly = qof_book_uses_autoreadonly (
             gnc_get_current_book ());
@@ -587,22 +590,21 @@ gnc_split_register_duplicate_current (SplitRegister* reg)
         /* We are on a transaction row. Copy the whole transaction. */
 
         date = info->last_date_entered;
-        if (gnc_strisnum (gnc_get_num_action (trans, trans_split)))
-        {
-            Account* account = gnc_split_register_get_default_account (reg);
 
-            if (account)
-                in_num = xaccAccountGetLastNum (account);
-            else
-                in_num = gnc_get_num_action (trans, trans_split);
-            in_tnum = (reg->use_tran_num_for_num_field
-                       ? NULL
-                       : gnc_get_num_action (trans, NULL));
-        }
+        account = gnc_split_register_get_default_account (reg);
+
+        if (account && gnc_strisnum (gnc_get_num_action (trans, trans_split)))
+            in_num = xaccAccountGetLastNum (account);
+        else
+            in_num = gnc_get_num_action (trans, trans_split);
+
+        in_tnum = (reg->use_tran_num_for_num_field
+                   ? NULL
+                   : gnc_get_num_action (trans, NULL));
 
         if (!gnc_dup_trans_dialog (gnc_split_register_get_parent (reg), NULL,
                                    TRUE, &date, in_num, &out_num, in_tnum, &out_tnum,
-                                   xaccTransGetAssociation (trans), &out_tassoc))
+                                   xaccTransGetDocLink (trans), &out_tdoclink))
         {
             gnc_resume_gui_refresh ();
             LEAVE ("dup cancelled");
@@ -654,11 +656,11 @@ gnc_split_register_duplicate_current (SplitRegister* reg)
          * because otherwise the ordering is not deterministic */
         xaccTransSetDateEnteredSecs (new_trans, gnc_time (NULL));
 
-        /* clear the associated entry if returned value NULL */
-        if (out_tassoc == NULL)
-            xaccTransSetAssociation (new_trans, "");
+        /* clear the document link entry if returned value NULL */
+        if (out_tdoclink == NULL)
+            xaccTransSetDocLink (new_trans, "");
         else
-            g_free (out_tassoc);
+            g_free (out_tdoclink);
 
         /* set per book option */
         gnc_set_num_action (new_trans, NULL, out_num, out_tnum);
@@ -819,9 +821,9 @@ gnc_split_register_copy_current_internal (SplitRegister* reg,
 
     /* unprotect the old object, if any */
     if (copied_item.ftype == GNC_TYPE_SPLIT)
-        g_free (copied_item.fs);
+        gnc_float_split_free (copied_item.fs);
     if (copied_item.ftype == GNC_TYPE_TRANSACTION)
-        g_free (copied_item.ft);
+        gnc_float_txn_free (copied_item.ft);
     copied_item.ftype = 0;
 
     if (new_fs)
@@ -1677,6 +1679,26 @@ gnc_split_register_save_to_copy_buffer (SplitRegister *reg,
 
     return TRUE;
 }
+static void
+unreconcile_splits (SplitRegister* reg)
+{
+    if (reg->unrecn_splits == NULL)
+        return; //Nothing to do.
+    PINFO ("Unreconcile %d splits of reconciled transaction",
+           g_list_length (reg->unrecn_splits));
+
+    for (GList* node = reg->unrecn_splits; node; node = node->next)
+    {
+        Split* split = node->data;
+        Transaction* txn = xaccSplitGetParent (split);
+        if (!xaccTransIsOpen (txn))
+            PWARN ("Unreconcile of split failed because its parent transaction wasn't open for editing");
+        else if (xaccSplitGetReconcile (split) == YREC)
+            xaccSplitSetReconcile (split, NREC);
+    }
+    g_list_free (reg->unrecn_splits);
+    reg->unrecn_splits = NULL;
+}
 
 gboolean
 gnc_split_register_save (SplitRegister* reg, gboolean do_commit)
@@ -1756,7 +1778,9 @@ gnc_split_register_save (SplitRegister* reg, gboolean do_commit)
                 info->pending_trans_guid = *guid_null ();
 
             PINFO ("committing trans (%p)", trans);
+            unreconcile_splits (reg);
             xaccTransCommitEdit (trans);
+            xaccTransRecordPrice (trans, PRICE_SOURCE_SPLIT_REG);
 
             gnc_resume_gui_refresh ();
         }
@@ -1807,7 +1831,9 @@ gnc_split_register_save (SplitRegister* reg, gboolean do_commit)
         if (xaccTransIsOpen (pending_trans))
         {
             g_warning ("Impossible? committing pending %p", pending_trans);
+            unreconcile_splits (reg);
             xaccTransCommitEdit (pending_trans);
+            xaccTransRecordPrice (trans, PRICE_SOURCE_SPLIT_REG);
         }
         else if (pending_trans)
         {
@@ -1934,27 +1960,9 @@ gnc_split_register_save (SplitRegister* reg, gboolean do_commit)
             pending_trans = NULL;
             info->pending_trans_guid = *guid_null ();
         }
+        unreconcile_splits (reg);
         xaccTransCommitEdit (trans);
-    }
-
-    /* If there are splits in the unreconcile list and we are committing
-     * we need to unreconcile them */
-    if (do_commit && (reg->unrecn_splits != NULL))
-    {
-        GList* node;
-
-        PINFO ("Unreconcile %d splits of reconciled transaction",
-               g_list_length (reg->unrecn_splits));
-
-        for (node = reg->unrecn_splits; node; node = node->next)
-        {
-            Split* split = node->data;
-
-            if (xaccSplitGetReconcile (split) == YREC)
-                xaccSplitSetReconcile (split, NREC);
-        }
-        g_list_free (reg->unrecn_splits);
-        reg->unrecn_splits = NULL;
+        xaccTransRecordPrice (trans, PRICE_SOURCE_SPLIT_REG);
     }
 
     gnc_table_clear_current_cursor_changes (reg->table);
@@ -2200,79 +2208,6 @@ recalculate_value (Split* split, SplitRegister* reg,
     }
 }
 
-static void
-record_price (SplitRegister* reg, Account* account, gnc_numeric value,
-              PriceSource source)
-{
-    Transaction* trans = gnc_split_register_get_current_trans (reg);
-    QofBook* book = qof_instance_get_book (QOF_INSTANCE (account));
-    GNCPriceDB* pricedb = gnc_pricedb_get_db (book);
-    gnc_commodity* comm = xaccAccountGetCommodity (account);
-    gnc_commodity* curr = xaccTransGetCurrency (trans);
-    GNCPrice* price;
-    gnc_numeric price_value;
-    int scu = gnc_commodity_get_fraction (curr);
-    time64 time;
-    BasicCell* cell = gnc_table_layout_get_cell (reg->table->layout, DATE_CELL);
-    gboolean swap = FALSE;
-
-    /* Only record the price for account types that don't have a
-     * "rate" cell. They'll get handled later by
-     * gnc_split_register_handle_exchange.
-     */
-    if (gnc_split_reg_has_rate_cell (reg->type))
-        return;
-    gnc_date_cell_get_date ((DateCell*)cell, &time, TRUE);
-    price = gnc_pricedb_lookup_day_t64 (pricedb, comm, curr, time);
-    if (gnc_commodity_equiv (comm, gnc_price_get_currency (price)))
-        swap = TRUE;
-
-    if (price)
-    {
-        price_value = gnc_price_get_value (price);
-        if (gnc_numeric_equal (swap ? gnc_numeric_invert (value) : value,
-                               price_value))
-        {
-            gnc_price_unref (price);
-            return;
-        }
-        if (gnc_price_get_source (price) < PRICE_SOURCE_XFER_DLG_VAL)
-        {
-            /* Existing price is preferred over this one. */
-            gnc_price_unref (price);
-            return;
-        }
-        if (swap)
-        {
-            value = gnc_numeric_invert (value);
-            scu = gnc_commodity_get_fraction (comm);
-        }
-        value = gnc_numeric_convert (value, scu * COMMODITY_DENOM_MULT,
-                                     GNC_HOW_RND_ROUND_HALF_UP);
-        gnc_price_begin_edit (price);
-        gnc_price_set_time64 (price, time);
-        gnc_price_set_source (price, source);
-        gnc_price_set_typestr (price, PRICE_TYPE_TRN);
-        gnc_price_set_value (price, value);
-        gnc_price_commit_edit (price);
-        gnc_price_unref (price);
-        return;
-    }
-
-    value = gnc_numeric_convert (value, scu * COMMODITY_DENOM_MULT,
-                                 GNC_HOW_RND_ROUND_HALF_UP);
-    price = gnc_price_create (book);
-    gnc_price_begin_edit (price);
-    gnc_price_set_commodity (price, comm);
-    gnc_price_set_currency (price, curr);
-    gnc_price_set_time64 (price, time);
-    gnc_price_set_source (price, source);
-    gnc_price_set_typestr (price, PRICE_TYPE_TRN);
-    gnc_price_set_value (price, value);
-    gnc_pricedb_add_price (pricedb, price);
-    gnc_price_commit_edit (price);
-}
-
 static gboolean
 gnc_split_register_auto_calc (SplitRegister* reg, Split* split)
 {
@@ -2290,7 +2225,6 @@ gnc_split_register_auto_calc (SplitRegister* reg, Split* split)
     Account* account;
     int denom;
     int choice;
-    PriceSource source = PRICE_SOURCE_USER_PRICE;
 
     if (STOCK_REGISTER    != reg->type &&
         CURRENCY_REGISTER != reg->type &&
@@ -2439,19 +2373,10 @@ gnc_split_register_auto_calc (SplitRegister* reg, Split* split)
     {
         recalculate_price (split, reg, value, amount);
         price_changed = TRUE;
-        source = PRICE_SOURCE_SPLIT_REG;
     }
     if (recalc_value)
         recalculate_value (split, reg, price, amount, shares_changed);
 
-    if (price_changed)
-    {
-        cell = (PriceCell*) gnc_table_layout_get_cell (reg->table->layout,
-                                                       PRIC_CELL);
-        price = gnc_price_cell_get_value (cell);
-        if (gnc_numeric_positive_p (price))
-            record_price (reg, account, price, source);
-    }
     return TRUE;
 }
 
@@ -3182,4 +3107,53 @@ void
 gnc_split_register_set_read_only (SplitRegister* reg, gboolean read_only)
 {
     gnc_table_model_set_read_only (reg->table->model, read_only);
+}
+
+SplitRegisterTypeGroup
+gnc_split_register_get_register_group (SplitRegister *reg)
+{
+    switch (reg->type)
+    {
+        case BANK_REGISTER:
+        case CASH_REGISTER:
+        case ASSET_REGISTER:
+        case CREDIT_REGISTER:
+        case LIABILITY_REGISTER:
+        case INCOME_REGISTER:
+        case EXPENSE_REGISTER:
+        case EQUITY_REGISTER:
+        case TRADING_REGISTER:
+        {
+            return REG_TYPE_GROUP_CURRENCY;
+            break;
+        }
+        case PAYABLE_REGISTER:
+        case RECEIVABLE_REGISTER:
+        {
+            return REG_TYPE_GROUP_APAR;
+            break;
+        }
+        case INCOME_LEDGER:
+        case GENERAL_JOURNAL:
+        case SEARCH_LEDGER:
+        {
+            return REG_TYPE_GROUP_JOURNAL;
+            break;
+        }
+        case STOCK_REGISTER:
+        case CURRENCY_REGISTER:
+        {
+            return REG_TYPE_GROUP_STOCK;
+            break;
+        }
+        case PORTFOLIO_LEDGER:
+        {
+            return REG_TYPE_GROUP_PORTFOLIO;
+            break;
+        }
+        default:
+            return REG_TYPE_GROUP_UNKNOWN;
+            PERR ("unknown register type %d\n", reg->type);
+        break;
+    }
 }

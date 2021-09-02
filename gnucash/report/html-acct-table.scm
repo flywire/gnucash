@@ -121,14 +121,14 @@
 ;;         default initial-indent is 0.
 ;; 
 ;;     account-less-p: binary_predicate #t #f
-;; 
+;;
 ;;         used for sorting accounts, below each parent account, into
 ;;         the order in which they will be displayed.  the function
 ;;         must take two Account arguments and represent a total
 ;;         ordering on Account-space.  #t means to use the default
 ;;         sorting function.  #f means to perform no sorting.  the
 ;;         default sorting function is gnc:account-code-less-p.
-;; 
+;;
 ;;     start-date: time64
 ;; 
 ;;         the starting date of the reporting period over which to
@@ -190,7 +190,7 @@
 ;;         values (they'll also be #f).]
 ;;
 ;;     column-header: html-table-header-cell #f #t
-;; 
+;;
 ;;          the table column header cell (TH tag) with which to head
 ;;          the columns containing the account tree.  if supplied, the
 ;;          header cell may contain style information.  if #f, no
@@ -206,19 +206,14 @@
 ;;          text.  stylesheets, really, should be able to remove
 ;;          link markup.
 ;; 
-;;     parent-account-subtotal-mode: #t #f 'canonically-tabbed
+;;     parent-account-subtotal-mode: #t #f
 ;; 
 ;;          indicates whether or not to add a line, recursively
 ;;          subtotalling an account and its descendents, for any
-;;          account with children (non-leaf account).  if #t or
-;;          #canonically-tabbed, a subtotal row will be created for
-;;          each non-leaf account.  if #f, no non-leaf account
-;;          subtotal rows will be created.  if 'canonically-tabbed,
-;;          account total entry labels will be placed at the position
-;;          specified by accounting texts (indented one column from
-;;          the accounts being totalled, two columns from where
-;;          gnc:html-acct-table would otherwise place them). the
-;;          default is #f.
+;;          account with children (non-leaf account).  if #t, a
+;;          subtotal row will be created for each non-leaf account.
+;;          if #f, no non-leaf account subtotal rows will be
+;;          created. the default is #f.
 ;; 
 ;;     zero-balance-mode: 'show-leaf-acct 'omit-leaf-acct
 ;; 
@@ -227,19 +222,11 @@
 ;;          account having a balance of zero. otherwise, a row will be
 ;;          generated for the account.
 ;; 
-;;     balance-mode: 'pre-adjusting 'pre-closing 'post-closing
+;;     balance-mode: 'pre-closing 'post-closing
 ;;
 ;;          indicates whether or not to ignore adjusting/closing
 ;;          entries when computing account balances. 'pre-closing
-;;          ignores only closing entries. 'pre-adjusting also ignores
-;;          adjusting entries. 'post-closing counts all entries.
-;; 
-;;     adjusting-pattern: alist of 'str 'cased 'regexp
-;; 
-;;          a pattern alist, as accepted by
-;;          gnc:account-get-trans-type-balance-interval, matching
-;;          adjusting transactions to be ignored when balance-mode is
-;;          'pre-adjusting.
+;;          ignores, 'post-closing counts closing entries.
 ;; 
 ;;     closing-pattern: alist of 'str 'cased 'regexp
 ;; 
@@ -292,11 +279,11 @@
 ;;         the value will be "Assets:Current Assets:Cash".
 ;; 
 ;;     account-name: string
-;; 
+;;
 ;;         the "basename" of the account in the current row. i.e., if
 ;;         the name of the account is "Assets:Current Assets:Cash",
 ;;         the value will be "Cash".
-;; 
+;;
 ;;     account-code: string
 ;; 
 ;;         the account of the account in the current row, as returned
@@ -324,13 +311,13 @@
 ;;         accounts is level 0.
 ;; 
 ;;     logical-depth: integer
-;; 
+;;
 ;;         the depth at which the account in the current row resides
 ;;         in the effective account tree.  this is the depth the
 ;;         account tree when ignoring unselected parent accounts.
 ;;         note that this may differ from account-depth when a
 ;;         selected account has an unselected ancestor.
-;; 
+;;
 ;;     display-depth: integer
 ;; 
 ;;         the depth at which the account in the current row resides
@@ -353,22 +340,18 @@
 ;;         the number of columns in which account labels were placed.
 ;; 
 ;;     label-cols: integer
-;; 
+;;
 ;;         the number of columns in the group of account columns to
 ;;         which a row was assigned.  also one more than the maximum
 ;;         column depth at which rows were positioned in the
-;;         table. this value may be different from logical-cols when
-;;         parent-account-subtotal-mode is 'canonically-tabbed.
-;; 
+;;         table.
+;;
 ;;     account-cols: integer
 ;; 
 ;;         the number of columns in the group of account columns.  if
 ;;         display-tree-depth is #f, this is the value of label-cols
 ;;         plus any indent.  if display-tree-depth is set, this is the
-;;         value of display-tree-depth, plus indent plus zero, if
-;;         parent-account-subotal-mode is not 'canonically-tabbed, or,
-;;         if parent-account-subtotal-mode is 'canonically-tabbed,
-;;         plus one.  don't you just love english?
+;;         value of display-tree-depth, plus indent.
 ;; 
 ;;     account-colspan: integer
 ;; 
@@ -495,8 +478,42 @@
 ;; user.  This class simply maps its contents to the html-table.
 ;; 
 
+(define-module (gnucash report html-acct-table))
+
 (use-modules (srfi srfi-2))
 (use-modules (srfi srfi-9))
+(use-modules (gnucash core-utils))
+(use-modules (gnucash engine))
+(use-modules (gnucash app-utils))
+(use-modules (gnucash report commodity-utilities))
+(use-modules (gnucash report report-utilities))
+(use-modules (gnucash report html-utilities))
+(use-modules (gnucash report html-text))
+(use-modules (gnucash report html-table))
+
+(export <html-acct-table>)
+(export gnc:html-acct-table?)
+(export gnc:_make-html-acct-table_)
+(export gnc:make-html-acct-table)
+(export gnc:make-html-acct-table/env)
+(export gnc:make-html-acct-table/env/accts)
+(export gnc:_html-acct-table-matrix_)
+(export gnc:_html-acct-table-set-matrix!_)
+(export gnc:_html-acct-table-env_)
+(export gnc:_html-acct-table-set-env!_)
+(export gnc:html-acct-table-add-accounts!)
+(export gnc:html-acct-table-num-rows)
+(export gnc:html-acct-table-get-row)
+(export gnc:html-acct-table-get-cell)
+(export gnc:html-acct-table-set-cell!)
+(export gnc:html-acct-table-get-row-env)
+(export gnc:html-acct-table-set-row-env!)
+(export gnc:account-code-less-p)
+(export gnc:account-name-less-p)
+(export gnc:account-path-less-p)
+(export gnc:html-table-add-labeled-amount-line!)
+(export gnc:html-table-add-account-balances)
+(export gnc-commodity-table)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;  <html-acct-table> class
@@ -511,6 +528,8 @@
 
 (define (gnc:make-html-acct-table)
   (gnc:_make-html-acct-table_ (gnc:make-html-table) #f))
+
+(define gnc:html-acct-table-set-env! gnc:_html-acct-table-set-env!_)
 
 (define (gnc:make-html-acct-table/env env)
   (let ((acct-table (gnc:make-html-acct-table)))
@@ -528,14 +547,16 @@
 
 ;; some useful predicates to export
 (define (gnc:account-code-less-p a b)
-  (string<? (xaccAccountGetCode a)
-	    (xaccAccountGetCode b)))
+  (issue-deprecation-warning "gnc:account-code-less-p is unused.")
+  (gnc:string-locale<? (xaccAccountGetCode a)
+                       (xaccAccountGetCode b)))
 (define (gnc:account-name-less-p a b)
-  (string<? (xaccAccountGetName a)
-	    (xaccAccountGetName b)))
+  (issue-deprecation-warning "gnc:account-name-less-p is unused.")
+  (gnc:string-locale<? (xaccAccountGetName a)
+                       (xaccAccountGetName b)))
 (define (gnc:account-path-less-p a b)
-  (string<? (gnc-account-get-full-name a)
-	    (gnc-account-get-full-name b)))
+  (gnc:string-locale<? (gnc-account-get-full-name a)
+                       (gnc-account-get-full-name b)))
 
 
 (define (gnc:html-acct-table-add-accounts! acct-table accounts)
@@ -591,15 +612,10 @@
 	 (balance-mode (or (get-val env 'balance-mode) 'post-closing))
 	 (closing-pattern (or (get-val env 'closing-pattern)
 			      (list
-			       (list 'str (_ "Closing Entries"))
+			       (list 'str (G_ "Closing Entries"))
 			       (list 'cased #f)
 			       (list 'regexp #f)
 			       (list 'closing #t))))
-	 (adjusting-pattern (or (get-val env 'adjusting-pattern)
-				(list
-				 (list 'str (_ "Adjusting Entries"))
-				 (list 'cased #f)
-				 (list 'regexp #f))))
 	 (report-budget (or (get-val env 'report-budget) #f))
 	 ;; local variables
 	 (toplvl-accts
@@ -647,13 +663,6 @@
           ((pre-closing)
            (merge-splits (gnc:account-get-trans-type-splits-interval
                           accts closing-pattern start-date end-date) #t))
-
-          ;; remove closing and adjusting entries
-          ((pre-adjusting)
-           (merge-splits (gnc:account-get-trans-type-splits-interval
-                          accts closing-pattern start-date end-date) #t)
-           (merge-splits (gnc:account-get-trans-type-splits-interval
-                          accts adjusting-pattern start-date end-date) #t))
 
           (else
            (display "you fail it\n"))))
@@ -790,11 +799,9 @@
                         (not children-displayed?)
                         (and (gnc-commodity-collector-allzero? recursive-bal)
                              (eq? zero-mode 'omit-leaf-acct)))
-              (let ((lbl-txt (gnc:make-html-text (_ "Total") " ")))
+              (let ((lbl-txt (gnc:make-html-text (G_ "Total") " ")))
                 (apply gnc:html-text-append! lbl-txt (gnc:html-text-body label))
-                (if (eq? subtotal-mode 'canonically-tabbed)
-                    (set! disp-depth (+ disp-depth 1))
-                    (set! disp-depth-reached (max disp-depth-reached disp-depth)))
+                (set! disp-depth-reached (max disp-depth-reached disp-depth))
                 (add-row
                  (cons* (list 'account-label lbl-txt)
                         (list 'row-type 'subtotal-row)
@@ -819,8 +826,6 @@
                (display-depth (get-val orig-env 'display-depth))
                (depth-limit (get-val orig-env 'display-tree-depth))
                (indent (get-val orig-env 'initial-indent))
-               (indented-depth (get-val orig-env 'indented-depth))
-               (subtotal-mode (get-val orig-env 'parent-account-subtotal-mode))
                (label-cols (+ disp-depth-reached 1))
                ;; these parameters *should* always, by now, be set...
                (new-env
@@ -999,7 +1004,6 @@
 		  (logical-depth (get-val env 'logical-depth))
 		  (display-depth (get-val env 'display-depth))
 		  (display-tree-depth (get-val env 'display-tree-depth))
-		  (subtotal-mode (get-val env 'subtotal-mode))
 		  (row-type (get-val env 'row-type))
 		  (rule-mode (and (equal? row-type 'subtotal-row)
 				  (get-val env 'rule-mode)))
@@ -1025,9 +1029,7 @@
                          (else 'immediate-bal)))
 
                   (zero-mode (let ((mode (get-val env 'zero-balance-display-mode)))
-                               (if (boolean? mode)
-                                   'show-balance
-                                   mode)))
+                               (if (boolean? mode) 'show-balance mode)))
 
                   (amt (and-let* ((bal-syms '((immediate-bal . account-bal)
                                               (recursive-bal . recursive-bal)
@@ -1069,7 +1071,6 @@
 	      amount
 	      (+ account-cols (- 0 1)
 		 (- logical-cols display-depth)
-		 (if (equal? subtotal-mode 'canonically-tabbed) 1 0)
 		 )                          ;; amount-depth
 	      1                             ;; amount-colspan
               "number-cell"                 ;; amount-markup

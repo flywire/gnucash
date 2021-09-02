@@ -24,15 +24,51 @@
 ;; Boston, MA  02110-1301,  USA       gnu@gnu.org
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(define-module (gnucash report html-chart))
+
+(use-modules (gnucash core-utils))
 (use-modules (gnucash json builder))            ;for building JSON options
+(use-modules (gnucash report html-utilities))
+(use-modules (srfi srfi-9))
+(use-modules (ice-9 match))
+
+;; html-chart.scm
+
+(export gnc:html-chart?)
+(export gnc:make-html-chart)
+(export gnc:html-chart-data)
+(export gnc:html-chart-set-data!)
+(export gnc:html-chart-width)
+(export gnc:html-chart-set-width!)
+(export gnc:html-chart-height)
+(export gnc:html-chart-set-height!)
+(export gnc:html-chart-type)
+(export gnc:html-chart-set-type!)
+(export gnc:html-chart-title)
+(export gnc:html-chart-get)
+(export gnc:html-chart-set!)
+(export gnc:html-chart-currency-iso)
+(export gnc:html-chart-set-currency-iso!)
+(export gnc:html-chart-currency-symbol)
+(export gnc:html-chart-set-currency-symbol!)
+(export gnc:html-chart-render)
+(export gnc:html-chart-set-custom-x-axis-ticks?!)
+(export gnc:html-chart-set-title!)
+(export gnc:html-chart-set-data-labels!)
+(export gnc:html-chart-set-axes-display!)
+(export gnc:html-chart-set-custom-y-axis-ticks?!)
+(export gnc:html-chart-clear-data-series!)
+(export gnc:html-chart-set-x-axis-label!)
+(export gnc:html-chart-set-stacking?!)
+(export gnc:html-chart-set-grid?!)
+(export gnc:html-chart-set-y-axis-label!)
+(export gnc:html-chart-add-data-series!)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
 ;; utility functions for nested list handling
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(use-modules (ice-9 match))
 
 ;; nested-alist-set! parameters are
 ;; lst - a nested alist e.g. (list (cons 'key1 'val1)
@@ -106,26 +142,42 @@
 ;; width - pair
 ;; height - pair
 
-(define <html-chart>
-  (make-record-type "<html-chart>"
-                    '(width
-                      height
-                      chart-options
-                      currency-iso
-                      currency-symbol
-                      custom-x-axis-ticks?
-                      custom-y-axis-ticks?)))
+(define-record-type <html-chart>
+  (make-html-chart width height chart-options currency-iso
+                   currency-symbol custom-x-axis-ticks? custom-y-axis-ticks?)
+  html-chart?
+  (width html-chart-width html-chart-set-width)
+  (height html-chart-height html-chart-set-height)
+  (chart-options html-chart-chart-options html-chart-set-chart-options)
+  (currency-iso html-chart-currency-iso html-chart-set-currency-iso)
+  (currency-symbol html-chart-currency-symbol html-chart-set-currency-symbol)
+  (custom-x-axis-ticks? html-chart-custom-x-axis-ticks?
+                        html-chart-set-custom-x-axis-ticks?)
+  (custom-y-axis-ticks? html-chart-custom-y-axis-ticks?
+                        html-chart-set-custom-y-axis-ticks?))
 
-(define gnc:html-chart?
-  (record-predicate <html-chart>))
+(define gnc:make-html-chart-internal make-html-chart)
+(define gnc:html-chart? html-chart?)
+(define gnc:html-chart-width html-chart-width)
+(define gnc:html-chart-set-width! html-chart-set-width)
+(define gnc:html-chart-height html-chart-height)
+(define gnc:html-chart-set-height! html-chart-set-height)
+(define gnc:html-chart-currency-iso html-chart-currency-iso)
+(define gnc:html-chart-set-currency-iso! html-chart-set-currency-iso)
+(define gnc:html-chart-currency-symbol html-chart-currency-symbol)
+(define gnc:html-chart-set-currency-symbol! html-chart-set-currency-symbol)
+(define gnc:html-chart-custom-x-axis-ticks? html-chart-custom-x-axis-ticks?)
+(define gnc:html-chart-set-custom-x-axis-ticks?! html-chart-set-custom-x-axis-ticks?)
+(define gnc:html-chart-custom-y-axis-ticks? html-chart-custom-y-axis-ticks?)
+(define gnc:html-chart-set-custom-y-axis-ticks?! html-chart-set-custom-y-axis-ticks?)
+(define gnc:html-chart-get-options-internal html-chart-chart-options)
+(define gnc:html-chart-set-options-internal! html-chart-set-chart-options)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;  <html-chart> class
 ;;  generate the <object> form for an html chart.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define gnc:make-html-chart-internal
-  (record-constructor <html-chart>))
 
 (define (gnc:make-html-chart)
   (gnc:make-html-chart-internal
@@ -138,6 +190,8 @@
                  (cons 'datasets #())))
     (cons 'options (list
                     (cons 'maintainAspectRatio #f)
+                    (cons 'animation (list
+                                      (cons 'duration 0)))
                     (cons 'chartArea (list
                                       (cons 'backgroundColor "#fffdf6")))
                     (cons 'legend (list
@@ -169,7 +223,6 @@
                                                                      (cons 'display #t)
                                                                      (cons 'labelString "")))
                                                   (cons 'ticks (list
-                                                                (cons 'fontSize 12)
                                                                 (cons 'maxRotation 30))))
                                                  ;; the following another xAxis at the top
                                                  '((position . top)
@@ -188,8 +241,7 @@
                                                                      (cons 'display 1.5)
                                                                      (cons 'labelString "")))
                                                   (cons 'ticks (list
-                                                                (cons 'fontSize 10)
-                                                                (cons 'beginAtZero #t))))
+                                                                (cons 'beginAtZero #f))))
                                                  ;; the following another yAxis on the right
                                                  '((position . right)
                                                    (ticks . ((display . #f)))
@@ -198,7 +250,6 @@
                                                  ))))
                     (cons 'title (list
                                   (cons 'display #t)
-                                  (cons 'fontSize 16)
                                   (cons 'fontStyle "")
                                   (cons 'text ""))))))
    "XXX"     ;currency-iso
@@ -206,18 +257,6 @@
    #t        ;custom x-axis ticks?
    #t        ;custom y-axis ticks?
    ))
-
-(define gnc:html-chart-width
-  (record-accessor <html-chart> 'width))
-
-(define gnc:html-chart-set-width!
-  (record-modifier <html-chart> 'width))
-
-(define gnc:html-chart-height
-  (record-accessor <html-chart> 'height))
-
-(define gnc:html-chart-set-height!
-  (record-modifier <html-chart> 'height))
 
 (define (gnc:html-chart-type chart)
   (gnc:html-chart-get chart '(type)))
@@ -228,17 +267,16 @@
 (define (gnc:html-chart-title chart)
   (gnc:html-chart-get chart '(options title text)))
 
-(define-public (gnc:html-chart-set-title! chart title)
+(define (gnc:html-chart-set-title! chart title)
   (gnc:html-chart-set! chart '(options title text) title))
 
-(define-public (gnc:html-chart-set-data-labels! chart labels)
+(define (gnc:html-chart-set-data-labels! chart labels)
   (gnc:html-chart-set! chart '(data labels) labels))
 
-(define-public (gnc:html-chart-set-axes-display! chart display?)
+(define (gnc:html-chart-set-axes-display! chart display?)
   (gnc:html-chart-set! chart '(options scales xAxes (0) display) display?)
   (gnc:html-chart-set! chart '(options scales yAxes (0) display) display?))
 
-(export gnc:html-chart-add-data-series!)
 ;; e.g.:
 ;; (gnc:html-chart-add-data-series! chart "label" list-of-numbers color
 ;;  'fill #t
@@ -263,36 +301,30 @@
                          (cons 'backgroundColor (list-to-vec color))
                          (cons 'borderColor (list-to-vec color)))))
     (match rest
-      (() (gnc:html-chart-set!
-           chart '(data datasets)
-           (list->vector
-            (append (vector->list
-                     (or (gnc:html-chart-get chart '(data datasets)) #()))
-                    (list newseries)))))
+      (() (let* ((old-vec (gnc:html-chart-get chart '(data datasets)))
+                 (old-len (vector-length old-vec))
+                 (new-vec (make-vector (1+ old-len))))
+            (vector-move-left! old-vec 0 old-len new-vec 0)
+            (vector-set! new-vec old-len newseries)
+            (gnc:html-chart-set! chart '(data datasets) new-vec)))
       ((key val . rest) (loop rest (assq-set! newseries key (list-to-vec val)))))))
 
-(define-public (gnc:html-chart-clear-data-series! chart)
+(define (gnc:html-chart-clear-data-series! chart)
   (gnc:html-chart-set! chart '(data datasets) #()))
 
-(define-public (gnc:html-chart-set-x-axis-label! chart label)
+(define (gnc:html-chart-set-x-axis-label! chart label)
   (gnc:html-chart-set! chart '(options scales xAxes (0) scaleLabel labelString) label))
 
-(define-public (gnc:html-chart-set-stacking?! chart stack?)
+(define (gnc:html-chart-set-stacking?! chart stack?)
   (gnc:html-chart-set! chart '(options scales xAxes (0) stacked) stack?)
   (gnc:html-chart-set! chart '(options scales yAxes (0) stacked) stack?))
 
-(define-public (gnc:html-chart-set-grid?! chart grid?)
+(define (gnc:html-chart-set-grid?! chart grid?)
   (gnc:html-chart-set! chart '(options scales xAxes (0) gridLines display) grid?)
   (gnc:html-chart-set! chart '(options scales yAxes (0) gridLines display) grid?))
 
-(define-public (gnc:html-chart-set-y-axis-label! chart label)
+(define (gnc:html-chart-set-y-axis-label! chart label)
   (gnc:html-chart-set! chart '(options scales yAxes (0) scaleLabel labelString) label))
-
-(define gnc:html-chart-get-options-internal
-  (record-accessor <html-chart> 'chart-options))
-
-(define gnc:html-chart-set-options-internal!
-  (record-modifier <html-chart> 'chart-options))
 
 (define (gnc:html-chart-get chart path)
   (let ((options (gnc:html-chart-get-options-internal chart)))
@@ -303,30 +335,6 @@
         (val-vec (list-to-vec val)))
     (nested-alist-set! options path val-vec)
     (gnc:html-chart-set-options-internal! chart options)))
-
-(define gnc:html-chart-currency-iso
-  (record-accessor <html-chart> 'currency-iso))
-
-(define gnc:html-chart-set-currency-iso!
-  (record-modifier <html-chart> 'currency-iso))
-
-(define gnc:html-chart-currency-symbol
-  (record-accessor <html-chart> 'currency-symbol))
-
-(define gnc:html-chart-set-currency-symbol!
-  (record-modifier <html-chart> 'currency-symbol))
-
-(define gnc:html-chart-custom-x-axis-ticks?
-  (record-accessor <html-chart> 'custom-x-axis-ticks?))
-
-(define-public gnc:html-chart-set-custom-x-axis-ticks?!
-  (record-modifier <html-chart> 'custom-x-axis-ticks?))
-
-(define gnc:html-chart-custom-y-axis-ticks?
-  (record-accessor <html-chart> 'custom-y-axis-ticks?))
-
-(define-public gnc:html-chart-set-custom-y-axis-ticks?!
-  (record-modifier <html-chart> 'custom-y-axis-ticks?))
 
 (define JS-Number-to-String "
 // The following snippet from MDN
@@ -357,7 +365,7 @@ function tooltipLabel(tooltipItem,data) {
 }
 
 function tooltipTitle(array,data) {
-  return chartjsoptions.data.labels[array[0].index]; }
+  return data.labels[array[0].index]; }
 
 // draw the background color
 Chart.pluginService.register({
@@ -373,6 +381,17 @@ Chart.pluginService.register({
   }
 })
 
+// copy font info from css into chartjs.
+bodyStyle = window.getComputedStyle (document.querySelector ('body'));
+Chart.defaults.global.defaultFontSize = parseInt (bodyStyle.fontSize);
+Chart.defaults.global.defaultFontFamily = bodyStyle.fontFamily;
+Chart.defaults.global.defaultFontStyle = bodyStyle.fontStyle;
+
+titleStyle = window.getComputedStyle (document.querySelector ('h3'));
+chartjsoptions.options.title.fontSize = parseInt (titleStyle.fontSize);
+chartjsoptions.options.title.fontFamily = titleStyle.fontFamily;
+chartjsoptions.options.title.fontStyle = titleStyle.fontStyle;
+
 document.getElementById(chartid).onclick = function(evt) {
   var activepoints = myChart.getElementAtEvent(evt);
   var anchor = document.getElementById(jumpid);
@@ -387,7 +406,7 @@ document.getElementById(chartid).onclick = function(evt) {
       var datasetIndex = activepoints[0]['_datasetIndex'];
       var datasetURLs = myChart.data.datasets[datasetIndex].urls;
       // console.log('index=',index,'datasetIndex=',datasetIndex);
-      anchor.style = 'position:absolute; top:' + (evt.clientY - 30) + 'px; left:' + (evt.clientX - 20) + 'px; display: block; padding: 5px; border-radius: 5px; background: #4E9CAF; text-align:center; color:white; ';
+      anchor.style = 'position:absolute; top:' + (evt.clientY - 30) + 'px; left:' + (evt.clientX - 20) + 'px; display: block; padding: 5px; border-radius: 5px; background: #4E9CAF; text-align:center; color:white; z-index: 999;';
       switch (typeof(datasetURLs)) {
         case 'string':
           anchor.href = datasetURLs;
@@ -423,23 +442,25 @@ document.getElementById(chartid).onclick = function(evt) {
          (push (lambda (l) (set! retval (cons l retval))))
          ;; Use a unique chart-id for each chart. This prevents charts
          ;; clashing on multi-column reports
-         (id (guid-new-return)))
+         (id (symbol->string (gensym "chart"))))
 
     (push (gnc:html-js-include
            (gnc-path-find-localized-html-file "chartjs/Chart.bundle.min.js")))
 
+    ;; the following hidden h3 is used to query style and copy onto chartjs
+    (push "<h3 style='display:none'></h3>")
     (push (format #f "<div style='width:~a;height:~a;'>\n"
                   (size->str (gnc:html-chart-width chart))
                   (size->str (gnc:html-chart-height chart))))
     (push (format #f "<a id='jump-~a' href='' style='display:none'></a>\n" id))
-    (push (format #f "<canvas id='chart-~a'></canvas>\n" id))
+    (push (format #f "<canvas id=~s></canvas>\n" id))
     (push "</div>\n")
     (push (format #f "<script id='script-~a'>\n" id))
     (push (format #f "var curriso = ~s;\n" (gnc:html-chart-currency-iso chart)))
     (push (format #f "var currsym = ~s;\n" (gnc:html-chart-currency-symbol chart)))
-    (push (format #f "var chartid = 'chart-~a';\n" id))
+    (push (format #f "var chartid = ~s;\n" id))
     (push (format #f "var jumpid = 'jump-~a';\n" id))
-    (push (format #f "var loadstring = ~s;\n" (_ "Load")))
+    (push (format #f "var loadstring = ~s;\n" (G_ "Load")))
     (push (format #f "var chartjsoptions = ~a;\n\n"
                   (get-options-string chart)))
 
@@ -453,7 +474,6 @@ document.getElementById(chartid).onclick = function(evt) {
 
     (push "chartjsoptions.options.tooltips.callbacks.label = tooltipLabel;\n")
     (push "chartjsoptions.options.tooltips.callbacks.title = tooltipTitle;\n")
-    (push "Chart.defaults.global.defaultFontFamily = \"'Trebuchet MS', Arial, Helvetica, sans-serif\";\n")
     (push JS-setup)
 
     (push "var myChart = new Chart(chartid, chartjsoptions);\n")

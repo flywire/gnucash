@@ -48,22 +48,22 @@ void gnc_gnome_utils_init (void);
  */
 void gnc_add_css_file (void);
 
-/** Launch the default gnome help browser and open to a given link
- *  within a given file.  This routine will display an error message
+/** Launch the systems default help browser, gnome's yelp for linux,
+ *  and open to a given link within a given file.
+ *  This routine will display an error message
  *  if it can't find the help file or can't open the help browser.
+ *
+ *  @param parent The parent window for any dialogs.
  *
  *  @param file_name The name of the help file.
  *
- *  @param anchor The anchor the help browser should scroll to..
- *
- *  @return the full path name of the file, or NULL of the file can't
- *  be found.
+ *  @param anchor The anchor the help browser should scroll to.
  */
-void gnc_gnome_help (const char *file_name,
+void gnc_gnome_help (GtkWindow *parent, const char *file_name,
                      const char *anchor);
-/** Launch the default gnome browser and open the provided URI.
+/** Launch the default browser and open the provided URI.
  */
-void gnc_launch_assoc (GtkWindow *parent, const char *uri);
+void gnc_launch_doclink (GtkWindow *parent, const char *uri);
 
 /** Set the help callback to 'gnc_book_options_help_cb' to open a help browser
  *  and point it to the Book Options link in the Help file.
@@ -74,6 +74,11 @@ void gnc_options_dialog_set_book_options_help_cb (GNCOptionWin *win);
  *  preferences.
  */
 void gnc_options_dialog_set_new_book_option_values (GNCOptionDB *odb);
+
+/** Set the help callback to 'gnc_style_sheet_options_help_cb' to open a help browser
+ *  and point it to the Style Sheet link in the Help file.
+ */
+void gnc_options_dialog_set_style_sheet_options_help_cb (GNCOptionWin *win);
 
 /** Given a file name, find and load the requested pixmap.  This
  *  routine will display an error message if it can't find the file or

@@ -25,6 +25,7 @@
 #include <config.h>
 
 #include <gtk/gtk.h>
+#include <math.h>
 
 #include "gnc-engine.h"
 #include "gnc-plugin-page.h"
@@ -167,6 +168,7 @@ gnc_window_show_progress (const char *message, double percentage)
 {
     GncWindow *window;
     GtkWidget *progressbar;
+    double curr_fraction;
 
     window = progress_bar_hack_window;
     if (window == NULL)
@@ -179,6 +181,13 @@ gnc_window_show_progress (const char *message, double percentage)
         return;
     }
 
+    curr_fraction =
+         round(gtk_progress_bar_get_fraction(GTK_PROGRESS_BAR(progressbar)) * 100.0);
+
+    if (percentage >= 0 && percentage <= 100 &&
+        round(percentage) == curr_fraction)
+         return; // No change, so don't waste time running the main loop.
+
     gnc_update_splash_screen(message, percentage);
 
     if (percentage < 0)
@@ -190,15 +199,15 @@ gnc_window_show_progress (const char *message, double percentage)
     }
     else
     {
-        if (message)
+        if (message && *message)
             gtk_progress_bar_set_text(GTK_PROGRESS_BAR(progressbar), message);
-        if ((percentage == 0) &&
+        if ((percentage == 0.0) &&
                 (GNC_WINDOW_GET_IFACE(window)->ui_set_sensitive != NULL))
             GNC_WINDOW_GET_IFACE(window)->ui_set_sensitive(window, FALSE);
-        if (percentage <= 100)
+        if (percentage <= 100.0)
         {
             gtk_progress_bar_set_fraction(GTK_PROGRESS_BAR(progressbar),
-                                          percentage / 100);
+                                          percentage / 100.0);
         }
         else
         {
@@ -210,3 +219,93 @@ gnc_window_show_progress (const char *message, double percentage)
     while (gtk_events_pending ())
         gtk_main_iteration ();
 }
+
+
+/* CS: This callback functions will set the statusbar text to the
+ * "tooltip" property of the currently selected GtkAction.
+ *
+ * This code is directly copied from gtk+/test/testmerge.c.
+ * Thanks to (L)GPL! */
+typedef struct _ActionStatus ActionStatus;
+struct _ActionStatus
+{
+    GtkAction *action;
+    GtkWidget *statusbar;
+};
+
+static void
+action_status_destroy (gpointer data)
+{
+    ActionStatus *action_status = data;
+
+    g_object_unref (action_status->action);
+    g_object_unref (action_status->statusbar);
+
+    g_free (action_status);
+}
+
+static void
+set_tip (GtkWidget *widget)
+{
+    ActionStatus *data;
+    gchar *tooltip;
+
+    data = g_object_get_data (G_OBJECT (widget), "action-status");
+
+    if (data)
+    {
+        g_object_get (data->action, "tooltip", &tooltip, NULL);
+
+        gtk_statusbar_push (GTK_STATUSBAR (data->statusbar), 0,
+                            tooltip ? tooltip : " ");
+
+        g_free (tooltip);
+    }
+}
+
+static void
+unset_tip (GtkWidget *widget)
+{
+    ActionStatus *data;
+
+    data = g_object_get_data (G_OBJECT (widget), "action-status");
+
+    if (data)
+        gtk_statusbar_pop (GTK_STATUSBAR (data->statusbar), 0);
+}
+
+void
+gnc_window_connect_proxy (GtkUIManager *merge,
+                          GtkAction    *action,
+                          GtkWidget    *proxy,
+                          GtkWidget    *statusbar)
+{
+    if (GTK_IS_MENU_ITEM (proxy))
+    {
+        ActionStatus *data;
+
+        data = g_object_get_data (G_OBJECT (proxy), "action-status");
+        if (data)
+        {
+            g_object_unref (data->action);
+            g_object_unref (data->statusbar);
+
+            data->action = g_object_ref (action);
+            data->statusbar = g_object_ref (statusbar);
+        }
+        else
+        {
+            data = g_new0 (ActionStatus, 1);
+
+            data->action = g_object_ref (action);
+            data->statusbar = g_object_ref (statusbar);
+
+            g_object_set_data_full (G_OBJECT (proxy), "action-status",
+                                    data, action_status_destroy);
+
+            g_signal_connect (proxy, "select",  G_CALLBACK (set_tip), NULL);
+            g_signal_connect (proxy, "deselect", G_CALLBACK (unset_tip), NULL);
+        }
+    }
+}
+/* CS: end copied code from gtk+/test/testmerge.c */

@@ -43,7 +43,7 @@ extern "C"
     type, each uniquely identified by a given ID.  QOF Entities
     can be used independently of any other part of the system.
     In particular, Entities can be useful even if one is not using
-    the Query ond Object parts of the QOF system.
+    the Query one Object parts of the QOF system.
 
     Identifiers are globally-unique and permanent, i.e., once
     an entity has been assigned an identifier, it retains that same
@@ -96,27 +96,7 @@ typedef struct QofCollection_s QofCollection;
 #define QOF_ID_BOOK           "Book"
 #define QOF_ID_SESSION        "Session"
 
-/** Inline string comparison; compiler will optimize away most of this */
-#ifndef _MSC_VER
-# define QSTRCMP(da,db) ({                \
-  gint val = 0;                          \
-  if ((da) && (db)) {                    \
-    if ((da) != (db)) {                  \
-      val = strcmp ((da), (db));         \
-    }                                    \
-  } else                                 \
-  if ((!(da)) && (db)) {                 \
-    val = -1;                            \
-  } else                                 \
-  if ((da) && (!(db))) {                 \
-    val = 1;                             \
-  }                                      \
-  val; /* block assumes value of last statement */  \
-})
-#else
-/* MSVC: Simply use g_strcmp */
-# define QSTRCMP g_strcmp0
-#endif
+#define QSTRCMP g_strcmp0
 
 /** return TRUE if object is of the given type */
 #define QOF_CHECK_TYPE(obj,type) (((obj) != NULL) && \

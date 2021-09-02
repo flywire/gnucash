@@ -55,7 +55,7 @@ This feature allows currency-trading accounts to be established.
 Every Split must point to its parent Transaction, and that Transaction
 must in turn include that Split in the Transaction's list of Splits. A
 Split can belong to at most one Transaction. These relationships are
-enforced by the engine. The engine user cannnot accidentally destroy
+enforced by the engine. The engine user cannot accidentally destroy
 this relationship as long as they stick to using the API and never
 access internal structures directly.
 
@@ -92,6 +92,7 @@ typedef struct _TransactionClass TransactionClass;
 
 #include "gnc-commodity.h"
 #include "gnc-engine.h"
+#include "gnc-pricedb.h"
 #include "Split.h"
 
 #ifdef __cplusplus
@@ -177,7 +178,7 @@ Transaction * xaccTransCloneNoKvp (const Transaction *t);
  *
  * @param check_splits If TRUE, after checking the transaction data
  * structures for equality, also check all splits attached to the
- * transation for equality.
+ * transaction for equality.
  *
  * @param check_balances If TRUE, when checking splits also compare
  * balances between the two splits.  Balances are recalculated
@@ -320,8 +321,8 @@ void          xaccTransSetNum (Transaction *trans, const char *num);
 /** Sets the transaction Description */
 void          xaccTransSetDescription (Transaction *trans, const char *desc);
 
-/** Sets the transaction Association */
-void          xaccTransSetAssociation (Transaction *trans, const char *assoc);
+/** Sets the transaction Document Link */
+void          xaccTransSetDocLink (Transaction *trans, const char *doclink);
 
 /** Sets the transaction Notes
  *
@@ -336,8 +337,8 @@ void          xaccTransSetNotes (Transaction *trans, const char *notes);
 const char *  xaccTransGetNum (const Transaction *trans);
 /** Gets the transaction Description */
 const char *  xaccTransGetDescription (const Transaction *trans);
-/** Gets the transaction association */
-const char *  xaccTransGetAssociation(const Transaction *trans);
+/** Gets the transaction Document Link */
+const char *  xaccTransGetDocLink(const Transaction *trans);
 /** Gets the transaction Notes
  *
  The Notes field is only visible in the register in double-line mode */
@@ -360,14 +361,16 @@ gboolean      xaccTransGetIsClosingTxn (const Transaction *trans);
 */
 #define xaccTransAppendSplit(t, s) xaccSplitSetParent((s), (t))
 
-/** The xaccTransGetSplit() method returns a pointer to each of the
-    splits in this transaction.
+/** Return a pointer to the indexed split in this transaction's split list.
+
+    Note that the split list is a linked list and that indexed access is
+    O(N). Do not use this method for iteration.
     @param trans The transaction
     @param i The split number.  Valid values for i are zero to
-    (number_of__splits-1).  An invalid value of i will cause NULL to
-    be returned.  A convenient way of cycling through all splits is
-    to start at zero, and keep incrementing until a null value is returned. */
-Split *       xaccTransGetSplit (const Transaction *trans, int i);
+    (number_of__splits-1).
+    @return A Split* or NULL if i is out of range.
+*/
+Split* xaccTransGetSplit (const Transaction *trans, int i);
 
 /** Inverse of xaccTransGetSplit() */
 int xaccTransGetSplitIndex(const Transaction *trans, const Split *split);
@@ -499,7 +502,7 @@ gboolean xaccTransIsBalanced(const Transaction * trans);
 /** The xaccTransGetAccountValue() method returns the total value applied
  *  to a particular account.  In some cases there may be multiple Splits
  *  in a single Transaction applied to one account (in particular when
- *  trying to balance Lots) -- this function is just a convienience to
+ *  trying to balance Lots) -- this function is just a convenience to
  *  view everything at once.
  */
 gnc_numeric xaccTransGetAccountValue (const Transaction *trans,
@@ -691,7 +694,7 @@ void xaccTransVoid(Transaction *transaction,
 void xaccTransUnvoid(Transaction *transaction);
 
 /** xaccTransReverse creates a Transaction that reverses the given
- *  tranaction by inverting all the numerical values in the given
+ *  transaction by inverting all the numerical values in the given
  *  transaction.  This function cancels out the effect of an earlier
  *  transaction.  This will be needed by write only accounts as a way
  *  to void a previous transaction (since you can't alter the existing
@@ -753,7 +756,7 @@ time64 xaccTransGetVoidTime(const Transaction *tr);
 #define TRANS_IS_BALANCED	"trans-balanced?"
 #define TRANS_IS_CLOSING        "trans-is-closing?"
 #define TRANS_NOTES		"notes"
-#define TRANS_ASSOCIATION	"assoc"
+#define TRANS_DOCLINK		"doclink"
 #define TRANS_TYPE		"type"
 #define TRANS_VOID_STATUS	"void-p"
 #define TRANS_VOID_REASON	"void-reason"
@@ -764,6 +767,15 @@ time64 xaccTransGetVoidTime(const Transaction *tr);
 #ifdef DUMP_FUNCTIONS
 void xaccTransDump (const Transaction *trans, const char *tag);
 #endif
+
+/** The xaccTransRecordPrice() method iterates through the splits and
+ *  and record the non-currency equivalent prices in the price database.
+ *
+ *  @param trans The transaction whose price is recorded
+ *  @param source The price priority level
+ */
+void xaccTransRecordPrice (Transaction *trans, PriceSource source);
+
 
 #define RECONCILED_MATCH_TYPE	"reconciled-match"
 

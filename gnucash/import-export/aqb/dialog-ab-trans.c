@@ -272,7 +272,7 @@ gnc_ab_trans_dialog_new(GtkWidget *parent, GNC_AB_ACCOUNT_SPEC *ab_acc,
     GtkWidget *recp_name_heading;
     GtkWidget *recp_account_heading;
     GtkWidget *recp_bankcode_heading;
-    GtkWidget *amount_hbox;
+    GtkWidget *amount_hbox, *amount_label;
     GtkWidget *orig_name_heading;
     GtkWidget *orig_account_heading;
     GtkWidget *orig_account_label;
@@ -326,6 +326,7 @@ gnc_ab_trans_dialog_new(GtkWidget *parent, GNC_AB_ACCOUNT_SPEC *ab_acc,
     td->recp_bankcode_entry = GTK_WIDGET(gtk_builder_get_object (builder, "recp_bankcode_entry"));
     td->recp_bankname_label = GTK_WIDGET(gtk_builder_get_object (builder, "recp_bankname_label"));
     amount_hbox = GTK_WIDGET(gtk_builder_get_object (builder, "amount_hbox"));
+    amount_label = GTK_WIDGET(gtk_builder_get_object (builder, "amount_label"));
     td->purpose_entry = GTK_WIDGET(gtk_builder_get_object (builder, "purpose_entry"));
     td->purpose_cont_entry = GTK_WIDGET(gtk_builder_get_object (builder, "purpose_cont_entry"));
     td->purpose_cont2_entry = GTK_WIDGET(gtk_builder_get_object (builder, "purpose_cont2_entry"));
@@ -345,6 +346,7 @@ gnc_ab_trans_dialog_new(GtkWidget *parent, GNC_AB_ACCOUNT_SPEC *ab_acc,
     /* Amount edit */
     td->amount_edit = gnc_amount_edit_new();
     gtk_box_pack_start(GTK_BOX(amount_hbox), td->amount_edit, TRUE, TRUE, 0);
+    gnc_amount_edit_make_mnemonic_target(GNC_AMOUNT_EDIT(td->amount_edit), amount_label);
     gnc_amount_edit_set_evaluate_on_enter(GNC_AMOUNT_EDIT(td->amount_edit),
                                           TRUE);
     gnc_amount_edit_set_fraction(GNC_AMOUNT_EDIT(td->amount_edit),
@@ -365,15 +367,15 @@ gnc_ab_trans_dialog_new(GtkWidget *parent, GNC_AB_ACCOUNT_SPEC *ab_acc,
     case SEPA_TRANSFER:
         gtk_label_set_text(GTK_LABEL (heading_label),
                            /* Translators: Strings from this file are
-                             * needed only in countries that have one of
-                             * aqbanking's Online Banking techniques
-                             * available. This is 'OFX DirectConnect'
-                             * (U.S. and others), 'HBCI' (Germany),
-                             * or 'YellowNet' (Switzerland). If none of
-                             * these techniques are available in your
-                             * country, you may safely ignore strings
-                             * from the import-export/hbci
-                             * subdirectory. */
+                              needed only in countries that have one of
+                              aqbanking's Online Banking techniques
+                              available. This is 'OFX DirectConnect'
+                              (U.S. and others), 'HBCI' (Germany),
+                              or 'YellowNet' (Switzerland). If none of
+                              these techniques are available in your
+                              country, you may safely ignore strings
+                              from the import-export/hbci
+                              subdirectory. */
                            _("Enter a SEPA Online Transfer"));
         gtk_label_set_text(GTK_LABEL(recp_account_heading),
                            _("Recipient IBAN (International Account Number)"));

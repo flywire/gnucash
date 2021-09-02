@@ -25,9 +25,26 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
+(define-module (gnucash qif-import qif-to-gnc))
+(eval-when (compile load eval expand)
+  (load-extension "libgnc-gnome" "scm_init_sw_gnome_module"))
+
+(use-modules (sw_gnome))
+(use-modules (gnucash core-utils))
+(use-modules (gnucash engine))
+(use-modules (gnucash utilities))
+(use-modules (gnucash string))
+(use-modules (gnucash app-utils))
+(use-modules (gnucash qif-import qif-dialog-utils))
+(use-modules (gnucash qif-import qif-objects))
+(use-modules (gnucash qif-import qif-utils))
+(use-modules (gnucash qif-import qif-guess-map))
 (use-modules (srfi srfi-13))
 (use-modules (ice-9 match))
-(use-modules (gnucash string))
+
+(export qif-import:qif-to-gnc)
+(export qif-import:qif-to-gnc-undo)
+(export gnc:account-tree-get-transactions)
 
 (define (n- n) (gnc-numeric-neg n))
 (define (nsub a b) (gnc-numeric-sub a b 0 GNC-DENOM-LCD))
@@ -193,7 +210,7 @@
                       (xaccAccountSetName new-acct new-name)
                       (xaccAccountSetDescription
                        new-acct
-                       (_ "QIF import: Name conflict with another account."))))
+                       (G_ "QIF import: Name conflict with another account."))))
 
                 ;; Set the account type.
                 (xaccAccountSetType new-acct
@@ -282,7 +299,7 @@
 
       (if progress-dialog
           (gnc-progress-dialog-set-sub progress-dialog
-                                      (_ "Preparing to convert your QIF data")))
+                                      (G_ "Preparing to convert your QIF data")))
 
       ;; Build a list of all accounts to create for the import tree.
       ;; We need to iterate over the account, category, and payee/memo
@@ -333,7 +350,7 @@
       ;; Build a local account tree to hold converted transactions.
       (if progress-dialog
           (gnc-progress-dialog-set-sub progress-dialog
-                                       (_ "Creating accounts")))
+                                       (G_ "Creating accounts")))
 
       ;; Sort the account list on the depth of the account path.  If a
       ;; short part is explicitly mentioned, make sure it gets created
@@ -382,7 +399,7 @@
       ;; duplicates.  marked transactions/splits won't get imported.
       (if progress-dialog
           (gnc-progress-dialog-set-sub progress-dialog
-                                    (_ "Matching transfers between accounts")))
+                                    (G_ "Matching transfers between accounts")))
       (if (> (length markable-xtns) 1)
           (let xloop ((xtn (car markable-xtns))
                       (rest (cdr markable-xtns)))
@@ -400,7 +417,7 @@
        (lambda (qif-file)
          (if progress-dialog
              (gnc-progress-dialog-set-sub progress-dialog
-                                          (string-append (_ "Converting") " "
+                                          (string-append (G_ "Converting") " "
                                                      (qif-file:path qif-file))))
          (for-each
           (lambda (xtn)
@@ -427,7 +444,8 @@
                                                  progress-dialog)
 
                   ;; rebalance and commit everything
-                  (xaccTransCommitEdit gnc-xtn))))
+                  (xaccTransCommitEdit gnc-xtn)
+                  (xaccTransRecordPrice gnc-xtn PRICE-SOURCE-SPLIT-IMPORT))))
           (qif-file:xtns qif-file)))
        sorted-qif-files-list)
 
@@ -480,7 +498,7 @@
       ((not qif-date)
         (qif-import:log progress-dialog
                         "qif-import:qif-xtn-to-gnc-xtn"
-                        (_ "Missing transaction date."))
+                        (G_ "Missing transaction date."))
         (throw 'bad-date
                "qif-import:qif-xtn-to-gnc-xtn"
                "Missing transaction date."
@@ -1240,3 +1258,4 @@
       ;; Destroy the accounts
       (xaccAccountBeginEdit root)
       (xaccAccountDestroy root))))
+

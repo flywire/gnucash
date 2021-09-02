@@ -56,9 +56,9 @@
 #include "gnc-window.h"
 #include "reconcile-view.h"
 #include "window-reconcile2.h"
+#include "Account.h"
 
 #define WINDOW_RECONCILE_CM_CLASS "window-reconcile"
-#define GNC_PREF_AUTO_INTEREST_TRANSFER "auto-interest-transfer"
 #define GNC_PREF_AUTO_CC_PAYMENT        "auto-cc-payment"
 #define GNC_PREF_ALWAYS_REC_TO_TODAY    "always-reconcile-to-today"
 
@@ -119,23 +119,6 @@ typedef struct _startRecnWindowData
     time64         date;            /* the interest xfer reconcile date        */
 } startRecnWindowData;
 
-
-/* Note: make sure to update the help text for this in prefs.scm if these
- * change!  These macros define the account types for which an auto interest
- * xfer dialog could pop up, if the user's preferences allow it.
- */
-#define account_type_has_auto_interest_charge(type)  (((type) == ACCT_TYPE_CREDIT) || \
-                                                      ((type) == ACCT_TYPE_LIABILITY) ||\
-						      ((type) == ACCT_TYPE_PAYABLE))
-
-#define account_type_has_auto_interest_payment(type) (((type) == ACCT_TYPE_BANK)  || \
-                                                      ((type) == ACCT_TYPE_ASSET) || \
-                                                      ((type) == ACCT_TYPE_MUTUAL) || \
-						      ((type) == ACCT_TYPE_RECEIVABLE))
-
-#define account_type_has_auto_interest_xfer(type) \
-  (  account_type_has_auto_interest_charge(type) || \
-    account_type_has_auto_interest_payment(type) )
 
 /** PROTOTYPES ******************************************************/
 static gnc_numeric recnRecalculateBalance (RecnWindow2 *recnData);
@@ -323,11 +306,20 @@ gnc_start_recn2_update_cb (GtkWidget *widget, GdkEventFocus *event,
                          startRecnWindowData *data)
 {
     gnc_numeric value;
+    gint result = gnc_amount_edit_expr_is_valid (GNC_AMOUNT_EDIT(data->end_value),
+                                                 &value, TRUE, NULL);
 
-    gnc_amount_edit_evaluate (GNC_AMOUNT_EDIT (data->end_value));
+    data->user_set_value = FALSE;
 
-    value = gnc_amount_edit_get_amount (GNC_AMOUNT_EDIT (data->end_value));
-    data->user_set_value = !gnc_numeric_equal (value, data->original_value);
+    if (result < 1) // OK
+    {
+        if (result == -1) // blank entry is valid
+        {
+            gnc_amount_edit_set_amount (GNC_AMOUNT_EDIT(data->end_value), value);
+            gnc_amount_edit_select_region (GNC_AMOUNT_EDIT(data->end_value), 0, -1);
+        }
+        data->user_set_value = !gnc_numeric_equal (value, data->original_value);
+    }
     return FALSE;
 }
 
@@ -352,6 +344,8 @@ gnc_start_recn2_date_changed (GtkWidget *widget, startRecnWindowData *data)
     /* update the amount edit with the amount */
     gnc_amount_edit_set_amount (GNC_AMOUNT_EDIT (data->end_value),
                                 new_balance);
+
+    gnc_start_recn2_update_cb (GTK_WIDGET(data->end_value), NULL, data);
 }
 
 
@@ -363,21 +357,6 @@ gnc_start_recn2_children_changed (GtkWidget *widget, startRecnWindowData *data)
 
     /* Force an update of the ending balance */
     gnc_start_recn2_date_changed (data->date_value, data);
-}
-
-
-/* For a given account, determine if an auto interest xfer dialog should be
- * shown, based on both the per-account flag as well as the global reconcile
- * option.  The global option is the default that is used if there is no
- * per-account option.
- */
-static gboolean
-gnc_recn_interest_xfer_get_auto_interest_xfer_allowed (Account *account)
-{
-    gboolean auto_xfer;
-
-    auto_xfer = gnc_prefs_get_bool (GNC_PREFS_GROUP_RECONCILE, GNC_PREF_AUTO_INTEREST_TRANSFER);
-    return xaccAccountGetAutoInterestXfer (account, auto_xfer);
 }
 
 
@@ -421,11 +400,6 @@ static void
 gnc_recn_interest_xfer_no_auto_clicked_cb (GtkButton *button,
         startRecnWindowData *data)
 {
-    /* Indicate that the user doesn't want
-     * an auto interest xfer for this account.
-     */
-    xaccAccountSetAutoInterestXfer (data->account, FALSE);
-
     /* shut down the interest xfer dialog */
     gnc_xfer_dialog_close (data->xferData);
 
@@ -568,10 +542,6 @@ gnc_reconcile_interest_xfer_run (startRecnWindowData *data)
 void
 gnc_start_recn2_interest_clicked_cb (GtkButton *button, startRecnWindowData *data)
 {
-    /* indicate in account that user wants
-     * an auto interest xfer for this account */
-    xaccAccountSetAutoInterestXfer (data->account, TRUE);
-
     /* make the button unclickable since we're popping up the window */
     if (data->xfer_button)
         gtk_widget_set_sensitive (GTK_WIDGET (data->xfer_button), FALSE);
@@ -657,8 +627,10 @@ startRecnWindow (GtkWidget *parent, Account *account,
     gboolean auto_interest_xfer_option;
     GNCPrintAmountInfo print_info;
     gnc_numeric ending;
+    GtkWidget *entry;
     char *title;
-    int result;
+    int result = -6;
+    gulong fo_handler_id;
 
     /* Initialize the data structure that will be used for several callbacks
      * throughout this file with the relevant info.  Some initialization is
@@ -671,8 +643,7 @@ startRecnWindow (GtkWidget *parent, Account *account,
     data.date = *statement_date;
 
     /* whether to have an automatic interest xfer dialog or not */
-    auto_interest_xfer_option =
-        gnc_recn_interest_xfer_get_auto_interest_xfer_allowed (account);
+    auto_interest_xfer_option = xaccAccountGetAutoInterest (account);
 
     data.include_children = xaccAccountGetReconcileChildrenStatus (account);
 
@@ -707,7 +678,7 @@ startRecnWindow (GtkWidget *parent, Account *account,
 
     {
         GtkWidget *start_value, *box;
-        GtkWidget *entry, *label;
+        GtkWidget *label;
         GtkWidget *interest = NULL;
 
         start_value = GTK_WIDGET (gtk_builder_get_object (builder, "start_value"));
@@ -732,7 +703,7 @@ startRecnWindow (GtkWidget *parent, Account *account,
         box = GTK_WIDGET (gtk_builder_get_object (builder, "ending_value_box"));
         gtk_box_pack_start (GTK_BOX (box), end_value, TRUE, TRUE, 0);
         label = GTK_WIDGET (gtk_builder_get_object (builder, "end_label"));
-        gtk_label_set_mnemonic_widget (GTK_LABEL (label), end_value);
+        gnc_amount_edit_make_mnemonic_target (GNC_AMOUNT_EDIT(end_value), label);
 
         gtk_builder_connect_signals_full (builder, gnc_builder_connect_full_func, &data);
 
@@ -751,8 +722,9 @@ startRecnWindow (GtkWidget *parent, Account *account,
 
         entry = gnc_amount_edit_gtk_entry (GNC_AMOUNT_EDIT (end_value));
         gtk_editable_select_region (GTK_EDITABLE (entry), 0, -1);
-        g_signal_connect (G_OBJECT (entry), "focus-out-event",
-                         G_CALLBACK (gnc_start_recn2_update_cb), (gpointer) &data);
+        fo_handler_id = g_signal_connect (G_OBJECT(entry), "focus-out-event",
+                                          G_CALLBACK(gnc_start_recn2_update_cb),
+                                          (gpointer) &data);
         gtk_entry_set_activates_default (GTK_ENTRY (entry), TRUE);
 
         /* if it's possible to enter an interest payment or charge for this
@@ -791,7 +763,16 @@ startRecnWindow (GtkWidget *parent, Account *account,
         gnc_reconcile_interest_xfer_run (&data);
     }
 
-    result = gtk_dialog_run (GTK_DIALOG (dialog));
+    while (gtk_dialog_run (GTK_DIALOG(dialog)) == GTK_RESPONSE_OK)
+    {
+        /* If response is OK but end_value not valid, try again */
+        if (gnc_amount_edit_evaluate (GNC_AMOUNT_EDIT(end_value), NULL))
+        {
+            result = GTK_RESPONSE_OK;
+            break;
+        }
+    }
+
     if (result == GTK_RESPONSE_OK)
     {
         *new_ending = gnc_amount_edit_get_amount (GNC_AMOUNT_EDIT (end_value));
@@ -804,6 +785,8 @@ startRecnWindow (GtkWidget *parent, Account *account,
 
         gnc_save_reconcile_interval (account, *statement_date);
     }
+    // must remove the focus-out handler
+    g_signal_handler_disconnect (G_OBJECT(entry), fo_handler_id);
     gtk_widget_destroy (dialog);
     g_object_unref (G_OBJECT (builder));
 
@@ -935,7 +918,7 @@ gnc_reconcile_window_button_press_cb (GtkWidget *widget,
 
         /* Get tree path for row that was clicked */
         gtk_tree_view_get_path_at_pos (GTK_TREE_VIEW (qview),
-                                             (gint) event->x, 
+                                             (gint) event->x,
                                              (gint) event->y,
                                              &path, NULL, NULL, NULL);
 
@@ -1143,7 +1126,8 @@ gnc_reconcile_window_get_current_split (RecnWindow2 *recnData)
 static void
 gnc_ui_reconcile_window_help_cb (GtkWidget *widget, gpointer data)
 {
-    gnc_gnome_help (HF_HELP, HL_RECNWIN);
+    RecnWindow2 *recnData = data;
+    gnc_gnome_help (GTK_WINDOW(recnData->window), HF_HELP, HL_RECNWIN);
 }
 
 

@@ -20,11 +20,12 @@
  * Boston, MA  02110-1301,  USA       gnu@gnu.org                   *
 \********************************************************************/
 
+#include <glib.h>
 #include <guid.hpp>
+
 extern "C"
 {
 #include <config.h>
-#include <glib.h>
 #include <unittest-support.h>
 #include "../qof.h"
 }
@@ -55,8 +56,8 @@ public:
     QofInstMockBackend() : m_qof_error{ERR_BACKEND_NO_ERR} {
         commit_test.m_be = this;
     }
-    void session_begin(QofSession* sess, const char* book_name,
-                       bool ignore_lock, bool create, bool force) override {}
+    void session_begin(QofSession* sess, const char* uri,
+                       SessionOpenMode mode) override {}
     void session_end() override {}
     void load(QofBook*, QofBackendLoadType) override {}
     void sync(QofBook* book) override {}
@@ -76,6 +77,8 @@ public:
         g_assert( commit_test.m_inst == inst );
         g_assert( commit_test.m_be == this );
         commit_test.m_commit_called = true;
+        if (qof_instance_is_dirty(inst))
+            qof_instance_mark_clean(inst);
         set_error(m_qof_error);
 
     }
@@ -569,7 +572,7 @@ test_instance_commit_edit_part2( Fixture *fixture, gconstpointer pData )
     result = qof_commit_edit_part2( fixture->inst, NULL, NULL, NULL );
     g_assert( result );
     g_assert( qof_instance_get_dirty_flag( fixture->inst ) );
-    g_assert( !qof_instance_get_infant( fixture->inst ) );
+    g_assert( qof_instance_get_infant( fixture->inst ) );
     g_assert( !commit_test.m_commit_called );
     g_assert( !commit_test.m_commit_with_err_called );
     g_assert( !commit_test.m_on_error_called );
@@ -581,6 +584,7 @@ test_instance_commit_edit_part2( Fixture *fixture, gconstpointer pData )
     result = qof_commit_edit_part2( fixture->inst, on_error, on_done, on_free );
     g_assert( result );
     g_assert( qof_instance_get_dirty_flag( fixture->inst ) );
+    g_assert( qof_instance_get_infant( fixture->inst ) );
     g_assert( !commit_test.m_commit_called );
     g_assert( !commit_test.m_commit_with_err_called );
     g_assert( !commit_test.m_on_error_called );
@@ -593,6 +597,7 @@ test_instance_commit_edit_part2( Fixture *fixture, gconstpointer pData )
     result = qof_commit_edit_part2( fixture->inst, on_error, on_done, on_free );
     g_assert( result );
     g_assert( qof_instance_get_dirty_flag( fixture->inst ) );
+    g_assert( qof_instance_get_infant( fixture->inst ) );
     g_assert( !commit_test.m_commit_called );
     g_assert( !commit_test.m_commit_with_err_called );
     g_assert( !commit_test.m_on_error_called );
@@ -606,6 +611,7 @@ test_instance_commit_edit_part2( Fixture *fixture, gconstpointer pData )
     result = qof_commit_edit_part2( fixture->inst, on_error, on_done, on_free );
     g_assert( result );
     g_assert( !qof_instance_get_dirty_flag( fixture->inst ) );
+    g_assert( !qof_instance_get_infant( fixture->inst ) );
     g_assert( commit_test.m_commit_called );
     g_assert( !commit_test.m_commit_with_err_called );
     g_assert( !commit_test.m_on_error_called );
@@ -620,7 +626,7 @@ test_instance_commit_edit_part2( Fixture *fixture, gconstpointer pData )
     qof_instance_set_destroying( fixture->inst, TRUE );
     result = qof_commit_edit_part2( fixture->inst, on_error, on_done, on_free );
     g_assert( !result );
-    g_assert( qof_instance_get_dirty_flag( fixture->inst ) );
+    g_assert( !qof_instance_get_dirty_flag( fixture->inst ) );
     g_assert( !qof_instance_get_destroying( fixture->inst ) );
     g_assert( commit_test.m_commit_called );
     g_assert( commit_test.m_on_error_called );

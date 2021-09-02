@@ -22,24 +22,22 @@
  *                                                                  *
  *******************************************************************/
 
+#include <glib.h>
+
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <cstdint>
+#include <sstream>
+#include <boost/regex.hpp>
+#include <boost/locale/encoding_utf.hpp>
+
 extern "C"
 {
 #include <config.h>
-
-#include <glib.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "qof.h"
 }
-
-#include <stdint.h>
-#include <boost/regex.hpp>
-#include <boost/locale/encoding_utf.hpp>
-#include <sstream>
-#include <cstdlib>
 
 #include "gnc-numeric.hpp"
 #include "gnc-rational.hpp"
@@ -368,7 +366,7 @@ GncNumeric::to_decimal(unsigned int max_places) const
         rr_num *= factor;
         rr_den *= factor;
     }
-    while (!rr_num.isZero() && rr_num % 10 == 0)
+    while (!rr_num.isZero() && rr_num > 9 && rr_den > 9 && rr_num % 10 == 0)
     {
         rr_num /= 10;
         rr_den /= 10;
@@ -758,9 +756,9 @@ gnc_numeric_add(gnc_numeric a, gnc_numeric b,
     {
         return gnc_numeric_error(GNC_ERROR_ARG);
     }
-    denom = denom_lcd(a, b, denom, how);
     try
     {
+        denom = denom_lcd(a, b, denom, how);
         if ((how & GNC_NUMERIC_DENOM_MASK) != GNC_HOW_DENOM_EXACT)
         {
             GncNumeric an (a), bn (b);
@@ -812,9 +810,9 @@ gnc_numeric_sub(gnc_numeric a, gnc_numeric b,
     {
         return gnc_numeric_error(GNC_ERROR_ARG);
     }
-    denom = denom_lcd(a, b, denom, how);
     try
     {
+        denom = denom_lcd(a, b, denom, how);
         if ((how & GNC_NUMERIC_DENOM_MASK) != GNC_HOW_DENOM_EXACT)
         {
             GncNumeric an (a), bn (b);
@@ -865,9 +863,10 @@ gnc_numeric_mul(gnc_numeric a, gnc_numeric b,
     {
         return gnc_numeric_error(GNC_ERROR_ARG);
     }
-    denom = denom_lcd(a, b, denom, how);
+
     try
     {
+        denom = denom_lcd(a, b, denom, how);
         if ((how & GNC_NUMERIC_DENOM_MASK) != GNC_HOW_DENOM_EXACT)
         {
             GncNumeric an (a), bn (b);
@@ -919,9 +918,9 @@ gnc_numeric_div(gnc_numeric a, gnc_numeric b,
     {
         return gnc_numeric_error(GNC_ERROR_ARG);
     }
-    denom = denom_lcd(a, b, denom, how);
     try
     {
+        denom = denom_lcd(a, b, denom, how);
         if ((how & GNC_NUMERIC_DENOM_MASK) != GNC_HOW_DENOM_EXACT)
         {
             GncNumeric an (a), bn (b);
@@ -1004,6 +1003,10 @@ gnc_numeric_convert(gnc_numeric in, int64_t denom, int how)
     {
         return convert(GncNumeric(in), denom, how);
     }
+    catch (const std::invalid_argument& err)
+    {
+        return gnc_numeric_error(GNC_ERROR_OVERFLOW);
+    }
     catch (const std::overflow_error& err)
     {
         return gnc_numeric_error(GNC_ERROR_OVERFLOW);
@@ -1011,6 +1014,10 @@ gnc_numeric_convert(gnc_numeric in, int64_t denom, int how)
     catch (const std::underflow_error& err)
     {
         return gnc_numeric_error(GNC_ERROR_OVERFLOW);
+    }
+    catch (const std::domain_error& err)
+    {
+        return gnc_numeric_error(GNC_ERROR_REMAINDER);
     }
 }
 

@@ -2,26 +2,31 @@
 # Copyright (C) 2001 Free Software Foundation, Inc.
 # Duarte Loreto <happyguy_pt@hotmail.com>, 2001
 # Tiago Neiva <tneiva@gmail.com>, 2018.
-#
+# Pedro Albuquerque <pmra@gmx.com>, 2021.
 msgid ""
 msgstr ""
 "Project-Id-Version: gnucash-2.4\n"
-"POT-Creation-Date: 2020-03-27 21:58+0100\n"
-"PO-Revision-Date: 2018-10-09 09:47+0100\n"
-"Last-Translator: Tiago Neiva <tneiva@gmail.com>\n"
-"Language-Team: Portuguese <translation-team-pt@lists.sourceforge.net>\n"
+"Report-Msgid-Bugs-To: https://bugs.gnucash.org/enter_bug."
+"cgi?product=GnuCash&component=Translations\n"
+"POT-Creation-Date: 2021-01-10 08:00+0100\n"
+"PO-Revision-Date: 2021-01-11 18:32+0000\n"
+"Last-Translator: Pedro Albuquerque <pmra@gmx.com>\n"
+"Language-Team: Portuguese <https://hosted.weblate.org/projects/gnucash/"
+"glossary/pt/>\n"
 "Language: pt\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: Plural-Forms:  nplurals=2; plural=(n != 1)\n"
-"X-Poedit-Language: Portuguese\n"
-"X-Poedit-Country: PORTUGAL\n"
-"X-Generator: Gtranslator 2.91.7\n"
+"Plural-Forms: nplurals=2; plural=n > 1;\n"
+"X-Generator: Weblate 4.4.1-dev\n"
 
 #. "English Definition (Dear translator: This file will never be visible to the user! It should only serve as a tool for you, the translator. Nothing more.)"
 msgid "Term (Dear translator: This file will never be visible to the user!)"
 msgstr "Termo"
+
+#. "Opening and closing quote symbols and optionally their key combos like [altgr]+[Y]/[X]. Define the preferred style of quotation, see https://en.wikipedia.org/wiki/Quotation_mark#Summary_table"
+msgid "\"\""
+msgstr "\"\""
 
 #. "A detailed record of money spent and received"
 msgid "account"
@@ -193,7 +198,7 @@ msgstr "levantamento"
 
 #. "As in: payable aging, or: receivable aging. The aging report categorizes payables or receivables based on time buckets. This gives an overview of which bills or invoices are overdue at which time in the future. "
 msgid "aging"
-msgstr ""
+msgstr "idade"
 
 #. "A sum of money"
 msgid "amount"
@@ -208,14 +213,12 @@ msgid "balance (noun)"
 msgstr "saldo"
 
 #. "Balance brought forward - usually the first entry of an account statement containing the 'balance c/f' of the previous billing period or page"
-#, fuzzy
 msgid "balance b/f"
-msgstr "reconciliar"
+msgstr "saldo inicial"
 
 #. "Balance carried forward - usually the last entry of an account statement to be used as 'balance b/f' on the next billing period or page"
-#, fuzzy
 msgid "balance c/f"
-msgstr "reconciliar"
+msgstr "saldo final"
 
 #. "A written record of money received and paid out, showing the difference between the two total amounts"
 msgid "balance sheet"
@@ -329,6 +332,10 @@ msgstr "moeda"
 msgid "Custom"
 msgstr "Personalizado"
 
+#. "Compact, well-structured presentation of informations. See https://en.wikipedia.org/wiki/Dashboard_(business)"
+msgid "dashboard"
+msgstr "painel"
+
 #. "The backend where the data is stored."
 msgid "database"
 msgstr "base de dados"
@@ -373,6 +380,14 @@ msgstr "desconto"
 msgid "double entry"
 msgstr "dupla entrada"
 
+#. "Transactions or bills/invoices can contain a document link which links either to some file on the local disk or to some arbitrary URL."
+msgid "document link"
+msgstr "ligação do documento"
+
+#. "Electronic mail. Some languages allow different writings, but each team should use only one. https://en.wikipedia.org/wiki/Email"
+msgid "email"
+msgstr "email"
+
 #. "a person who works for somebody or a company in return for wages"
 msgid "employee"
 msgstr "empregado"
@@ -413,6 +428,14 @@ msgstr "taxa de juro"
 msgid "financial calculator: payments"
 msgstr "pagamentos"
 
+#. "formal records of the financial activities and position of a business, person, or other entity. See https://en.wikipedia.org/wiki/Financial_statement for a list."
+msgid "financial statement"
+msgstr "declaração financeira"
+
+#. "Free software is a matter of liberty, not price … see https://en.wikipedia.org/wiki/Free_software"
+msgid "free software"
+msgstr "programa livre"
+
 #. "An increase in wealth; profit; advantage (See also: capital gains)"
 msgid "gain"
 msgstr "ganho"
@@ -449,9 +472,13 @@ msgstr "razão"
 msgid "liabilities/equity"
 msgstr "passivo/capital próprio"
 
-#. "A sum of money that is lent (by a bank)"
+#. "A sum of money that is lent (by a bank), see also: financial calculator, Mortgage"
 msgid "loan"
 msgstr "empréstimo"
+
+#. "Annual Percentage Rate, includes in contrast to the Nominal Rate some of the various costs to obtain a loan."
+msgid "loan: APR"
+msgstr "empréstimo:TPA"
 
 #. "The money lost in business activity"
 msgid "loss"
@@ -488,6 +515,14 @@ msgstr "Memorando"
 #. "(a) An agreement by which money is lent by a bank for buying a house or other property, the property being the security. (b) A sum of money lent in this way."
 msgid "Mortgage"
 msgstr "Hipoteca"
+
+#. "Adjustable Rate Mortgage"
+msgid "mortgage: ARM"
+msgstr "hipoteca:HTA"
+
+#. "Fixed Rate Mortgage"
+msgid "mortgage: FRM"
+msgstr "hipoteca:HTF"
 
 #. "e.g. USD, DEM, see Currency."
 msgid "national currency"
@@ -535,7 +570,7 @@ msgstr "encomenda"
 
 #. "Name of an automatically created account that holds splits that have no account."
 msgid "orphan"
-msgstr "órfão"
+msgstr "órfã"
 
 #. "The customer to (or employee or vendor from) which this invoice is sent - or short your business partner."
 msgid "owner (of bill, invoice or expense voucher)"
@@ -697,7 +732,7 @@ msgstr "Balanço de acções"
 msgid "shares"
 msgstr "acções"
 
-#. "(of a price) A place wfrom which sth comes or is obtained"
+#. "(often: of a quote) A place from which something comes or is obtained."
 msgid "source"
 msgstr "fonte"
 
@@ -711,7 +746,7 @@ msgstr "folha de estilo"
 
 #. "The total of a set of figures that are part of a larger group of figures"
 msgid "subtotal"
-msgstr "subtotal"
+msgstr "sub-total"
 
 #. "On the government's tax forms, the tax code identifies the given line or place on the form where certain amounts must be specified according to the current country's legislation"
 msgid "tax code"
@@ -721,7 +756,23 @@ msgstr "código de imposto"
 msgid "tax info"
 msgstr "informação de impostos"
 
-#. "if you create a new e.g. style sheet, you can start from a template"
+#. "Amost everybody has to declare and probably pay it. See https://en.wikipedia.org/wiki/Income_tax"
+msgid "tax type: income tax"
+msgstr "Imposto sobre rendimentos"
+
+#. "Usually only business users have to handle it, see https://en.wikipedia.org/wiki/Sales_tax."
+msgid "tax type: sales tax"
+msgstr "imposto sobre vendas"
+
+#. "'Goods and Service Tax' is one form of sales tax."
+msgid "tax type: GST"
+msgstr "Imposto sobre bens e serviços"
+
+#. "'Value Added Tax' is the other form of sales tax."
+msgid "tax type: VAT"
+msgstr "IVA"
+
+#. "If you create a new e.g. style sheet, you can start from a template."
 msgid "template"
 msgstr "modelo"
 
@@ -781,7 +832,7 @@ msgstr "tipo"
 msgid "units"
 msgstr "unidades"
 
-#. "-"
+#. "Uniform Resource Locator, https://en.wikipedia.org/wiki/URL"
 msgid "URL"
 msgstr "URL"
 

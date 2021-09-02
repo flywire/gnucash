@@ -20,12 +20,12 @@
  * Boston, MA  02110-1301,  USA       gnu@gnu.org                   *
  *                                                                  *
  ********************************************************************/
+#include <glib.h>
+#include <glib/gstdio.h>
+
 extern "C"
 {
 #include <config.h>
-
-#include <glib.h>
-#include <glib/gstdio.h>
 #include <string.h>
 #include <ctype.h>
 #include <stdarg.h>

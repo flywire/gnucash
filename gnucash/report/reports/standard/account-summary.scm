@@ -90,8 +90,13 @@
   (N_ "Maximum number of levels in the account tree displayed."))
 (define optname-bottom-behavior (N_ "Depth limit behavior"))
 (define opthelp-bottom-behavior
-  (N_ "How to treat accounts which exceed the specified depth limit (if any)."))
-
+    (string-join
+     (list
+      (G_ "How to treat accounts which exceed the specified depth limit (if any).")
+      (G_ "Show the total balance, including balances in subaccounts, of any account at the depth limit.")
+      (G_ "Raise accounts deeper than the depth limit to the depth limit.")
+      (G_ "Omit any accounts deeper than the depth limit."))
+      "\n* "))
 (define optname-parent-balance-mode (N_ "Parent account balances"))
 (define optname-parent-total-mode (N_ "Parent account subtotals"))
 
@@ -145,7 +150,7 @@
     (add-option
      (gnc:make-string-option
       gnc:pagename-general optname-report-title
-      "a" opthelp-report-title (_ reportname)))
+      "a" opthelp-report-title (G_ reportname)))
     (add-option
      (gnc:make-string-option
       gnc:pagename-general optname-party-name
@@ -186,15 +191,9 @@
       gnc:pagename-accounts optname-bottom-behavior
       "c" opthelp-bottom-behavior 'summarize
       (list
-       (vector 'summarize
-               (N_ "Recursive Balance")
-               (N_ "Show the total balance, including balances in subaccounts, of any account at the depth limit."))
-       (vector 'flatten
-               (N_ "Raise Accounts")
-               (N_ "Shows accounts deeper than the depth limit at the depth limit."))
-       (vector 'truncate
-               (N_ "Omit Accounts")
-               (N_ "Disregard completely any accounts deeper than the depth limit.")))))
+       (vector 'summarize (N_ "Recursive Balance"))
+       (vector 'flatten (N_ "Raise Accounts"))
+       (vector 'truncate (N_ "Omit Accounts")))))
 
     ;; all about currencies
     (gnc:options-add-currency!
@@ -297,7 +296,7 @@
          (show-rates? (get-option pagename-commodities optname-show-rates))
          (parent-mode (get-option gnc:pagename-display optname-parent-balance-mode))
          (parent-total-mode
-          (assq-ref '((t . #t) (f . #f) (canonically-tabbed . canonically-tabbed))
+          (assq-ref '((t . #t) (f . #f))
                     (get-option gnc:pagename-display optname-parent-total-mode)))
          (show-zb-accts? (get-option gnc:pagename-display optname-show-zb-accts))
          (omit-zb-bals? (get-option gnc:pagename-display optname-omit-zb-bals))
@@ -315,6 +314,7 @@
                          (gnc:get-current-account-tree-depth)
                          depth-limit))
          ;; exchange rates calculation parameters
+         (price-fn (gnc:case-price-fn price-source report-commodity to-date))
          (exchange-fn (gnc:case-exchange-fn price-source report-commodity to-date)))
 
     (gnc:html-document-set-title!
@@ -322,7 +322,7 @@
           company-name " " report-title " "
           (if sx?
               ;; Translators: This is part of the report title, which is capitalzed in English, but not all other languages
-              (format #f (_ "For Period Covering ~a to ~a")
+              (format #f (G_ "For Period Covering ~a to ~a")
                       (qof-print-date from-date)
                       (qof-print-date to-date))
               (qof-print-date to-date))))
@@ -403,10 +403,11 @@
            build-table
            (map make-header
                 (append
-                 (if show-code? (list (_ "Code")) '())
-                 (if show-type? (list (_ "Type")) '())
-                 (if show-desc? (list (_ "Description")) '())
-                 (list (_ "Account title")))))
+                 ;; Note: If this is to long, do not use "Code" it is currently used for tax code.
+                 (if show-code? (list (G_ "Account Code")) '())
+                 (if show-type? (list (G_ "Type")) '())
+                 (if show-desc? (list (G_ "Description")) '())
+                 (list (G_ "Account title")))))
           ;; add any fields to be displayed before the account name
           (if show-code? (add-col 'account-code))
           (if show-type? (add-col 'account-type-string))
@@ -418,7 +419,7 @@
                 account-cols))
           (when show-bals?
             (gnc:html-table-set-cell/tag!
-             build-table 0 (+ cur-col account-cols) "number-header" (_ "Balance")))
+             build-table 0 (+ cur-col account-cols) "number-header" (G_ "Balance")))
           (let rowloop ((row 0))
             (when (< row table-rows)
               (gnc:html-table-set-row-markup!
@@ -433,7 +434,7 @@
           (set! cur-col (+ cur-col hold-table-width))
           (when show-notes?
             (gnc:html-table-set-cell/tag!
-             build-table 0 cur-col "number-header" (_ "Notes"))
+             build-table 0 cur-col "number-header" (G_ "Notes"))
             (add-col 'account-notes))
 
           (gnc:html-document-add-object! doc build-table)
@@ -441,8 +442,8 @@
           ;; add currency information
           (when show-rates?
             (gnc:html-document-add-object!
-             doc (gnc:html-make-exchangerates
-                  report-commodity exchange-fn
+             doc (gnc:html-make-rates-table
+                  report-commodity price-fn
                   (gnc:accounts-and-all-descendants accounts))))))
 
     (gnc:report-finished)

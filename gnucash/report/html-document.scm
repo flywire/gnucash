@@ -21,23 +21,110 @@
 ;; Boston, MA  02110-1301,  USA       gnu@gnu.org
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(define-module (gnucash report html-document))
+
 (use-modules (gnucash html))
+(use-modules (gnucash report html-anytag))
+(use-modules (gnucash report html-barchart))
+(use-modules (gnucash report html-chart))
+(use-modules (gnucash report html-linechart))
+(use-modules (gnucash report html-piechart))
+(use-modules (gnucash report html-scatter))
+(use-modules (gnucash report html-style-info))
+(use-modules (gnucash report html-style-sheet))
+(use-modules (gnucash report html-table))
+(use-modules (gnucash report html-text))
+(use-modules (gnucash report report-utilities))
+(use-modules (gnucash utilities))
 (use-modules (ice-9 match))
+(use-modules (srfi srfi-1))
+(use-modules (srfi srfi-9))
+
+(export <html-document>)
+(export gnc:html-document?)
+(export gnc:make-html-document-internal)
+(export gnc:make-html-document)
+(export gnc:html-document-set-title!)
+(export gnc:html-document-title)
+(export gnc:html-document-set-headline!)
+(export gnc:html-document-headline)
+(export gnc:html-document-set-style-text!)
+(export gnc:html-document-style-text)
+(export gnc:html-document-set-style-sheet!)
+(export gnc:html-document-style-sheet)
+(export gnc:html-document-set-style-stack!)
+(export gnc:html-document-style-stack)
+(export gnc:html-document-set-style-internal!)
+(export gnc:html-document-style)
+(export gnc:html-document-set-objects!)
+(export gnc:html-document-objects)
+(export gnc:html-document?)
+(export gnc:html-document-set-style!)
+(export gnc:html-document-tree-collapse)
+(export gnc:html-document-render)
+(export gnc:html-document-push-style)
+(export gnc:html-document-pop-style)
+(export gnc:html-document-add-object!)
+(export gnc:html-document-append-objects!)
+(export gnc:html-document-fetch-markup-style)
+(export gnc:html-document-fetch-data-style)
+(export gnc:html-document-markup-start)
+(export gnc:html-document-markup-end)
+(export gnc:html-document-render-data)
+(export gnc:html-document-export-string)
+(export gnc:html-document-set-export-string)
+(export gnc:html-document-export-error)
+(export gnc:html-document-set-export-error)
+(export <html-object>)
+(export gnc:html-object?)
+(export gnc:make-html-object-internal)
+(export gnc:make-html-object)
+(export gnc:html-object-renderer)
+(export gnc:html-object-set-renderer!)
+(export gnc:html-object-data)
+(export gnc:html-object-set-data!)
+(export gnc:html-object-render)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;  <html-document> class
 ;;  this is the top-level object representing an entire HTML document.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define <html-document>
-  (make-record-type "<html-document>"
-                    '(style-sheet style-stack style style-text title headline objects)))
+(define-record-type <html-document>
+  (make-html-document-internal style-sheet style-stack style
+                               style-text title headline objects
+                               export-string export-error)
+  html-document?
+  (style-sheet html-document-style-sheet html-document-set-style-sheet)
+  (style-stack html-document-style-stack html-document-set-style-stack)
+  (style html-document-style html-document-set-style)
+  (style-text html-document-style-text html-document-set-style-text)
+  (title html-document-title html-document-set-title)
+  (headline html-document-headline html-document-set-headline)
+  (objects html-document-objects html-document-set-objects)
+  (export-string html-document-export-string html-document-set-export-string)
+  (export-error html-document-export-error html-document-set-export-error))
 
-(define gnc:html-document?
-  (record-predicate <html-document>))
-
-(define gnc:make-html-document-internal
-  (record-constructor <html-document>))
+(define gnc:html-document-set-title! html-document-set-title)
+(define gnc:html-document-title html-document-title)
+(define gnc:html-document-set-headline! html-document-set-headline)
+(define gnc:html-document-headline html-document-headline)
+(define gnc:html-document-set-style-sheet! html-document-set-style-sheet)
+(define gnc:html-document-style-sheet html-document-style-sheet)
+(define gnc:html-document-set-style-stack! html-document-set-style-stack)
+(define gnc:html-document-style-stack html-document-style-stack)
+(define gnc:html-document-set-style-text! html-document-set-style-text)
+(define gnc:html-document-style-text html-document-style-text)
+(define gnc:html-document-set-style-internal! html-document-set-style)
+(define gnc:html-document-style html-document-style)
+(define gnc:html-document-set-objects! html-document-set-objects)
+(define gnc:html-document-objects html-document-objects)
+(define gnc:html-document? html-document?)
+(define gnc:make-html-document-internal make-html-document-internal)
+(define gnc:html-document-export-string html-document-export-string)
+(define gnc:html-document-set-export-string html-document-set-export-string)
+(define gnc:html-document-export-error html-document-export-error)
+(define gnc:html-document-set-export-error html-document-set-export-error)
 
 (define (gnc:make-html-document)
   (gnc:make-html-document-internal
@@ -48,55 +135,9 @@
    ""                    ;; document title
    #f                    ;; headline
    '()                   ;; subobjects
+   #f                    ;; export-string -- must be #f by default
+   #f                    ;; export-error -- must be #f by default
    ))
-
-(define gnc:html-document-set-title!
-  (record-modifier <html-document> 'title))
-
-(define gnc:html-document-title
-  (record-accessor <html-document> 'title))
-
-(define gnc:html-document-set-headline!
-  (record-modifier <html-document> 'headline))
-
-(define gnc:html-document-headline
-  (record-accessor <html-document> 'headline))
-
-(define gnc:html-document-set-style-sheet!
-  (record-modifier <html-document> 'style-sheet))
-
-(define gnc:html-document-set-style-sheet!
-  (record-modifier <html-document> 'style-sheet))
-
-(define gnc:html-document-style-sheet
-  (record-accessor <html-document> 'style-sheet))
-
-(define gnc:html-document-set-style-stack!
-  (record-modifier <html-document> 'style-stack))
-
-(define gnc:html-document-style-stack
-  (record-accessor <html-document> 'style-stack))
-
-(define gnc:html-document-set-style-text!
-  (record-modifier <html-document> 'style-text))
-
-(define gnc:html-document-style-text
-  (record-accessor <html-document> 'style-text))
-
-(define gnc:html-document-set-style-internal!
-  (record-modifier <html-document> 'style))
-
-(define gnc:html-document-style
-  (record-accessor <html-document> 'style))
-
-(define gnc:html-document-set-objects!
-  (record-modifier <html-document> 'objects))
-
-(define gnc:html-document-objects
-  (record-accessor <html-document> 'objects))
-
-(define gnc:html-document?
-  (record-predicate <html-document>))
 
 (define (gnc:html-document-set-style! doc tag . rest)
   (gnc:html-style-table-set!
@@ -128,8 +169,6 @@
         (let* ((retval '())
                (push (lambda (l) (set! retval (cons l retval))))
                (objs (gnc:html-document-objects doc))
-               (work-to-do (length objs))
-               (work-done 0)
                (title (gnc:html-document-title doc)))
           ;; compile the doc style
           (gnc:html-style-table-compile (gnc:html-document-style doc)
@@ -161,9 +200,7 @@
           ;; now render the children
           (for-each
            (lambda (child)
-               (push (gnc:html-object-render child doc))
-               (set! work-done (+ 1 work-done))
-               (gnc:report-percent-done (* 100 (/ work-done work-to-do))))
+               (push (gnc:html-object-render child doc)))
            objs)
 
           (when headers?
@@ -292,14 +329,18 @@
 ;;  want.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define <html-object>
-  (make-record-type "<html-object>"
-                    '(renderer data)))
-(define gnc:html-object?
-  (record-predicate <html-object>))
+(define-record-type <html-object>
+  (make-html-object-internal renderer data)
+  html-object?
+  (renderer html-object-renderer html-object-set-renderer!)
+  (data html-object-data html-object-set-data!))
 
-(define gnc:make-html-object-internal
-  (record-constructor <html-object>))
+(define gnc:html-object? html-object?)
+(define gnc:make-html-object-internal make-html-object-internal)
+(define gnc:html-object-renderer html-object-renderer)
+(define gnc:html-object-set-renderer! html-object-set-renderer!)
+(define gnc:html-object-data html-object-data)
+(define gnc:html-object-set-data! html-object-set-data!)
 
 (define (gnc:make-html-object obj)
   (cond
@@ -347,19 +388,8 @@
      (lambda (obj doc)
        (gnc:html-document-render-data doc obj)) obj))))
 
-(define gnc:html-object-renderer
-  (record-accessor <html-object> 'renderer))
-
-(define gnc:html-object-set-renderer!
-  (record-modifier <html-object> 'renderer))
-
-(define gnc:html-object-data
-  (record-accessor <html-object> 'data))
-
-(define gnc:html-object-set-data!
-  (record-modifier <html-object> 'data))
-
 (define (gnc:html-object-render obj doc)
+  (gnc:pulse-progress-bar)
   (if (gnc:html-object? obj)
       ((gnc:html-object-renderer obj) (gnc:html-object-data obj) doc)
       (let ((htmlo (gnc:make-html-object obj)))

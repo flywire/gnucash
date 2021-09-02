@@ -27,11 +27,11 @@
  * This file implements the top-level QofBackend API for saving/
  * restoring data to/from an SQL database
  */
+#include <glib.h>
+
 extern "C"
 {
 #include <config.h>
-
-#include <glib.h>
 #include <stdlib.h>
 #include <string.h>
 

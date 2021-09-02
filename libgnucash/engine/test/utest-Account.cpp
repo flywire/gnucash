@@ -19,15 +19,17 @@
  * 51 Franklin Street, Fifth Floor    Fax:    +1-617-542-2652       *
  * Boston, MA  02110-1301,  USA       gnu@gnu.org                   *
  ********************************************************************/
+#include <glib.h>
+
 extern "C"
 {
 #include <config.h>
 #include <string.h>
-#include <glib.h>
 #include <unittest-support.h>
 #include <gnc-event.h>
 #include <gnc-date.h>
 /* Add specific headers for this class */
+#include "gnc-glib-utils.h"
 #include "../Account.h"
 #include "../AccountP.h"
 #include "../Split.h"
@@ -304,8 +306,8 @@ setup (Fixture *fixture, gconstpointer pData)
     auto accts = g_hash_table_new (g_str_hash, g_str_equal);
     guint ind;
 
-    auto root_str = static_cast<char*>(CACHE_INSERT("root"));
-    g_hash_table_insert (accts, root_str, root);
+    auto root_str = CACHE_INSERT("root");
+    g_hash_table_insert (accts, (gpointer)root_str, root);
     fixture->func = _utest_account_fill_functions ();
     if (parms == NULL)
     {
@@ -428,24 +430,12 @@ test_gnc_account_name_violations_errmsg ()
 {
     GList *badnames = NULL, *nonames = NULL, *node = NULL;
     auto separator = ":";
-    char *account_list = NULL;
     /* FUT wants to free the strings, so we alloc them */
     badnames = g_list_prepend (badnames, g_strdup ("Foo:bar"));
     badnames = g_list_prepend (badnames, g_strdup ("baz"));
     badnames = g_list_prepend (badnames, g_strdup ("waldo:pepper"));
     auto message = gnc_account_name_violations_errmsg (separator, nonames);
-    for (node = badnames; node; node = g_list_next (node))
-    {
-        if (!account_list)
-            account_list = g_strdup (static_cast<char*>(node->data));
-        else
-        {
-            auto tmp_list = g_strconcat ( account_list, "\n",
-                                          static_cast<char*>(node->data), NULL);
-            g_free (account_list);
-            account_list = tmp_list;
-        }
-    }
+    auto account_list = gnc_g_list_stringjoin (badnames, "\n");
     message = gnc_account_name_violations_errmsg (separator, nonames);
     g_assert (message == NULL);
     auto validation_message = g_strdup_printf (
@@ -454,6 +444,7 @@ test_gnc_account_name_violations_errmsg ()
         "Either change the account names or choose another separator "
         "character.\n\nBelow you will find the list of invalid account names:\n"
         "%s", separator, account_list);
+    g_free (account_list);
     message = gnc_account_name_violations_errmsg (separator, badnames);
     g_assert_cmpstr ( message, == , validation_message);
     g_free (validation_message);
@@ -546,7 +537,7 @@ test_gnc_account_create_and_destroy (void)
     GNCAccountType type;
     gnc_commodity *commo;
     gint commo_scu, mark;
-    gboolean non_std_scu, sort_dirty, bal_dirty, tax_rel, hide, hold;
+    gboolean non_std_scu, sort_dirty, bal_dirty, opening_balance, tax_rel, hide, hold;
     gint64 copy_num;
     gnc_numeric *start_bal, *start_clr_bal, *start_rec_bal;
     gnc_numeric *end_bal, *end_clr_bal, *end_rec_bal;
@@ -571,6 +562,7 @@ test_gnc_account_create_and_destroy (void)
                   "end-balance", &end_bal,
                   "end-cleared-balance", &end_clr_bal,
                   "end-reconciled-balance", &end_rec_bal,
+                  "opening-balance", &opening_balance,
                   "policy", &pol,
                   "acct-mark", &mark,
                   "tax-related", &tax_rel,
@@ -599,6 +591,7 @@ test_gnc_account_create_and_destroy (void)
     g_assert (gnc_numeric_zero_p (*start_bal));
     g_assert (gnc_numeric_zero_p (*start_clr_bal));
     g_assert (gnc_numeric_zero_p (*start_rec_bal));
+    g_assert (!opening_balance);
     g_assert (pol == xaccGetFIFOPolicy ());
     g_assert (!mark);
     g_assert (!tax_rel);
@@ -850,8 +843,8 @@ acc_free
 static void
 test_xaccFreeAccount (Fixture *fixture, gconstpointer pData)
 {
-    auto msg1 = "[xaccFreeAccount()]  instead of calling xaccFreeAccount(), please call \n"
-                  " xaccAccountBeginEdit(); xaccAccountDestroy(); \n";
+    auto msg1 = "[xaccFreeAccount()]  instead of calling xaccFreeAccount(), please call\n"
+                  " xaccAccountBeginEdit(); xaccAccountDestroy();\n";
 #ifdef USE_CLANG_FUNC_SIG
 #define _func "int xaccTransGetSplitIndex(const Transaction *, const Split *)"
 #else
@@ -939,7 +932,7 @@ No test, just a pass-through.
 /* acc_free
 static void acc_free (QofInstance *inst)// 2
 ***Callback for qof_commit_edit_part2
-No test, just a passthrough -- plus see comment at test_xaccFreeAccount, which is what this is a passtrough of.
+No test, just a passthrough -- plus see comment at test_xaccFreeAccount, which is what this is a passthrough of.
 */
 /* static void
 test_acc_free (Fixture *fixture, gconstpointer pData)
@@ -964,8 +957,8 @@ Also tests:
 static void
 test_xaccAccountCommitEdit (Fixture *fixture, gconstpointer pData)
 {
-    auto msg1 = "[xaccFreeAccount()]  instead of calling xaccFreeAccount(), please call \n"
-                  " xaccAccountBeginEdit(); xaccAccountDestroy(); \n";
+    auto msg1 = "[xaccFreeAccount()]  instead of calling xaccFreeAccount(), please call\n"
+                  " xaccAccountBeginEdit(); xaccAccountDestroy();\n";
 #ifdef USE_CLANG_FUNC_SIG
 #define _func "int xaccTransGetSplitIndex(const Transaction *, const Split *)"
 #else
@@ -1074,6 +1067,105 @@ gnc_account_insert_split (Account *acc, Split *s)// C: 5 in 3
 
 Also tests gnc_account_remove_split ()
 */
+
+
+static void
+test_gnc_account_kvp_setters_getters (Fixture *fixture, gconstpointer pData)
+{
+    Account *account = xaccMallocAccount (gnc_account_get_book (fixture->acct));
+    xaccAccountSetType (account, ACCT_TYPE_EQUITY);
+
+    // equity_type getter/setter
+    g_assert (xaccAccountGetIsOpeningBalance (account) == FALSE);
+
+    xaccAccountSetIsOpeningBalance (account, TRUE);
+    g_assert (xaccAccountGetIsOpeningBalance (account) == TRUE);
+
+    xaccAccountSetIsOpeningBalance (account, FALSE);
+    g_assert (xaccAccountGetIsOpeningBalance (account) == FALSE);
+
+    // sortreversed getter/setter
+    g_assert (xaccAccountGetSortReversed (account) == FALSE);
+
+    xaccAccountSetSortReversed (account, TRUE);
+    g_assert (xaccAccountGetSortReversed (account) == TRUE);
+
+    xaccAccountSetSortReversed (account, FALSE);
+    g_assert (xaccAccountGetSortReversed (account) == FALSE);
+
+    // color getter/setter
+    g_assert_cmpstr (xaccAccountGetColor (account), ==, nullptr);
+
+    xaccAccountSetColor (account, "red");
+    g_assert_cmpstr (xaccAccountGetColor (account), ==, "red");
+
+    xaccAccountSetColor (account, "unset");
+    g_assert_cmpstr (xaccAccountGetColor (account), ==, "unset");
+
+    xaccAccountSetColor (account, "");
+    g_assert_cmpstr (xaccAccountGetColor (account), ==, nullptr);
+
+    xaccAccountSetColor (account, nullptr);
+    g_assert_cmpstr (xaccAccountGetColor (account), ==, nullptr);
+
+    // filter getter/setter
+    g_assert_cmpstr (xaccAccountGetFilter (account), ==, nullptr);
+
+    xaccAccountSetFilter (account, "bla");
+    g_assert_cmpstr (xaccAccountGetFilter (account), ==, "bla");
+
+    xaccAccountSetFilter (account, "unset");
+    g_assert_cmpstr (xaccAccountGetFilter (account), ==, "unset");
+
+    xaccAccountSetFilter (account, "   unset ");
+    g_assert_cmpstr (xaccAccountGetFilter (account), ==, "unset");
+
+    xaccAccountSetFilter (account, "");
+    g_assert_cmpstr (xaccAccountGetFilter (account), ==, nullptr);
+
+    xaccAccountSetFilter (account, nullptr);
+    g_assert_cmpstr (xaccAccountGetFilter (account), ==, nullptr);
+
+    // sortOrder getter/setter
+    g_assert_cmpstr (xaccAccountGetSortOrder (account), ==, nullptr);
+
+    xaccAccountSetSortOrder (account, "boo");
+    g_assert_cmpstr (xaccAccountGetSortOrder (account), ==, "boo");
+
+    xaccAccountSetSortOrder (account, "unset");
+    g_assert_cmpstr (xaccAccountGetSortOrder (account), ==, "unset");
+
+    xaccAccountSetSortOrder (account, "  unset ");
+    g_assert_cmpstr (xaccAccountGetSortOrder (account), ==, "unset");
+
+    xaccAccountSetSortOrder (account, "");
+    g_assert_cmpstr (xaccAccountGetSortOrder (account), ==, nullptr);
+
+    xaccAccountSetSortOrder (account, nullptr);
+    g_assert_cmpstr (xaccAccountGetSortOrder (account), ==, nullptr);
+
+    // Notes getter/setter
+    g_assert_cmpstr (xaccAccountGetNotes (account), ==, nullptr);
+
+    xaccAccountSetNotes (account, "boo");
+    g_assert_cmpstr (xaccAccountGetNotes (account), ==, "boo");
+
+    xaccAccountSetNotes (account, "unset");
+    g_assert_cmpstr (xaccAccountGetNotes (account), ==, "unset");
+
+    xaccAccountSetNotes (account, "    unset ");
+    g_assert_cmpstr (xaccAccountGetNotes (account), ==, "unset");
+
+    xaccAccountSetNotes (account, "");
+    g_assert_cmpstr (xaccAccountGetNotes (account), ==, nullptr);
+
+    xaccAccountSetNotes (account, nullptr);
+    g_assert_cmpstr (xaccAccountGetNotes (account), ==, nullptr);
+
+    xaccAccountBeginEdit (account);
+    xaccAccountDestroy (account);
+}
+
 static void
 test_gnc_account_insert_remove_split (Fixture *fixture, gconstpointer pData)
 {
@@ -2248,9 +2340,8 @@ test_xaccAccountType_Compatibility (void)
     auto check2 = test_error_struct_new(logdomain, loglevel, msg2);
     gint loghandler;
 
-    for (type = ACCT_TYPE_BANK; type < NUM_ACCOUNT_TYPES; type = ++type)
+    for (type = ACCT_TYPE_BANK; type < NUM_ACCOUNT_TYPES; ++type)
     {
-        GNCAccountType child;
         if (type == ACCT_TYPE_ROOT)
         {
             loghandler = g_log_set_handler (logdomain, loglevel,
@@ -2275,11 +2366,11 @@ test_xaccAccountType_Compatibility (void)
             g_assert_cmpint (compat, == , equity_compat);
         else if (type == ACCT_TYPE_TRADING)
             g_assert_cmpint (compat, == , trading_compat);
-        for (child = ACCT_TYPE_NONE; child < ACCT_TYPE_LAST; child = ++child)
-            if (1 << child & compat)
-                g_assert (xaccAccountTypesCompatible (type, child));
+        for (auto parent = ACCT_TYPE_NONE; parent < ACCT_TYPE_LAST; ++parent)
+            if (1 << parent & compat)
+                g_assert (xaccAccountTypesCompatible (parent, type));
             else
-                g_assert (!xaccAccountTypesCompatible (type, child));
+                g_assert (!xaccAccountTypesCompatible (parent, type));
 
         compat = xaccAccountTypesCompatibleWith (type);
         if (type <= ACCT_TYPE_LIABILITY ||
@@ -2557,6 +2648,7 @@ test_suite_account (void)
     GNC_TEST_ADD (suitename, "xaccAccountCommitEdit", Fixture, &good_data, setup, test_xaccAccountCommitEdit,  NULL );
 // GNC_TEST_ADD (suitename, "xaccAcctChildrenEqual", Fixture, NULL, setup, test_xaccAcctChildrenEqual,  teardown );
 // GNC_TEST_ADD (suitename, "xaccAccountEqual", Fixture, NULL, setup, test_xaccAccountEqual,  teardown );
+    GNC_TEST_ADD (suitename, "gnc account kvp getters & setters", Fixture, NULL, setup, test_gnc_account_kvp_setters_getters,  teardown );
     GNC_TEST_ADD (suitename, "gnc account insert & remove split", Fixture, NULL, setup, test_gnc_account_insert_remove_split,  teardown );
     GNC_TEST_ADD (suitename, "xaccAccount Insert and Remove Lot", Fixture, &good_data, setup, test_xaccAccountInsertRemoveLot,  teardown );
     GNC_TEST_ADD (suitename, "xaccAccountRecomputeBalance", Fixture, &some_data, setup, test_xaccAccountRecomputeBalance,  teardown );

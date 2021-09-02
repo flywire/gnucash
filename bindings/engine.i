@@ -77,6 +77,8 @@ declarations in the header files, some of which are included by
 engine-common.i */
 
 %newobject gnc_account_get_full_name;
+%newobject xaccTransGetAPARAcctSplitList;
+%newobject xaccTransGetPaymentAcctSplitList;
 
 %include "engine-common.i"
 
@@ -128,6 +130,8 @@ functions. */
 
 %newobject gnc_localtime;
 %newobject gnc_gmtime;
+
+%newobject gnc_budget_get_account_period_note;
 
 /* Parse the header file to generate wrappers */
 %inline {
@@ -188,6 +192,9 @@ const char *qof_session_get_url (QofSession *session);
 
 %ignore qof_print_date_time_buff;
 %ignore gnc_tm_free;
+%newobject qof_print_date;
+%newobject gnc_ctime;
+%newobject gnc_print_time64;
 %include <gnc-date.h>
 extern const char *gnc_default_strftime_date_format;
 
@@ -253,6 +260,8 @@ time64 time64CanonicalDayTime(time64 t);
   $1 = g_list_reverse (path);
 }
 
+%typemap (freearg) GList * "g_list_free_full ($1, g_free);"
+
 void gnc_quote_source_set_fq_installed (const char* version_string,
                                         GList *sources_list);
 %clear GList *;
@@ -270,6 +279,7 @@ Account * gnc_book_get_template_root(QofBook *book);
 %typemap(in) KvpValue * " $1 = gnc_scm_to_kvp_value_ptr($input); "
 %typemap(out) KvpValue * " $result = gnc_kvp_value_ptr_to_scm($1); "
 %typemap(in) GSList *key_path " $1 = gnc_scm_to_gslist_string($input);"
+%typemap(freearg) GSList *key_path "g_slist_free_full ($1, g_free);"
 
 QofBook* qof_book_new (void);
 void qof_book_options_delete (QofBook *book, GSList *key_path);
@@ -361,6 +371,7 @@ void qof_book_set_string_option(QofBook* book, const char* opt_name, const char*
     SET_ENUM("CLEARED-FROZEN");
     SET_ENUM("CLEARED-RECONCILED");
     SET_ENUM("CLEARED-VOIDED");
+    SET_ENUM("CLEARED-ALL");
 
     SET_ENUM("HOOK-REPORT");
     SET_ENUM("HOOK-SAVE-OPTIONS");
@@ -420,6 +431,7 @@ void qof_book_set_string_option(QofBook* book, const char* opt_name, const char*
     SET_ENUM("PRICE-SOURCE-USER-PRICE");
     SET_ENUM("PRICE-SOURCE-XFER-DLG-VAL");
     SET_ENUM("PRICE-SOURCE-SPLIT-REG");
+    SET_ENUM("PRICE-SOURCE-SPLIT-IMPORT");
     SET_ENUM("PRICE-SOURCE-STOCK-SPLIT");
     SET_ENUM("PRICE-SOURCE-TEMP");
     SET_ENUM("PRICE-SOURCE-INVALID");

@@ -28,7 +28,8 @@
 #   @author Mark Jenkins, ParIT Worker Co-operative <mark@parit.ca>
 #   @ingroup python_bindings_examples
 
-from gnucash import Session, Account, Transaction, Split, GncNumeric
+from gnucash import (
+        Session, Account, Transaction, Split, GncNumeric, SessionOpenMode)
 from gnucash.gnucash_core_c import \
     GNC_DENOM_AUTO, GNC_HOW_DENOM_EXACT, \
     ACCT_TYPE_ASSET, ACCT_TYPE_BANK, ACCT_TYPE_CASH, ACCT_TYPE_CHECKING, \
@@ -85,7 +86,7 @@ from datetime import date
 
 OPENING_DATE = (1, 1, 2011) # day, month, year
 
-# possible acccount types of interest for opening balances
+# possible account types of interest for opening balances
 ACCOUNT_TYPES_TO_OPEN = set( (
         ACCT_TYPE_BANK,
         ACCT_TYPE_CASH,
@@ -151,7 +152,7 @@ def record_opening_balance(original_account, new_account, new_book,
             # if there is a new currency type, associate with the currency
             # a Transaction which will be the opening transaction for that
             # currency and a GncNumeric value which will be the opening
-            # balance acccount amount
+            # balance account amount
             if commodity_tuple not in opening_balance_per_currency:
                 trans = Transaction(new_book)
                 trans.BeginEdit()
@@ -299,8 +300,8 @@ def main():
 
     #have everything in a try block to unable us to release our hold on stuff to the extent possible
     try:
-        original_book_session = Session(argv[1], is_new=False)
-        new_book_session = Session(argv[2], is_new=True)
+        original_book_session = Session(argv[1], SessionOpenMode.SESSION_NORMAL_OPEN)
+        new_book_session = Session(argv[2], SessionOpenMode.SESSION_NEW_STORE)
         new_book = new_book_session.get_book()
         new_book_root = new_book.get_root_account()
 

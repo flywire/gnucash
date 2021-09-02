@@ -25,6 +25,7 @@
 
 
 (define-module (gnucash reports))
+
 (use-modules (srfi srfi-13))
 (use-modules (srfi srfi-8))
 (use-modules (gnucash app-utils))
@@ -32,26 +33,24 @@
 (use-modules (gnucash engine))
 (use-modules (gnucash report))
 (use-modules (gnucash utilities))
+(use-modules (gnucash reports standard register))
+(use-modules (gnucash reports standard new-aging))
+(use-modules (gnucash reports standard new-owner-report))
 
+(export gnc:budget-report-create)
 (export gnc:register-report-create)
 (export gnc:invoice-report-create)
 (export gnc:payables-report-create)
 (export gnc:receivables-report-create)
-(export gnc:owner-report-create)
+(export gnc:owner-report-create)        ;deprecate
+(export gnc:owner-report-create-with-enddate)
 
-(define report-dirs (list
+(let ((loc-spec (if (string-prefix? "de_DE" (gnc-locale-name)) 'de_DE 'us)))
+  (report-module-loader
+   (list
     '(gnucash reports standard) ; prefix for standard reports included in gnucash
     '(gnucash reports example)  ; rexample for example reports included in gnucash
-))
-
-; Determine which locale-specific prefix to add to the list above
-; and then load all reports found in the given prefixes
-(let* ((loc (gnc-locale-name))
-       (loc-spec (if (string-prefix? "de_DE" loc) 'de_DE 'us))
-       (all-dirs (append report-dirs (list (list 'gnucash 'reports 'locale-specific loc-spec)))))
-      (report-module-loader all-dirs))
-
-(use-modules (gnucash engine))
+    `(gnucash reports locale-specific ,loc-spec))))
 
 (define (gnc:register-report-create account split query journal? ledger-type?
                                     double? title debit-string credit-string)
@@ -80,14 +79,16 @@
         0
         ))
 
-(use-modules (gnucash reports standard payables))
-(define (gnc:payables-report-create account title show-zeros?)
-  (payables-report-create-internal account title show-zeros?))
+(define budget-ID "810ed4b25ef0486ea43bbd3dddb32b11")
+(define (gnc:budget-report-create budget)
+  (if (gnc:find-report-template budget-ID)
+      (let* ((options (gnc:make-report-options budget-ID))
+             (bgt-op (gnc:lookup-option options gnc:pagename-general "Budget")))
+        (gnc:option-set-value bgt-op budget)
+        (gnc:make-report budget-ID options))
+      -1))
 
-(use-modules (gnucash reports standard receivables))
-(define (gnc:receivables-report-create account title show-zeros?)
-  (receivables-report-create-internal account title show-zeros?))
-
-(use-modules (gnucash reports standard owner-report))
-(define* (gnc:owner-report-create owner account #:key currency)
-  (owner-report-create owner account #:currency currency))
+(define gnc:payables-report-create payables-report-create-internal)
+(define gnc:receivables-report-create receivables-report-create-internal)
+(define gnc:owner-report-create owner-report-create) ;deprecated
+(define gnc:owner-report-create-with-enddate owner-report-create-with-enddate)

@@ -27,7 +27,7 @@
 
 (use-modules (gnucash engine))
 (use-modules (gnucash utilities))
-(use-modules (gnucash core-utils)) ; for gnc:version and (_ ...)
+(use-modules (gnucash core-utils)) ; for gnc:version and (G_ ...)
 (use-modules (gnucash app-utils))
 (use-modules (gnucash report))
 
@@ -43,14 +43,13 @@
          (sub-expense-pie (gnc:make-report exp-piechart-guid))
          (sub-income-pie (gnc:make-report inc-piechart-guid))
          (sub-bar (gnc:make-report inc-exp-chart-guid))
-         (options #f))
+         (options (gnc:report-options (gnc-report-find view))))
 
     (define (set-option! section name value)
       (gnc:option-set-value
        (gnc:lookup-option options section name) value))
 
-    (set! options (gnc:report-options (gnc-report-find view)))
-    (set-option! "General" "Report name" (_ "Dashboard"))
+    (set-option! "General" "Report name" (G_ "Dashboard"))
     (set-option! "General" "Number of columns" 2)
 
     ;; mark the reports as needing to be saved

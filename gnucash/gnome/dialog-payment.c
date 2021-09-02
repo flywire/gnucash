@@ -201,6 +201,7 @@ void gnc_payment_acct_tree_row_activated_cb (GtkWidget *widget, GtkTreePath *pat
         GtkTreeViewColumn *column, PaymentWindow *pw);
 void gnc_payment_leave_amount_cb (GtkWidget *widget, GdkEventFocus *event,
                                   PaymentWindow *pw);
+void gnc_payment_activate_amount_cb (GtkWidget *widget, PaymentWindow *pw);
 void gnc_payment_window_fill_docs_list (PaymentWindow *pw);
 
 
@@ -221,6 +222,7 @@ gnc_payment_window_check_payment (PaymentWindow *pw)
     gboolean enable_xfer_acct = TRUE;
     gboolean allow_payment = TRUE;
     GtkTreeSelection *selection;
+    gint c_result, d_result;
 
     if (!pw)
         return FALSE;
@@ -242,11 +244,24 @@ gnc_payment_window_check_payment (PaymentWindow *pw)
         goto update_cleanup;
     }
 
+    /* Verify the credit / debit amounts are valid */
+    d_result = gnc_amount_edit_expr_is_valid (GNC_AMOUNT_EDIT(pw->amount_debit_edit),
+                                              &amount_deb, FALSE, NULL);
+
+    c_result = gnc_amount_edit_expr_is_valid (GNC_AMOUNT_EDIT(pw->amount_credit_edit),
+                                              &amount_cred, FALSE, NULL);
+
+    if ((d_result == 1) || (c_result == 1))
+    {
+        conflict_msg = _("There is a problem with the Payment or Refund amount.");
+        allow_payment = FALSE;
+        goto update_cleanup;
+    }
+
     /* Test the total amount */
-    amount_deb  = gnc_amount_edit_get_amount (GNC_AMOUNT_EDIT (pw->amount_debit_edit));
-    amount_cred = gnc_amount_edit_get_amount (GNC_AMOUNT_EDIT (pw->amount_credit_edit));
     pw->amount_tot = gnc_numeric_sub (amount_cred, amount_deb,
-                                      gnc_commodity_get_fraction (xaccAccountGetCommodity (pw->post_acct)),
+                                      gnc_commodity_get_fraction (
+                                      xaccAccountGetCommodity (pw->post_acct)),
                                       GNC_HOW_RND_ROUND_HALF_UP);
 
     if (gnc_numeric_check (pw->amount_tot) || gnc_numeric_zero_p (pw->amount_tot))
@@ -1004,6 +1019,7 @@ gnc_payment_ok_cb (G_GNUC_UNUSED GtkWidget *widget, gpointer data)
 
             gnc_xfer_dialog_select_to_account(xfer, pw->xfer_acct);
             gnc_xfer_dialog_set_amount(xfer, pw->amount_tot);
+            gnc_xfer_dialog_set_date (xfer, t);
 
             /* All we want is the exchange rate so prevent the user from thinking
                it makes sense to mess with other stuff */
@@ -1012,7 +1028,9 @@ gnc_payment_ok_cb (G_GNUC_UNUSED GtkWidget *widget, gpointer data)
             gnc_xfer_dialog_hide_from_account_tree(xfer);
             gnc_xfer_dialog_hide_to_account_tree(xfer);
             gnc_xfer_dialog_is_exchange_dialog(xfer, &exch);
-            gnc_xfer_dialog_run_until_done(xfer);
+
+            if (!gnc_xfer_dialog_run_until_done(xfer))
+                return; /* If the user cancels, return to the payment dialog without changes */
         }
 
         /* Perform the payment */
@@ -1037,6 +1055,7 @@ gnc_payment_ok_cb (G_GNUC_UNUSED GtkWidget *widget, gpointer data)
         GList *splits = NULL;
         splits = g_list_append(splits, split);
         gnc_ui_print_check_dialog_create(NULL, splits);
+        g_list_free (splits);
     }
 
     gnc_ui_payment_window_destroy (pw);
@@ -1100,22 +1119,38 @@ gnc_payment_leave_amount_cb (G_GNUC_UNUSED GtkWidget *widget,
                              G_GNUC_UNUSED GdkEventFocus *event,
                              PaymentWindow *pw)
 {
-    gnc_numeric amount_deb, amount_cred, amount_tot;
+    gboolean d_payment_ok = FALSE;
+    gboolean c_payment_ok = FALSE;
 
     if (! pw->amount_credit_edit || ! pw->amount_debit_edit)
         return;
 
-    /* If both credit and debit amount are entered, simplify it to either one */
-    amount_deb  = gnc_amount_edit_get_amount (GNC_AMOUNT_EDIT (pw->amount_debit_edit));
-    amount_cred = gnc_amount_edit_get_amount (GNC_AMOUNT_EDIT (pw->amount_credit_edit));
-    amount_tot = gnc_numeric_sub (amount_cred, amount_deb,
-                                  gnc_commodity_get_fraction (xaccAccountGetCommodity (pw->post_acct)),
-                                  GNC_HOW_RND_ROUND_HALF_UP);
+    c_payment_ok = gnc_amount_edit_evaluate (GNC_AMOUNT_EDIT(pw->amount_credit_edit), NULL);
+    d_payment_ok = gnc_amount_edit_evaluate (GNC_AMOUNT_EDIT(pw->amount_debit_edit), NULL);
 
-    gnc_ui_payment_window_set_amount (pw, amount_tot);
+    if (c_payment_ok && d_payment_ok)
+    {
+        gnc_numeric amount_deb, amount_cred, amount_tot;
 
+        /* If both credit and debit amount are entered, simplify it to either one */
+        amount_deb  = gnc_amount_edit_get_amount (GNC_AMOUNT_EDIT (pw->amount_debit_edit));
+        amount_cred = gnc_amount_edit_get_amount (GNC_AMOUNT_EDIT (pw->amount_credit_edit));
+        amount_tot = gnc_numeric_sub (amount_cred, amount_deb,
+                                      gnc_commodity_get_fraction (
+                                      xaccAccountGetCommodity (pw->post_acct)),
+                                      GNC_HOW_RND_ROUND_HALF_UP);
+
+        gnc_ui_payment_window_set_amount (pw, amount_tot);
+    }
     /* Reflect if the payment could complete now */
     gnc_payment_window_check_payment (pw);
+}
+
+void
+gnc_payment_activate_amount_cb (G_GNUC_UNUSED GtkWidget *widget,
+                                PaymentWindow *pw)
+{
+      gnc_payment_leave_amount_cb (NULL, NULL, pw);
 }
 
 /* Select the list of accounts to show in the tree */
@@ -1160,6 +1195,28 @@ static void print_date (G_GNUC_UNUSED GtkTreeViewColumn *tree_column,
     doc_date_str = qof_print_date (doc_date_time);
     g_object_set (G_OBJECT (cell), "text", doc_date_str, NULL);
     g_free (doc_date_str);
+}
+
+static gint
+doc_sort_func (GtkTreeModel *model,
+               GtkTreeIter  *a,
+               GtkTreeIter  *b,
+               gpointer      user_data)
+{
+    time64 a_date, b_date;
+    gchar *a_id = NULL, *b_id = NULL;
+    int ret;
+
+    gtk_tree_model_get (model, a, 0, &a_date, 1, &a_id, -1);
+    gtk_tree_model_get (model, b, 0, &b_date, 1, &b_id, -1);
+
+    if (a_date < b_date) ret = -1;
+    else if (a_date > b_date) ret = 1;
+    else ret = g_strcmp0 (a_id, b_id);
+
+    g_free (a_id);
+    g_free (b_id);
+    return ret;
 }
 
 static PaymentWindow *
@@ -1268,6 +1325,10 @@ new_payment_window (GtkWindow *parent, QofBook *book, InitialPaymentInfo *tx_inf
                      "focus-out-event",
                      G_CALLBACK(gnc_payment_leave_amount_cb), pw);
 
+    g_signal_connect(G_OBJECT(pw->amount_debit_edit),
+                     "activate",
+                     G_CALLBACK(gnc_payment_activate_amount_cb), pw);
+
     pw->amount_credit_edit = gnc_amount_edit_new ();
     gnc_amount_edit_set_evaluate_on_enter (GNC_AMOUNT_EDIT (pw->amount_credit_edit),
                                            TRUE);
@@ -1275,6 +1336,10 @@ new_payment_window (GtkWindow *parent, QofBook *book, InitialPaymentInfo *tx_inf
     g_signal_connect(G_OBJECT(gnc_amount_edit_gtk_entry(GNC_AMOUNT_EDIT(pw->amount_credit_edit))),
                      "focus-out-event",
                      G_CALLBACK(gnc_payment_leave_amount_cb), pw);
+
+    g_signal_connect(G_OBJECT(pw->amount_credit_edit),
+                     "activate",
+                     G_CALLBACK(gnc_payment_activate_amount_cb), pw);
 
     box = GTK_WIDGET (gtk_builder_get_object (builder, "date_box"));
     pw->date_edit = gnc_date_edit_new (time(NULL), FALSE, FALSE);
@@ -1318,10 +1383,16 @@ new_payment_window (GtkWindow *parent, QofBook *book, InitialPaymentInfo *tx_inf
     tree_view_column_set_default_width (GTK_TREE_VIEW (pw->docs_list_tree_view),
                                         column, "9,999,999.00");
 
-    gtk_tree_sortable_set_sort_column_id (
-        GTK_TREE_SORTABLE (gtk_tree_view_get_model (GTK_TREE_VIEW (pw->docs_list_tree_view))),
-        0, GTK_SORT_ASCENDING);
+    gtk_tree_sortable_set_default_sort_func
+        (GTK_TREE_SORTABLE (gtk_tree_view_get_model
+                            (GTK_TREE_VIEW (pw->docs_list_tree_view))),
+         doc_sort_func, NULL, NULL);
 
+    gtk_tree_sortable_set_sort_column_id
+        (GTK_TREE_SORTABLE (gtk_tree_view_get_model
+                            (GTK_TREE_VIEW (pw->docs_list_tree_view))),
+         GTK_TREE_SORTABLE_DEFAULT_SORT_COLUMN_ID,
+         GTK_SORT_ASCENDING);
 
     box = GTK_WIDGET (gtk_builder_get_object (builder, "acct_window"));
     pw->acct_tree = GTK_WIDGET(gnc_tree_view_account_new (FALSE));
@@ -1656,6 +1727,8 @@ static GList *select_txn_lots (GtkWindow *parent, Transaction *txn, Account **po
         }
     }
 
+    g_list_free (post_splits);
+
     /* If the txn has both APAR splits linked to a business lot and
      * splits that are not, issue a warning some will be discarded.
      */
@@ -1679,7 +1752,7 @@ static GList *select_txn_lots (GtkWindow *parent, Transaction *txn, Account **po
                                          GTK_BUTTONS_CANCEL,
                                          _("The transaction has at least one split in a business account that is not part of a business transaction.\n"
                                          "If you continue these splits will be ignored:\n\n%s\n"
-                                         "Do you wish to continue and ignore these splits ?"),
+                                         "Do you wish to continue and ignore these splits?"),
                                          split_str);
         gtk_dialog_add_buttons (GTK_DIALOG(dialog),
                                 _("Continue"), GTK_BUTTONS_OK, NULL);
@@ -1693,6 +1766,8 @@ static GList *select_txn_lots (GtkWindow *parent, Transaction *txn, Account **po
         gtk_widget_destroy (dialog);
         g_free (split_str);
     }
+
+    g_list_free (no_lot_post_splits);
 
     return txn_lots;
 }

@@ -367,6 +367,15 @@ gnc_search_dialog_display_results (GNCSearchWindow *sw)
     max_count = gnc_prefs_get_float(GNC_PREFS_GROUP_SEARCH_GENERAL, GNC_PREF_NEW_SEARCH_LIMIT);
     if (gnc_query_view_get_num_entries(GNC_QUERY_VIEW(sw->result_view)) < max_count)
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON (sw->new_rb), TRUE);
+
+    /* If there is only one item then select it */
+    if (gnc_query_view_get_num_entries (GNC_QUERY_VIEW(sw->result_view)) == 1)
+    {
+        GtkTreeSelection *selection = gtk_tree_view_get_selection (GTK_TREE_VIEW(sw->result_view));
+        GtkTreePath *path = gtk_tree_path_new_first ();
+        gtk_tree_selection_select_path (selection, path);
+        gtk_tree_path_free (path);
+    }
 }
 
 static void
@@ -644,7 +653,7 @@ search_cancel_cb (GtkButton *button, GNCSearchWindow *sw)
 static void
 search_help_cb (GtkButton *button, GNCSearchWindow *sw)
 {
-    gnc_gnome_help (HF_HELP, HL_FIND_TRANSACTIONS);
+    gnc_gnome_help (GTK_WINDOW(sw->dialog), HF_HELP, HL_FIND_TRANSACTIONS);
 }
 
 static void
@@ -879,13 +888,12 @@ gnc_search_dialog_book_option_changed (gpointer new_val, gpointer user_data)
     for (l = sw->crit_list; l; l = l->next)
     {
         struct _crit_data *data = l->data;
-        GList *children;
+        GList *children = gtk_container_get_children (GTK_CONTAINER(data->container));
 
         /* For each, walk the list of container children to get combo_box */
-        for (children = gtk_container_get_children(GTK_CONTAINER(data->container));
-                children; children = children->next)
+        for (GList *child = children; child; child = g_list_next (child))
         {
-            GtkWidget *combo_box = children->data;
+            GtkWidget *combo_box = child->data;
 
             /* Get current active item if combo_box */
             if (GTK_IS_COMBO_BOX(combo_box))
@@ -909,6 +917,7 @@ gnc_search_dialog_book_option_changed (gpointer new_val, gpointer user_data)
                 gtk_widget_show_all (data->container);
             }
         }
+        g_list_free (children);
     }
     gtk_widget_grab_focus(focused_widget);
 }

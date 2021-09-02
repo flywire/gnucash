@@ -22,11 +22,11 @@
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
  *  02110-1301, USA.
  */
+#include <glib.h>
+
 extern "C"
 {
 #include <config.h>
-#include <glib.h>
-
 #include "gnc-commodity.h"
 #include "qof.h"
 #include "test-engine-stuff.h"
@@ -121,6 +121,11 @@ test_commodity(void)
         do_test(
             gnc_commodity_get_fraction(com) == fraction,
             "reset fraction code equal test");
+
+        g_assert_cmpstr (gnc_commodity_get_user_symbol(com), ==, NULL);
+
+        gnc_commodity_set_user_symbol (com, "CA$");
+        g_assert_cmpstr (gnc_commodity_get_user_symbol(com), ==, "CA$");
 
         com2 = gnc_commodity_new(book, fullname, name_space, mnemonic,
                                  cusip, fraction);

@@ -45,7 +45,7 @@
   (gnc:make-html-text
 
    (gnc:html-markup-p
-    (_ "This report is useful to calculate periodic business tax \
+    (G_ "This report is useful to calculate periodic business tax \
 payable/receivable from authorities. From 'Edit report options', \
 choose your business sales and purchase accounts. Each transaction \
 may contain, in addition to the asset, liability, A/Payable or \
@@ -53,24 +53,24 @@ A/Receivable accounts, a split to a tax account, e.g. Income:Sales \
 -$1000, A/Receivable $1100, Liability:GST on Sales -$100."))
 
    (gnc:html-markup-p
-    (_ "These tax accounts can either be populated using the standard register, or from Business Invoices and Bills \
+    (G_ "These tax accounts can either be populated using the standard register, or from Business Invoices and Bills \
 which will require Tax Tables to be set up correctly. Please see the documentation."))
 
    (gnc:html-markup-p
-    (_ "From the Report Options, you will need to select the accounts which will \
+    (G_ "From the Report Options, you will need to select the accounts which will \
 hold the GST/VAT taxes collected or paid. These accounts must contain splits which document the \
 monies which are wholly sent or claimed from tax authorities during periodic GST/VAT returns. These \
 accounts must be of type ASSET for taxes paid on expenses, and type LIABILITY for taxes collected on sales."))
 
    (gnc:html-markup-p
-    (_ "Note the UK variant may specify EU VAT accounts may be tagged \
+    (G_ "Note the UK variant may specify EU VAT accounts may be tagged \
 with *EUVAT* in the VAT account description. EU Goods sales and purchase \
 accounts may be tagged with *EUGOODS* in the account description."))
 
    (gnc:html-markup-p
-    (_ "This message will be removed when tax accounts are specified."))))
+    (G_ "This message will be removed when tax accounts are specified."))))
 
-(define* (gst-statement-renderer rpt #:optional export-type file-name)
+(define* (gst-statement-renderer rpt #:optional export-type)
   (define (opt-val section name)
     (gnc:option-value
      (gnc:lookup-option (gnc:report-options rpt) section name)))
@@ -82,8 +82,7 @@ accounts may be tagged with *EUGOODS* in the account description."))
      #:custom-calculated-cells gst-calculated-cells
      #:custom-source-accounts sales-purch-accounts
      #:custom-split-filter gst-custom-split-filter
-     #:export-type export-type
-     #:filename file-name))
+     #:export-type export-type))
   (when (null? (opt-val "Accounts" "Tax Accounts"))
     (gnc:html-document-add-object! document TAX-SETUP-DESC))
   document)
@@ -155,21 +154,24 @@ for taxes paid on expenses, and type LIABILITY for taxes collected on sales.")
   (gnc:register-option
    options
    (gnc:make-multichoice-callback-option
-    pagename-format (N_ "Report format")
-    "a" (_ "Report Format") 'default
-    (list (vector 'default
-                  (_ "default format")
-                  (_ "default format"))
-          (vector 'au-bas
-                  (_ "Australia BAS")
-                  (_ "Australia BAS. Specify sales, purchase and tax \
-accounts."))
-          (vector 'uk-vat
-                  (_ "UK VAT Return")
-                  (_ "UK VAT Return. Specify sales, purchase and tax \
+    pagename-format (N_ "Report Format")
+    "a"
+    (string-join
+     (list
+      (G_ "Report Format")
+      (G_ "Default Format")
+      (G_ "Australia Business Activity Statement. Specify sales, \
+purchase and tax accounts.")
+      (G_ "UK VAT Return. Specify sales, purchase and tax \
 accounts. EU rules may be used. Denote EU VAT accounts *EUVAT* in \
 account description, and denote EU goods sales and purchases accounts \
-with *EUGOODS* in the account description."))) #f
+with *EUGOODS* in the account description."))
+     "\n* ")
+    'default
+    (list (vector 'default (G_ "Default Format"))
+          (vector 'au-bas (G_ "Australia BAS"))
+          (vector 'uk-vat (G_ "UK VAT Return")))
+     #f
     (lambda (x)
       (for-each
        (match-lambda
@@ -192,14 +194,14 @@ with *EUGOODS* in the account description."))) #f
   ;; Disable account filtering
   (gnc:option-make-internal! options gnc:pagename-accounts "Filter Type")
   (gnc:option-make-internal! options gnc:pagename-accounts "Filter By...")
-  (gnc:option-make-internal! options gnc:pagename-general "Show original currency amount")
+  (gnc:option-make-internal! options "Currency" "Show original currency amount")
 
   ;; Enforce compulsory common-currency. It's senseless to allow
   ;; multiple currencies in a government report. Plus, single currency
   ;; means only 1 amount per heading for CSV output.
   (gnc:option-set-default-value
-   (gnc:lookup-option options gnc:pagename-general "Common Currency") #t)
-  (gnc:option-make-internal! options gnc:pagename-general "Common Currency")
+   (gnc:lookup-option options "Currency" "Common Currency") #t)
+  (gnc:option-make-internal! options "Currency" "Common Currency")
 
   ;; Set default dates to report on last quarter.
   (gnc:option-set-default-value
@@ -224,9 +226,6 @@ with *EUGOODS* in the account description."))) #f
    'none)
   (gnc:option-set-default-value
    (gnc:lookup-option options pagename-sorting "Secondary Key")
-   'none)
-  (gnc:option-set-default-value
-   (gnc:lookup-option options pagename-sorting "Secondary Subtotal")
    'none)
 
   ;; Disable display options not being used anymore
@@ -260,7 +259,7 @@ with *EUGOODS* in the account description."))) #f
          (accounts-tax-paid      (accfilter tax-accounts ACCT-TYPE-ASSET))
          (accounts-sales         (opt-val gnc:pagename-accounts "Sales"))
          (accounts-purchases     (opt-val gnc:pagename-accounts "Purchases"))
-         (common-currency        (opt-val gnc:pagename-general "Report's currency")))
+         (common-currency        (opt-val "Currency" "Report's currency")))
 
     (define (split-adder split accountlist)
       (define txn (xaccSplitGetParent split))
@@ -296,7 +295,7 @@ with *EUGOODS* in the account description."))) #f
     ;;         start-dual-column?   - unused in GST report
     ;;         friendly-heading-fn  - unused in GST report
 
-    (case (opt-val pagename-format "Report format")
+    (case (opt-val pagename-format "Report Format")
       ((default)
        (let* ((net-sales (lambda (s) (myneg (split-adder s accounts-sales))))
               (tax-sales (lambda (s) (myneg (split-adder s accounts-tax-collected))))
@@ -310,25 +309,25 @@ with *EUGOODS* in the account description."))) #f
          (append
 
           ;; Translators: "Gross Sales" refer to Net Sales + GST/VAT on Sales
-          (list (vector (_ "Gross Sales") tot-sales #f #t #f #f))
+          (list (vector (G_ "Gross Sales") tot-sales #f #t #f #f))
 
           (if (opt-val pagename-format "Individual sales columns")
               (map
                (lambda (acc)
                  (vector (xaccAccountGetName acc) (account-adder-neg acc) #f #t #f #f))
                accounts-sales)
-              (list (vector (_ "Net Sales") net-sales #f #t #f #f)))
+              (list (vector (G_ "Net Sales") net-sales #f #t #f #f)))
 
           (if (opt-val pagename-format "Individual tax columns")
               (map
                (lambda (acc)
                  (vector (xaccAccountGetName acc) (account-adder-neg acc) #f #t #f #f))
                accounts-tax-collected)
-              (list (vector (_ "Tax on Sales") tax-sales #f #t #f #f)))
+              (list (vector (G_ "Tax on Sales") tax-sales #f #t #f #f)))
 
           ;; Translators: "Gross Purchases" refer to Net Purchase +
           ;; GST/VAT on Purchase
-          (list (vector (_ "Gross Purchases") tot-purch #f #t #f #f))
+          (list (vector (G_ "Gross Purchases") tot-purch #f #t #f #f))
 
           (if (opt-val pagename-format "Individual purchases columns")
               (map
@@ -336,7 +335,7 @@ with *EUGOODS* in the account description."))) #f
                  (vector (xaccAccountGetName acc) (account-adder acc) #f #t #f #f))
                accounts-purchases)
               (list
-               (vector (_ "Net Purchases") net-purch #f #t #f #f)))
+               (vector (G_ "Net Purchases") net-purch #f #t #f #f)))
 
           (if (opt-val pagename-format "Individual tax columns")
               (map
@@ -344,13 +343,13 @@ with *EUGOODS* in the account description."))) #f
                  (vector (xaccAccountGetName acc) (account-adder acc) #f #t #f #f))
                accounts-tax-paid)
               (list
-               (vector (_ "Tax on Purchases") tax-purch #f #t #f #f)))
+               (vector (G_ "Tax on Purchases") tax-purch #f #t #f #f)))
 
           (if (opt-val pagename-format "Gross Balance")
               ;; Translators: "Gross Balance" refer to "Gross Sales
               ;; minus Gross Purchases" in GST Report
               (list
-               (vector (_ "Gross Balance") tot-bal #f #t #f #f))
+               (vector (G_ "Gross Balance") tot-bal #f #t #f #f))
               '())
 
           ;; Note: Net income = net balance - other costs
@@ -358,14 +357,14 @@ with *EUGOODS* in the account description."))) #f
               ;; Translators: "Net Balance" refer to Net Sales - Net
               ;; Purchases in GST Report
               (list
-               (vector (_ "Net Balance") net-bal #f #t #f #f))
+               (vector (G_ "Net Balance") net-bal #f #t #f #f))
               '())
 
           (if (opt-val pagename-format "Tax payable")
               ;; Translators: "Tax Payable" refer to the difference
               ;; GST Sales - GST Purchases
               (list
-               (vector (_ "Tax payable") tax-diff #f #t #f #f))
+               (vector (G_ "Tax payable") tax-diff #f #t #f #f))
               '()))))
 
       ((au-bas)
@@ -402,15 +401,15 @@ with *EUGOODS* in the account description."))) #f
               (box-8 (lambda (s) (myneg (split-adder s eu-sales-accts))))
               (box-9 (lambda (s) (split-adder s eu-purch-accts))))
          (list
-          (vector "Box 1 VAT Sales"          box-1 #f #t #f #f)
-          (vector "Box 2 VAT Reverse EU"     box-2 #f #t #f #f)
-          (vector "Box 3 VAT Output"         box-3 #f #t #f #f)
-          (vector "Box 4 VAT Purchases"      box-4 #f #t #f #f)
-          (vector "Box 5 VAT Difference"     box-5 #f #t #f #f)
-          (vector "Box 6 Tot Sales"          box-6 #f #t #f #f)
-          (vector "Box 7 Tot Purchases"      box-7 #f #t #f #f)
-          (vector "Box 8 EU Goods Sales"     box-8 #f #t #f #f)
-          (vector "Box 9 EU Goods Purchases" box-9 #f #t #f #f)))))))
+          (vector "Box 1 VAT Sales"                         box-1 #f #t #f #f)
+          (vector "Box 2 VAT Goods Purchases from EU to NI" box-2 #f #t #f #f)
+          (vector "Box 3 VAT Output"                        box-3 #f #t #f #f)
+          (vector "Box 4 VAT Purchases"                     box-4 #f #t #f #f)
+          (vector "Box 5 VAT Difference"                    box-5 #f #t #f #f)
+          (vector "Box 6 Tot Sales"                         box-6 #f #t #f #f)
+          (vector "Box 7 Tot Purchases"                     box-7 #f #t #f #f)
+          (vector "Box 8 Net Goods Sales from NI to EU"     box-8 #f #t #f #f)
+          (vector "Box 9 Net Goods Purchases from EU to NI" box-9 #f #t #f #f)))))))
 
 ;; Define the report.
 (gnc:define-report

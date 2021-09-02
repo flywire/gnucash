@@ -50,12 +50,63 @@ static QofLogModule log_module = GNC_MOD_GUI;
 static GHashTable *reports = NULL;
 static gint report_next_serial_id = 0;
 
+static gboolean
+try_load_config_array(const gchar *fns[])
+{
+    gchar *filename;
+    int i;
+
+    for (i = 0; fns[i]; i++)
+    {
+        filename = gnc_build_userdata_path(fns[i]);
+        if (gfec_try_load(filename))
+        {
+            g_free(filename);
+            return TRUE;
+        }
+        g_free(filename);
+    }
+    return FALSE;
+}
+
+static void
+update_message(const gchar *msg)
+{
+    //gnc_update_splash_screen(msg, GNC_SPLASH_PERCENTAGE_UNKNOWN);
+    g_message("%s", msg);
+}
+
+static void
+load_custom_reports_stylesheets(void)
+{
+    /* Don't continue adding to this list. When 3.0 rolls around bump
+     *      the 2.4 files off the list. */
+    static const gchar *saved_report_files[] =
+    {
+        SAVED_REPORTS_FILE, SAVED_REPORTS_FILE_OLD_REV, NULL
+    };
+    static const gchar *stylesheet_files[] = { "stylesheets-2.0", NULL};
+    static int is_user_config_loaded = FALSE;
+
+    if (is_user_config_loaded)
+        return;
+    else is_user_config_loaded = TRUE;
+
+    update_message("loading saved reports");
+    try_load_config_array(saved_report_files);
+    update_message("loading stylesheets");
+    try_load_config_array(stylesheet_files);
+}
+
 void
 gnc_report_init (void)
 {
     scm_init_sw_report_module();
     scm_c_use_module ("gnucash report");
+    scm_c_use_module ("gnucash reports");
     scm_c_eval_string("(report-module-loader (list '(gnucash report stylesheets)))");
+
+    load_custom_reports_stylesheets();
 }
 
 
@@ -155,6 +206,35 @@ gnc_reports_get_global(void)
     return reports;
 }
 
+gboolean
+gnc_run_report_with_error_handling (gint report_id, gchar ** data, gchar **errmsg)
+{
+    SCM report, res, html, captured_error;
+
+    report = gnc_report_find (report_id);
+    g_return_val_if_fail (data, FALSE);
+    g_return_val_if_fail (errmsg, FALSE);
+    g_return_val_if_fail (!scm_is_false (report), FALSE);
+
+    res = scm_call_1 (scm_c_eval_string ("gnc:render-report"), report);
+    html = scm_car (res);
+    captured_error = scm_cadr (res);
+
+    if (!scm_is_false (html))
+    {
+        *data = gnc_scm_to_utf8_string (html);
+        *errmsg = NULL;
+        return TRUE;
+    }
+    else
+    {
+        *errmsg = gnc_scm_to_utf8_string (captured_error);
+        *data = NULL;
+        PWARN ("Error in report: %s", *errmsg);
+        return FALSE;
+    }
+}
+
 static void
 error_handler(const char *str)
 {
@@ -166,6 +246,8 @@ gnc_run_report (gint report_id, char ** data)
 {
     SCM scm_text;
     gchar *str;
+
+    PWARN ("gnc_run_report is deprecated. use gnc_run_report_with_error_handling instead.");
 
     g_return_val_if_fail (data != NULL, FALSE);
     *data = NULL;
@@ -186,6 +268,8 @@ gboolean
 gnc_run_report_id_string (const char * id_string, char **data)
 {
     gint report_id;
+
+    PWARN ("gnc_run_report_id_string is deprecated. use gnc_run_report_id_string_with_error_handling instead.");
 
     g_return_val_if_fail (id_string != NULL, FALSE);
     g_return_val_if_fail (data != NULL, FALSE);
@@ -211,6 +295,25 @@ gnc_report_name( SCM report )
     return gnc_scm_call_1_to_string(get_name, report);
 }
 
+gboolean
+gnc_run_report_id_string_with_error_handling (const char * id_string, char **data,
+                                              gchar **errmsg)
+{
+    gint report_id;
+
+    g_return_val_if_fail (id_string, FALSE);
+    g_return_val_if_fail (data, FALSE);
+    *data = NULL;
+
+    if (strncmp ("id=", id_string, 3) != 0)
+        return FALSE;
+
+    if (sscanf (id_string + 3, "%d", &report_id) != 1)
+        return FALSE;
+
+    return gnc_run_report_with_error_handling (report_id, data, errmsg);
+}
+
 gchar*
 gnc_get_default_report_font_family(void)
 {
@@ -233,8 +336,13 @@ gnc_get_default_report_font_family(void)
 
     pango_font_description_free (font_desc);
 
-    if (default_font_family == NULL)
-        return g_strdup("Arial");
+    if (!default_font_family)
+        return g_strdup ("Arial");
+    else if (g_str_has_prefix (default_font_family, ".AppleSystemUIFont"))
+    {
+        g_free (default_font_family);
+        return g_strdup ("Arial");
+    }
     else
         return default_font_family;
 }

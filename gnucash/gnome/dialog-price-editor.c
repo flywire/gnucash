@@ -138,6 +138,7 @@ type_index_to_string (int index)
 static void
 price_to_gui (PriceEditDialog *pedit_dialog)
 {
+    GNCPrintAmountInfo print_info;
     gnc_commodity *commodity = NULL;
     gnc_commodity *currency = NULL;
     const gchar *name_space, *fullname;
@@ -188,6 +189,10 @@ price_to_gui (PriceEditDialog *pedit_dialog)
 
     gtk_combo_box_set_active (GTK_COMBO_BOX(pedit_dialog->type_combobox),
                               type_string_to_index (type));
+
+    print_info = gnc_commodity_print_info (currency, FALSE);
+    gnc_amount_edit_set_print_info (GNC_AMOUNT_EDIT (pedit_dialog->price_edit), print_info);
+    gnc_amount_edit_set_fraction (GNC_AMOUNT_EDIT (pedit_dialog->price_edit), 0);
 
     gnc_amount_edit_set_amount (GNC_AMOUNT_EDIT (pedit_dialog->price_edit), value);
 }
@@ -246,6 +251,7 @@ pedit_dialog_replace_found_price (PriceEditDialog *pedit_dialog,
 static const char *
 gui_to_price (PriceEditDialog *pedit_dialog)
 {
+    GNCPrintAmountInfo print_info;
     gnc_commodity *commodity;
     gnc_commodity *currency;
     gchar         *name_space;
@@ -274,7 +280,11 @@ gui_to_price (PriceEditDialog *pedit_dialog)
     type = type_index_to_string
            (gtk_combo_box_get_active (GTK_COMBO_BOX (pedit_dialog->type_combobox)));
 
-    if (!gnc_amount_edit_evaluate (GNC_AMOUNT_EDIT (pedit_dialog->price_edit)))
+    print_info = gnc_commodity_print_info (currency, FALSE);
+    gnc_amount_edit_set_print_info (GNC_AMOUNT_EDIT (pedit_dialog->price_edit), print_info);
+    gnc_amount_edit_set_fraction (GNC_AMOUNT_EDIT (pedit_dialog->price_edit), 0);
+
+    if (!gnc_amount_edit_evaluate (GNC_AMOUNT_EDIT (pedit_dialog->price_edit), NULL))
         return _("You must enter a valid amount.");
 
     value = gnc_amount_edit_get_amount
@@ -521,16 +531,17 @@ gnc_price_pedit_dialog_create (GtkWidget *parent,
     w = gnc_amount_edit_new ();
     pedit_dialog->price_edit = w;
     gtk_box_pack_start (GTK_BOX (box), w, TRUE, TRUE, 0);
+    entry = gnc_amount_edit_gtk_entry (GNC_AMOUNT_EDIT (w));
     gnc_amount_edit_set_evaluate_on_enter (GNC_AMOUNT_EDIT (w), TRUE);
-    print_info = gnc_default_price_print_info (gnc_currency_edit_get_currency (GNC_CURRENCY_EDIT (pedit_dialog->currency_edit)));
+    print_info = gnc_default_price_print_info (gnc_currency_edit_get_currency
+                                              (GNC_CURRENCY_EDIT (pedit_dialog->currency_edit)));
     gnc_amount_edit_set_print_info (GNC_AMOUNT_EDIT (w), print_info);
-    gtk_entry_set_activates_default(GTK_ENTRY(w), TRUE);
+    gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
     gtk_widget_show (w);
     label = GTK_WIDGET(gtk_builder_get_object (builder, "price_label"));
-    gtk_label_set_mnemonic_widget (GTK_LABEL(label), w);
+    gnc_amount_edit_make_mnemonic_target (GNC_AMOUNT_EDIT(w), label);
 
-    entry = gnc_amount_edit_gtk_entry (GNC_AMOUNT_EDIT (w));
-    g_signal_connect (G_OBJECT (entry), "changed",
+    g_signal_connect (G_OBJECT (w), "changed",
                       G_CALLBACK (pedit_data_changed_cb), pedit_dialog);
 
     w = GTK_WIDGET(gtk_builder_get_object (builder, "pd_cancel_button"));
@@ -653,10 +664,12 @@ GNCPrice *
 gnc_price_edit_by_guid (GtkWidget * parent, const GncGUID * guid)
 {
     GNCPrice *price;
-    QofSession *session;
+    QofSession *session = gnc_get_current_session();
+    QofBook* book = qof_session_get_book (session);
 
-    session = gnc_get_current_session ();
-    price = gnc_price_lookup (guid, qof_session_get_book(session));
+    if (!book)
+        return (NULL);
+    price = gnc_price_lookup (guid, book);
     if (price == NULL)
         return(NULL);
 

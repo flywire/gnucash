@@ -23,14 +23,17 @@
 
 #ifndef SIXTP_H
 #define SIXTP_H
+
+#include <glib.h>
+
 extern "C"
 {
-#include <glib.h>
 #include <stdio.h>
 
 #include <stdarg.h>
 #include "gnc-engine.h"
 }
+
 #include "gnc-xml-helper.h"
 #include "gnc-backend-xml.h"
 

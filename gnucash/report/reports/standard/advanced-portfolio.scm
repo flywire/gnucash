@@ -33,6 +33,7 @@
 (use-modules (gnucash app-utils))
 (use-modules (gnucash report))
 (use-modules (srfi srfi-1))
+(use-modules (ice-9 format))
 
 (define reportname (N_ "Advanced Portfolio"))
 
@@ -78,28 +79,16 @@ by preventing negative stock balances.<br/>")
      (gnc:make-multichoice-option
       gnc:pagename-general optname-price-source
       "d" (N_ "The source of price information.") 'pricedb-nearest
-      (list (vector 'pricedb-latest
-		    (N_ "Most recent")
-		    (N_ "The most recent recorded price."))
-	    (vector 'pricedb-nearest
-		    (N_ "Nearest in time")
-		    (N_ "The price recorded nearest in time to the report date."))
-	    )))
+      (list (vector 'pricedb-latest (N_ "Most recent"))
+            (vector 'pricedb-nearest (N_ "Nearest to report date")))))
 
     (add-option
      (gnc:make-multichoice-option
       gnc:pagename-general optname-basis-method
       "e" (N_ "Basis calculation method.") 'average-basis
-      (list (vector 'average-basis
-		    (N_ "Average")
-		    (N_ "Use average cost of all shares for basis."))
-	    (vector 'fifo-basis
-		    (N_ "FIFO")
-		    (N_ "Use first-in first-out method for basis."))
-	    (vector 'filo-basis
-		    (N_ "LIFO")
-		    (N_ "Use last-in first-out method for basis."))
-	    )))
+      (list (vector 'average-basis (N_ "Average cost of all shares"))
+            (vector 'fifo-basis (N_ "First-in first-out"))
+            (vector 'filo-basis (N_ "Last-in first-out")))))
 
     (add-option
      (gnc:make-simple-boolean-option
@@ -111,16 +100,9 @@ by preventing negative stock balances.<br/>")
      (gnc:make-multichoice-option
       gnc:pagename-general optname-brokerage-fees
       "g" (N_ "How to report commissions and other brokerage fees.") 'include-in-basis
-      (list (vector 'include-in-basis
-                    (N_ "Include in basis")
-                    (N_ "Include brokerage fees in the basis for the asset."))
-            (vector 'include-in-gain
-                    (N_ "Include in gain")
-                    (N_  "Include brokerage fees in the gain and loss but not in the basis."))
-            (vector 'ignore-brokerage
-                    (N_ "Ignore")
-                    (N_ "Ignore brokerage fees entirely."))
-            )))
+      (list (vector 'include-in-basis (N_ "Include in basis"))
+            (vector 'include-in-gain (N_ "Include in gain/loss"))
+            (vector 'ignore-brokerage (N_ "Omit from report")))))
 
     (gnc:register-option
       options
@@ -147,7 +129,7 @@ by preventing negative stock balances.<br/>")
      (gnc:make-number-range-option
       gnc:pagename-display optname-shares-digits
       "d" (N_ "The number of decimal places to use for share numbers.") 2
-      0 6 0 1))
+      0 9 0 1))
 
     (gnc:register-option
       options
@@ -687,7 +669,7 @@ by preventing negative stock balances.<br/>")
                                    (begin
                                      ;; Wrong account (or no account), assume there isn't a DRP holding account
                                      (set! drp-holding-account 'none)
-                                     (set trans-drp-residual (gnc-numeric-zero))
+                                     (set! trans-drp-residual (gnc-numeric-zero))
                                      (set! drp-holding-amount (gnc-numeric-zero))))))
 
                        ;; Set trans-bought to the amount of money moved in to the account which was used to
@@ -1048,8 +1030,8 @@ by preventing negative stock balances.<br/>")
                    (lambda (foreign domestic date)
                     (find-price (gnc-pricedb-lookup-nearest-in-time-any-currency-t64
 		     pricedb foreign (time64CanonicalDayTime date)) domestic)))))
-	       (headercols (list (_ "Account")))
-	       (totalscols (list (gnc:make-html-table-cell/markup "total-label-cell" (_ "Total"))))
+	       (headercols (list (G_ "Account")))
+	       (totalscols (list (gnc:make-html-table-cell/markup "total-label-cell" (G_ "Total"))))
 	       (sum-total-moneyin (gnc-numeric-zero))
 	       (sum-total-income (gnc-numeric-zero))
 	       (sum-total-both-gains (gnc-numeric-zero))
@@ -1060,37 +1042,37 @@ by preventing negative stock balances.<br/>")
 
 	  ;;begin building lists for which columns to display
           (if show-symbol
-	      (begin (append! headercols (list (_ "Symbol")))
+	      (begin (append! headercols (list (G_ "Symbol")))
 		     (append! totalscols (list " "))))
 
 	  (if show-listing
-	      (begin (append! headercols (list (_ "Listing")))
+	      (begin (append! headercols (list (G_ "Listing")))
 		     (append! totalscols (list " "))))
 
 	  (if show-shares
-	      (begin (append! headercols (list (_ "Shares")))
+	      (begin (append! headercols (list (G_ "Shares")))
 		     (append! totalscols (list " "))))
 
 	  (if show-price
-	      (begin (append! headercols (list (_ "Price")))
+	      (begin (append! headercols (list (G_ "Price")))
 		     (append! totalscols (list " "))))
 
 	  (append! headercols (list " "
-				    (_ "Basis")
-				    (_ "Value")
-				    (_ "Money In")
-				    (_ "Money Out")
-				    (_ "Realized Gain")
-				    (_ "Unrealized Gain")
-				    (_ "Total Gain")
-				    (_ "Rate of Gain")
-				    (_ "Income")))
+				    (G_ "Basis")
+				    (G_ "Value")
+				    (G_ "Money In")
+				    (G_ "Money Out")
+				    (G_ "Realized Gain")
+				    (G_ "Unrealized Gain")
+				    (G_ "Total Gain")
+				    (G_ "Rate of Gain")
+				    (G_ "Income")))
 
 	  (if (not (eq? handle-brokerage-fees 'ignore-brokerage))
-	      (append! headercols (list (_ "Brokerage Fees"))))
+	      (append! headercols (list (G_ "Brokerage Fees"))))
 
-	  (append! headercols (list (_ "Total Return")
-				    (_ "Rate of Return")))
+	  (append! headercols (list (G_ "Total Return")
+				    (G_ "Rate of Return")))
 
           (append! totalscols (list " "))
 
@@ -1187,14 +1169,14 @@ by preventing negative stock balances.<br/>")
           (gnc:html-document-add-object! document table)
           (if warn-price-dirty
               (gnc:html-document-append-objects! document
-                                                 (list (gnc:make-html-text (_ "* this commodity data was built using transaction pricing instead of the price list."))
+                                                 (list (gnc:make-html-text (G_ "* this commodity data was built using transaction pricing instead of the price list."))
 						       (gnc:make-html-text (gnc:html-markup-br))
-						       (gnc:make-html-text (_ "If you are in a multi-currency situation, the exchanges may not be correct.")))))
+						       (gnc:make-html-text (G_ "If you are in a multi-currency situation, the exchanges may not be correct.")))))
 
           (if warn-no-price
               (gnc:html-document-append-objects! document
                                                  (list (gnc:make-html-text (if warn-price-dirty (gnc:html-markup-br) ""))
-                                                       (gnc:make-html-text (_ "** this commodity has no price and a price of 1 has been used.")))))
+                                                       (gnc:make-html-text (G_ "** this commodity has no price and a price of 1 has been used.")))))
 )
 
 					;if no accounts selected.
