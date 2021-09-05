@@ -92,7 +92,8 @@
 (export gnc:get-absolute-from-relative-date)
 (export gnc:get-relative-date-string)
 (export gnc:get-relative-date-desc)
-(export gnc:get-start-cur-year) ;;
+(export gnc:get-start-cur-year)
+(export gnc:get-end-cur-year)
 (export gnc:get-start-cal-year)
 (export gnc:get-end-cal-year)
 (export gnc:get-start-prev-year)
@@ -543,7 +544,7 @@ Defaulting to today."))
 ;; end relative-date functions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define* (gnc:get-start-cur-year #:key (start-month-fy 0)) ;;
+(define* (gnc:get-start-cur-year #:key (start-month-fy 0))
 ;; 0 is Jan
   (let ((now (gnc-localtime (current-time))))
     (set-tm:sec now 0)
@@ -552,7 +553,20 @@ Defaulting to today."))
     (set-tm:mday now 1)
     (set-tm:mon now start-month-fy)
     (if (< (tm:mon now) start-month-fy)
-      (set-tm:year now (+ (tm:year now) 0))
+      (set-tm:year now (- (tm:year now) 1))
+      (set-tm:year now (tm:year now)))
+    (set-tm:isdst now -1)
+    (gnc-mktime now)))
+
+(define* (gnc:get-end-cur-year #:key (start-month-fy 0))
+  (let ((now (gnc-localtime (current-time))))
+    (set-tm:sec now 59)
+    (set-tm:min now 59)
+    (set-tm:hour now 23)
+    (set-tm:mday now 31)
+    (set-tm:mon now 11)
+    (if (< (tm:mon now) start-month-fy)
+      (set-tm:year now (tm:year now))
       (set-tm:year now (+ (tm:year now) 1)))
     (set-tm:isdst now -1)
     (gnc-mktime now)))
@@ -935,7 +949,14 @@ Defaulting to today."))
    (N_ "Start of this year"))
   (gnc:reldate-string-db 
    'store 'start-cur-year-desc 
-   (N_ "First day of the current calendar year."))
+   (N_ "First day of the current year."))
+
+  (gnc:reldate-string-db 
+   'store 'end-cur-year-string
+   (N_ "End of this year"))
+  (gnc:reldate-string-db 
+   'store 'end-cur-year-desc 
+   (N_ "Last day of the current year."))
 
   (gnc:reldate-string-db 
    'store 'start-cal-year-string
@@ -1147,6 +1168,10 @@ Defaulting to today."))
 		 (gnc:reldate-string-db 'lookup 'start-cur-year-string)
 		 (gnc:reldate-string-db 'lookup 'start-cur-year-desc)
 		 gnc:get-start-cur-year)
+	 (vector 'end-cur-year 
+		 (gnc:reldate-string-db 'lookup 'end-cur-year-string)
+		 (gnc:reldate-string-db 'lookup 'end-cur-year-desc)
+		 gnc:get-end-cur-year)
 	 (vector 'start-cal-year 
 		 (gnc:reldate-string-db 'lookup 'start-cal-year-string)
 		 (gnc:reldate-string-db 'lookup 'start-cal-year-desc)
