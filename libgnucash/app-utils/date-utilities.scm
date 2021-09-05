@@ -92,6 +92,7 @@
 (export gnc:get-absolute-from-relative-date)
 (export gnc:get-relative-date-string)
 (export gnc:get-relative-date-desc)
+(export gnc:get-start-cur-year) ;;
 (export gnc:get-start-cal-year)
 (export gnc:get-end-cal-year)
 (export gnc:get-start-prev-year)
@@ -542,6 +543,20 @@ Defaulting to today."))
 ;; end relative-date functions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(define* (gnc:get-start-cur-year #:key (start-month-fy 0)) ;;
+;; 0 is Jan
+  (let ((now (gnc-localtime (current-time))))
+    (set-tm:sec now 0)
+    (set-tm:min now 0)
+    (set-tm:hour now 0)
+    (set-tm:mday now 1)
+    (set-tm:mon now start-month-fy)
+    (if (< (tm:mon now) start-month-fy)
+      (set-tm:year now (+ (tm:year now) 0))
+      (set-tm:year now (+ (tm:year now) 1)))
+    (set-tm:isdst now -1)
+    (gnc-mktime now)))
+
 (define (gnc:get-start-cal-year)
   (let ((now (gnc-localtime (current-time))))
     (set-tm:sec now 0)
@@ -916,7 +931,14 @@ Defaulting to today."))
 (define gnc:relative-date-values #f)
 (unless gnc:relative-date-hash
   (gnc:reldate-string-db 
-   'store 'start-cal-year-string 
+   'store 'start-cur-year-string
+   (N_ "Start of this year"))
+  (gnc:reldate-string-db 
+   'store 'start-cur-year-desc 
+   (N_ "First day of the current calendar year."))
+
+  (gnc:reldate-string-db 
+   'store 'start-cal-year-string
    (N_ "Start of this year"))
   (gnc:reldate-string-db 
    'store 'start-cal-year-desc 
@@ -1121,6 +1143,10 @@ Defaulting to today."))
 
   (set! gnc:relative-date-values 
 	(list 
+	 (vector 'start-cur-year 
+		 (gnc:reldate-string-db 'lookup 'start-cur-year-string)
+		 (gnc:reldate-string-db 'lookup 'start-cur-year-desc)
+		 gnc:get-start-cur-year)
 	 (vector 'start-cal-year 
 		 (gnc:reldate-string-db 'lookup 'start-cal-year-string)
 		 (gnc:reldate-string-db 'lookup 'start-cal-year-desc)
