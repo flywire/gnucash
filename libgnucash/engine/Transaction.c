@@ -274,12 +274,12 @@ gnc_transaction_init(Transaction* trans)
     trans->date_posted  = 0;
     trans->marker = 0;
     trans->orig = NULL;
-    trans->readonly_reason = NULL;
-    trans->reason_cache_valid = FALSE;
+    trans->readonly_reason = (char*) is_unset;
     trans->isClosingTxn_cached = -1;
     trans->notes = (char*) is_unset;
     trans->doclink = (char*) is_unset;
     trans->void_reason = (char*) is_unset;
+    trans->txn_type = TXN_TYPE_UNCACHED;
     LEAVE (" ");
 }
 
@@ -693,6 +693,9 @@ xaccTransClone (const Transaction *from)
     xaccTransBeginEdit (to);
     qof_instance_copy_kvp (QOF_INSTANCE (to), QOF_INSTANCE (from));
 
+    /* But not the online-id! */
+    qof_instance_set (QOF_INSTANCE (to), "online-id", NULL, NULL);
+
     for (GList* lfrom = from->splits, *lto = to->splits; lfrom && lto;
          lfrom = g_list_next (lfrom), lto = g_list_next (lto))
         xaccSplitCopyKvp (lfrom->data, lto->data);
@@ -818,7 +821,8 @@ xaccFreeTransaction (Transaction *trans)
     /* free up transaction strings */
     CACHE_REMOVE(trans->num);
     CACHE_REMOVE(trans->description);
-    g_free (trans->readonly_reason);
+    if (trans->readonly_reason != is_unset)
+        g_free (trans->readonly_reason);
     if (trans->doclink != is_unset)
         g_free (trans->doclink);
     if (trans->void_reason != is_unset)
@@ -832,7 +836,6 @@ xaccFreeTransaction (Transaction *trans)
     trans->date_entered = 0;
     trans->date_posted = 0;
     trans->readonly_reason = NULL;
-    trans->reason_cache_valid = FALSE;
     trans->doclink = NULL;
     trans->notes = NULL;
     trans->void_reason = NULL;
@@ -1706,6 +1709,7 @@ xaccTransCommitEdit (Transaction *trans)
         qof_instance_set_dirty(QOF_INSTANCE(trans));
     }
 
+    trans->txn_type = TXN_TYPE_UNCACHED;
     qof_commit_edit_part2(QOF_INSTANCE(trans),
                           (void (*) (QofInstance *, QofBackendError))
                           trans_on_error,
@@ -2113,6 +2117,12 @@ xaccTransSetTxnType (Transaction *trans, char type)
     GValue v = G_VALUE_INIT;
     g_return_if_fail(trans);
     g_value_init (&v, G_TYPE_STRING);
+    qof_instance_get_kvp (QOF_INSTANCE (trans), &v, 1, TRANS_TXN_TYPE_KVP);
+    if (!g_strcmp0 (s, g_value_get_string (&v)))
+    {
+        g_value_unset (&v);
+        return;
+    }
     g_value_set_string (&v, s);
     xaccTransBeginEdit(trans);
     qof_instance_set_kvp (QOF_INSTANCE (trans), &v, 1, TRANS_TXN_TYPE_KVP);
@@ -2130,9 +2140,9 @@ void xaccTransClearReadOnly (Transaction *trans)
         qof_instance_set_dirty(QOF_INSTANCE(trans));
         xaccTransCommitEdit(trans);
 
-        g_free (trans->readonly_reason);
+        if (trans->readonly_reason != is_unset)
+            g_free (trans->readonly_reason);
         trans->readonly_reason = NULL;
-        trans->reason_cache_valid = TRUE;
     }
 }
 
@@ -2150,9 +2160,9 @@ xaccTransSetReadOnly (Transaction *trans, const char *reason)
         g_value_unset (&v);
         xaccTransCommitEdit(trans);
 
-        g_free (trans->readonly_reason);
+        if (trans->readonly_reason != is_unset)
+            g_free (trans->readonly_reason);
         trans->readonly_reason = g_strdup (reason);
-        trans->reason_cache_valid = TRUE;
     }
 }
 
@@ -2546,22 +2556,43 @@ xaccTransRetDateDue(const Transaction *trans)
 }
 
 char
-xaccTransGetTxnType (const Transaction *trans)
+xaccTransGetTxnType (Transaction *trans)
 {
-    const char *s = NULL;
-    GValue v = G_VALUE_INIT;
-    char ret = TXN_TYPE_NONE;
+    gboolean has_nonAPAR_amount = FALSE;
 
     if (!trans) return TXN_TYPE_NONE;
-    qof_instance_get_kvp (QOF_INSTANCE (trans), &v, 1, TRANS_TXN_TYPE_KVP);
-    if (G_VALUE_HOLDS_STRING (&v))
+
+    if (trans->txn_type != TXN_TYPE_UNCACHED)
+        return trans->txn_type;
+
+    trans->txn_type = TXN_TYPE_NONE;
+    for (GList *n = xaccTransGetSplitList (trans); n; n = g_list_next (n))
     {
-         s = g_value_get_string (&v);
-         if (s && strlen (s) == 1)
-             ret = s[0];
+        Account *acc = xaccSplitGetAccount (n->data);
+
+        if (!acc)
+            continue;
+
+        if (!xaccAccountIsAPARType (xaccAccountGetType (acc)) &&
+            !gnc_numeric_zero_p (xaccSplitGetValue (n->data)))
+            has_nonAPAR_amount = TRUE;
+        else if (trans->txn_type == TXN_TYPE_NONE)
+        {
+            GNCLot *lot = xaccSplitGetLot (n->data);
+            GncInvoice *invoice = gncInvoiceGetInvoiceFromLot (lot);
+            GncOwner owner;
+
+            if (invoice && trans == gncInvoiceGetPostedTxn (invoice))
+                trans->txn_type = TXN_TYPE_INVOICE;
+            else if (invoice || gncOwnerGetOwnerFromLot (lot, &owner))
+                trans->txn_type = TXN_TYPE_PAYMENT;
+        }
     }
-    g_value_unset (&v);
-    return ret;
+
+    if (!has_nonAPAR_amount && (trans->txn_type == TXN_TYPE_PAYMENT))
+        trans->txn_type = TXN_TYPE_LINK;
+
+    return trans->txn_type;
 }
 
 const char *
@@ -2570,22 +2601,13 @@ xaccTransGetReadOnly (Transaction *trans)
     if (!trans)
         return NULL;
 
-    if (!trans->reason_cache_valid)
+    if (trans->readonly_reason == is_unset)
     {
         GValue v = G_VALUE_INIT;
         qof_instance_get_kvp (QOF_INSTANCE(trans), &v, 1, TRANS_READ_ONLY_REASON);
-
-        /* Clear possible old cache value first */
-        g_free (trans->readonly_reason);
-        trans->readonly_reason = NULL;
-
-        /* Then set the new one */
-        if (G_VALUE_HOLDS_STRING (&v))
-        {
-            trans->readonly_reason = g_value_dup_string (&v);
-            g_value_unset (&v);
-        }
-        trans->reason_cache_valid = TRUE;
+        trans->readonly_reason = G_VALUE_HOLDS_STRING (&v) ?
+            g_value_dup_string (&v) : NULL;
+        g_value_unset (&v);
     }
     return trans->readonly_reason;
 }

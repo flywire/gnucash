@@ -115,7 +115,7 @@ typedef struct GncTreeViewAccountPrivate
 } GncTreeViewAccountPrivate;
 
 #define GNC_TREE_VIEW_ACCOUNT_GET_PRIVATE(o)  \
-   ((GncTreeViewAccountPrivate*)g_type_instance_get_private((GTypeInstance*)o, GNC_TYPE_TREE_VIEW_ACCOUNT))
+   ((GncTreeViewAccountPrivate*)gnc_tree_view_account_get_instance_private((GncTreeViewAccount*)o))
 
 
 /************************************************************/
@@ -372,6 +372,7 @@ sort_by_xxx_value (xaccGetBalanceInCurrencyFn fn,
                    gpointer user_data)
 {
     const Account *account_a, *account_b;
+    const gnc_commodity *cur = gnc_default_currency();
     gnc_numeric balance_a, balance_b;
     gint result;
 
@@ -379,8 +380,8 @@ sort_by_xxx_value (xaccGetBalanceInCurrencyFn fn,
     sort_cb_setup (f_model, f_iter_a, f_iter_b, &account_a, &account_b);
 
     /* Get balances */
-    balance_a = gnc_ui_account_get_balance_full(fn, account_a, recurse, NULL, NULL);
-    balance_b = gnc_ui_account_get_balance_full(fn, account_b, recurse, NULL, NULL);
+    balance_a = gnc_ui_account_get_balance_full(fn, account_a, recurse, NULL, cur);
+    balance_b = gnc_ui_account_get_balance_full(fn, account_b, recurse, NULL, cur);
 
     result = gnc_numeric_compare(balance_a, balance_b);
     if (result != 0)
@@ -2327,7 +2328,7 @@ account_filter_dialog_create(AccountFilterDialog *fd, GncPluginPage *page)
                                  GTK_WINDOW(GNC_PLUGIN_PAGE(page)->window));
     /* Translators: The %s is the name of the plugin page */
     title = g_strdup_printf(_("Filter %s by..."),
-                            gnc_plugin_page_get_page_name(GNC_PLUGIN_PAGE(page)));
+                            _(gnc_plugin_page_get_page_name(GNC_PLUGIN_PAGE(page))));
     gtk_window_set_title(GTK_WINDOW(dialog), title);
     g_free(title);
 
@@ -2827,7 +2828,7 @@ gboolean gnc_tree_view_search_compare (GtkTreeModel *model, gint column,
     gchar *case_normalized_key = NULL;
     gboolean match = FALSE;
 
-    normalized_key = g_utf8_normalize (key, -1, G_NORMALIZE_ALL);
+    normalized_key = g_utf8_normalize (key, -1, G_NORMALIZE_NFC);
     if (normalized_key)
         case_normalized_key = g_utf8_casefold (normalized_key, -1);
     if (case_normalized_key)
@@ -2856,7 +2857,7 @@ gboolean gnc_tree_view_search_compare (GtkTreeModel *model, gint column,
             if (!str)
                 continue;
 
-            normalized_string = g_utf8_normalize (str, -1, G_NORMALIZE_ALL);
+            normalized_string = g_utf8_normalize (str, -1, G_NORMALIZE_NFC);
             if (normalized_string)
                 case_normalized_string = g_utf8_casefold (normalized_string, -1);
             if (case_normalized_string&&NULL!=strstr(case_normalized_string,case_normalized_key))

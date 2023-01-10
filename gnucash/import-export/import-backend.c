@@ -95,6 +95,9 @@ struct _transactioninfo
 
     /* Reference id to link gnc transaction to external object. E.g. aqbanking job id. */
     guint32 ref_id;
+
+    /* When updating a matched transaction, append Description and Notes instead of replacing */
+    gboolean append_text;
 };
 
 /* Some simple getters and setters for the above data types. */
@@ -237,6 +240,15 @@ gnc_import_TransInfo_set_ref_id (GNCImportTransInfo *info,
 {
     g_assert (info);
     info->ref_id = ref_id;
+}
+
+
+void
+gnc_import_TransInfo_set_append_text (GNCImportTransInfo *info,
+                                      gboolean append_text)
+{
+    g_assert (info);
+    info->append_text = append_text;
 }
 
 
@@ -449,7 +461,7 @@ TransactionGetTokens(GNCImportTransInfo *info)
     tokens = tokenize_string(tokens, text);
 
     /* The day of week the transaction occurred is a good indicator of
-     * what account this transaction belongs in.  Get the date and covert
+     * what account this transaction belongs in.  Get the date and convert
      * it to day of week as a token
      */
     transtime = xaccTransGetDate(transaction);
@@ -827,6 +839,90 @@ void split_find_match (GNCImportTransInfo * trans_info,
 /***********************************************************************
  */
 
+/* append the imported transaction description to the matched transaction description */
+static void
+desc_append (Transaction* selected_match_trans, gchar *new_desc)
+{
+    const gchar* curr_desc = xaccTransGetDescription (selected_match_trans);
+    gchar* tmp = g_strconcat(curr_desc, "|", new_desc, NULL);
+    xaccTransSetDescription (selected_match_trans, tmp);
+    g_free (tmp);
+}
+
+/* append the imported transaction notes to the matched transaction notes */
+static void
+notes_append (Transaction* selected_match_trans, gchar* new_notes)
+{
+    const gchar* curr_notes = xaccTransGetNotes (selected_match_trans);
+    gchar* tmp = g_strconcat (curr_notes, "|", new_notes, NULL);
+    xaccTransSetNotes (selected_match_trans, tmp );
+    g_free (tmp);
+}
+
+static char*
+maybe_append_string (const char* match_string, const char* imp_string)
+{
+    char *norm_match_string, *norm_imp_string, *retval = NULL;
+
+    if (!(match_string && *match_string))
+        return g_strdup(imp_string);
+
+    if (!(imp_string && *imp_string))
+        return retval;
+
+    norm_match_string = g_utf8_normalize (match_string, -1, G_NORMALIZE_NFC);
+    norm_imp_string = g_utf8_normalize (imp_string, -1, G_NORMALIZE_NFC);
+
+    if (g_utf8_strlen (norm_imp_string, -1) > g_utf8_strlen (norm_match_string, -1) ||
+         !strstr (norm_match_string, norm_imp_string))
+        retval = g_strconcat(match_string, "|", imp_string, NULL);
+
+    g_free (norm_match_string);
+    g_free (norm_imp_string);
+    return retval;
+
+}
+
+/* Append or replace transaction description and notes
+ * depending on the Append checkbox
+ */
+static void
+update_desc_and_notes (const GNCImportTransInfo* trans_info)
+{
+    GNCImportMatchInfo* selected_match =
+            gnc_import_TransInfo_get_selected_match (trans_info);
+    Transaction* imp_trans = gnc_import_TransInfo_get_trans (trans_info);
+    Transaction* match_trans = selected_match->trans;
+
+    if (trans_info->append_text)
+    {
+        gchar *repl_str;
+
+        repl_str =
+            maybe_append_string (xaccTransGetDescription(match_trans),
+                                 xaccTransGetDescription(imp_trans));
+        if (repl_str)
+            xaccTransSetDescription(match_trans, repl_str);
+        g_free (repl_str);
+
+        repl_str =
+            maybe_append_string (xaccTransGetNotes(match_trans),
+                                 xaccTransGetNotes(imp_trans));
+        if (repl_str)
+            xaccTransSetNotes (match_trans, repl_str);
+        g_free (repl_str);
+    }
+    else
+    {
+        // replace the matched transaction description with the imported transaction description
+        xaccTransSetDescription (selected_match->trans,
+                                 xaccTransGetDescription (imp_trans));
+        // replace the matched transaction notes with the imported transaction notes
+        xaccTransSetNotes (selected_match->trans,
+                           xaccTransGetNotes (imp_trans));
+    }
+}
+
 /** /brief -- Processes one match
    according to its selected action.  */
 gboolean
@@ -944,13 +1040,7 @@ gnc_import_process_trans_item (GncImportMatchMap *matchmap,
                    to balance the transaction */
             }
 
-            xaccTransSetDescription(selected_match->trans,
-                                    xaccTransGetDescription(
-                                        gnc_import_TransInfo_get_trans(trans_info)));
-
-            xaccTransSetNotes(selected_match->trans,
-                                    xaccTransGetNotes(
-                                        gnc_import_TransInfo_get_trans(trans_info)));
+            update_desc_and_notes( trans_info);
 
             if (xaccSplitGetReconcile(selected_match->split) == NREC)
             {
@@ -964,8 +1054,10 @@ gnc_import_process_trans_item (GncImportMatchMap *matchmap,
                the match will be remembered */
             if (gnc_import_split_has_online_id(trans_info->first_split))
             {
-                gnc_import_set_split_online_id(selected_match->split,
-                                               gnc_import_get_split_online_id(trans_info->first_split));
+                char *online_id = gnc_import_get_split_online_id
+                    (trans_info->first_split);
+                gnc_import_set_split_online_id(selected_match->split, online_id);
+                g_free (online_id);
             }
 
             /* Done editing. */
@@ -1019,9 +1111,12 @@ gnc_import_process_trans_item (GncImportMatchMap *matchmap,
             /* Copy the online id to the reconciled transaction, so
             		 the match will be remembered */
             if (gnc_import_split_has_online_id(trans_info->first_split))
-                gnc_import_set_split_online_id
-                (selected_match->split,
-                 gnc_import_get_split_online_id(trans_info->first_split));
+            {
+                char *online_id = gnc_import_get_split_online_id
+                    (trans_info->first_split);
+                gnc_import_set_split_online_id (selected_match->split, online_id);
+                g_free (online_id);
+            }
 
             /* Done editing. */
             /*DEBUG("CommitEdit selected_match")*/
@@ -1047,6 +1142,104 @@ gnc_import_process_trans_item (GncImportMatchMap *matchmap,
     /*DEBUG("End");*/
     return FALSE;
 }
+
+/********************************************************************\
+ * check_trans_online_id() Callback function used by
+ * gnc_import_exists_online_id.  Takes pointers to transaction and split,
+ * returns 0 if their online_ids  do NOT match, or if the split
+ * belongs to the transaction
+\********************************************************************/
+static gint check_trans_online_id(Transaction *trans1, void *user_data)
+{
+    Account *account;
+    Split *split1;
+    Split *split2 = user_data;
+    gchar *online_id1, *online_id2;
+    gint retval;
+
+    account = xaccSplitGetAccount(split2);
+    split1 = xaccTransFindSplitByAccount(trans1, account);
+    if (split1 == split2)
+        return 0;
+
+    /* hack - we really want to iterate over the _splits_ of the account
+       instead of the transactions */
+    g_assert(split1 != NULL);
+
+    online_id1 = gnc_import_get_split_online_id (split1);
+
+    if (!online_id1 || !online_id1[0])
+    {
+        if (online_id1)
+            g_free (online_id1);
+        online_id1 = gnc_import_get_trans_online_id (trans1);
+    }
+
+    online_id2 = gnc_import_get_split_online_id(split2);
+
+    retval = (!online_id1 || !online_id2 || strcmp (online_id1, online_id2)) ? 0 : 1;
+
+    g_free (online_id1);
+    g_free (online_id2);
+    return retval;
+}
+
+static GHashTable*
+hash_account_online_ids (Account *account)
+{
+     GHashTable* acct_hash = g_hash_table_new_full
+          (g_str_hash, g_str_equal, g_free, NULL);
+     for (GList *n = xaccAccountGetSplitList (account) ; n; n = n->next)
+     {
+          if (gnc_import_split_has_online_id (n->data))
+          {
+               char *id = gnc_import_get_split_online_id (n->data);
+               g_hash_table_insert (acct_hash, (void*) id, GINT_TO_POINTER (1));
+          }
+     }
+     return acct_hash;
+}
+
+/** Checks whether the given transaction's online_id already exists in
+  its parent account. */
+gboolean gnc_import_exists_online_id (Transaction *trans, GHashTable* acct_id_hash)
+{
+    gboolean online_id_exists = FALSE;
+    Account *dest_acct;
+    Split *source_split;
+    char *source_online_id;
+
+    /* Look for an online_id in the first split */
+    source_split = xaccTransGetSplit(trans, 0);
+    g_assert(source_split);
+
+    source_online_id = gnc_import_get_split_online_id (source_split);
+
+    // No online id, no point in continuing. We'd crash if we tried.
+    if (!source_online_id)
+        return FALSE;
+
+    // Create a hash per account of a hash of all split IDs. Then the
+    // test below will be fast if we have many transactions to import.
+    dest_acct = xaccSplitGetAccount (source_split);
+    if (!g_hash_table_contains (acct_id_hash, dest_acct))
+         g_hash_table_insert (acct_id_hash, dest_acct,
+                              hash_account_online_ids (dest_acct));
+    online_id_exists = g_hash_table_contains (g_hash_table_lookup (acct_id_hash, dest_acct),
+                                              source_online_id);
+    
+    /* If it does, abort the process for this transaction, since it is
+       already in the system. */
+    if (online_id_exists == TRUE)
+    {
+        DEBUG("%s", "Transaction with same online ID exists, destroying current transaction");
+        xaccTransDestroy(trans);
+        xaccTransCommitEdit(trans);
+    }
+    g_free (source_online_id);
+    return online_id_exists;
+}
+
 
 /* ******************************************************************
  */

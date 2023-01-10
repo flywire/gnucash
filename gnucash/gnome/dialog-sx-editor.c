@@ -63,6 +63,7 @@
 #include "gnc-ui-util.h"
 #include "gnucash-sheet.h"
 #include "gnc-session.h"
+#include <gnc-glib-utils.h>
 
 #include "gnc-split-reg.h"
 
@@ -82,7 +83,7 @@ static gint _sx_engine_event_handler_id = -1;
 
 #define NUM_LEDGER_LINES_DEFAULT 6
 
-#define EX_CAL_NUM_MONTHS 6
+#define EX_CAL_NUM_MONTHS 12
 #define EX_CAL_MO_PER_COL 3
 
 #define GNC_D_WIDTH 25
@@ -263,7 +264,7 @@ editor_ok_button_clicked_cb (GtkButton *b, GncSxEditorDialog *sxed)
 static gboolean
 gnc_sxed_check_name_changed (GncSxEditorDialog *sxed)
 {
-    char *name = gtk_editable_get_chars (GTK_EDITABLE (sxed->nameEntry), 0, -1);
+    const char *name = gtk_entry_get_text (GTK_ENTRY (sxed->nameEntry));
 
     if (strlen (name) == 0)
         return TRUE;
@@ -364,7 +365,7 @@ gnc_sxed_check_dates_changed (GncSxEditorDialog *sxed)
     sx_start_date = *xaccSchedXactionGetStartDate (sxed->sx);
     sx_schedule_str = recurrenceListToString (gnc_sx_get_schedule (sxed->sx));
 
-    g_debug ("dialog schedule [%s], sx schedule [%s]",
+    DEBUG ("dialog schedule [%s], sx schedule [%s]",
              dialog_schedule_str, sx_schedule_str);
 
     schedules_are_the_same = (strcmp (dialog_schedule_str,
@@ -579,7 +580,7 @@ gnc_sxed_check_endpoint (GncSxEditorDialog *sxed)
 
     g_date_clear (&nextDate, 1);
     gnc_frequency_save_to_recurrence (sxed->gncfreq, &schedule, &startDate);
-    if (g_list_length (schedule) > 0)
+    if (gnc_list_length_cmp (schedule, 0))
     {
         g_date_subtract_days (&startDate, 1);
         recurrenceListNextInstance (schedule, &startDate, &nextDate);
@@ -668,13 +669,18 @@ gnc_sxed_split_calculate_formula (GncSxEditorDialog *sxed, Split *s,
                       key, &str,
                       NULL);
     if (str == NULL || strlen (str) == 0)
+    {
+        if (str)
+            g_free (str);
         return TRUE; /* No formula no foul */
+    }
     if (gnc_sx_parse_vars_from_formula (str, vars, &tmp) < 0)
     {
         gchar *err = g_strdup_printf (_("Couldn't parse %s for split \"%s\"."),
                                       key, xaccSplitGetMemo (s));
         gnc_error_dialog (GTK_WINDOW (sxed->dialog), "%s", err);
         g_free (err);
+        g_free (str);
 
         return FALSE;
     }
@@ -684,6 +690,7 @@ gnc_sxed_split_calculate_formula (GncSxEditorDialog *sxed, Split *s,
     else
         tcds->debitSum = gnc_numeric_add (tcds->debitSum, tmp, 100,
                                           GNC_DENOM_AUTO | GNC_HOW_DENOM_LCD);
+    g_free (str);
     return TRUE;
 }
 
@@ -750,7 +757,7 @@ check_transaction_splits (Transaction *txn, gpointer data)
                                                sd->tcds))
         {
             gchar *message = g_strdup_printf
-                (_("Split with memo %s has an unparseable Credit Formula."),
+                (_("Split with memo %s has an unparsable Credit Formula."),
                  xaccSplitGetMemo (s));
             split_error_warning_dialog (sd->sxed->dialog,
                                         _("Unparsable Formula in Split"),
@@ -766,7 +773,7 @@ check_transaction_splits (Transaction *txn, gpointer data)
 
         {
             gchar *message = g_strdup_printf
-                (_("Split with memo %s has an unparseable Debit Formula."),
+                (_("Split with memo %s has an unparsable Debit Formula."),
                  xaccSplitGetMemo (s));
             split_error_warning_dialog (sd->sxed->dialog,
                                         _("Unparsable Formula in Split"),
@@ -855,7 +862,11 @@ gnc_sxed_check_consistent (GncSxEditorDialog *sxed)
         xaccAccountForEachTransaction (tmpl_acct, check_transaction_splits, &sd);
 
         if (sd.err)
+        {
+            g_hash_table_destroy (vars);
+            g_hash_table_destroy (txns);
             return FALSE;
+        }
 
         g_hash_table_foreach (txns, check_credit_debit_balance, &unbalanceable);
     }
@@ -1000,7 +1011,7 @@ gnc_sxed_save_sx (GncSxEditorDialog *sxed)
         gnc_sx_set_schedule (sxed->sx, schedule);
         {
             gchar *recurrence_str = recurrenceListToCompactString (schedule);
-            g_debug ("recurrences parsed [%s]", recurrence_str);
+            DEBUG ("recurrences parsed [%s]", recurrence_str);
             g_free (recurrence_str);
         }
 
@@ -1173,7 +1184,7 @@ gnc_ui_scheduled_xaction_editor_dialog_create (GtkWindow *parent,
                                          sx);
     if (dlgExists)
     {
-        g_debug ("dialog already exists; using that one.");
+        DEBUG ("dialog already exists; using that one.");
         sxed = (GncSxEditorDialog*)dlgExists->data;
         gtk_window_present (GTK_WINDOW (sxed->dialog));
         g_list_free (dlgExists);
@@ -1322,7 +1333,8 @@ schedXact_editor_create_freq_sel (GncSxEditorDialog *sxed)
     gtk_box_pack_start (GTK_BOX (b), example_cal_scrolled_win, TRUE, TRUE, 0);
 
     sxed->dense_cal_model = gnc_dense_cal_store_new (EX_CAL_NUM_MONTHS * 31);
-    sxed->example_cal = GNC_DENSE_CAL (gnc_dense_cal_new_with_model (GNC_DENSE_CAL_MODEL (sxed->dense_cal_model)));
+    sxed->example_cal = GNC_DENSE_CAL(gnc_dense_cal_new_with_model (GTK_WINDOW(sxed->dialog),
+                                                                    GNC_DENSE_CAL_MODEL(sxed->dense_cal_model)));
     g_assert (sxed->example_cal);
     gnc_dense_cal_set_num_months (sxed->example_cal, EX_CAL_NUM_MONTHS);
     gnc_dense_cal_set_months_per_col (sxed->example_cal, EX_CAL_MO_PER_COL);
@@ -1766,7 +1778,7 @@ _sx_engine_event_handler (QofInstance *ent, QofEventId event_type, gpointer user
     book = qof_instance_get_book (QOF_INSTANCE (acct));
     affected_sxes = gnc_sx_get_sxes_referencing_account (book, acct);
 
-    if (g_list_length (affected_sxes) == 0)
+    if (!gnc_list_length_cmp (affected_sxes, 0))
         return;
 
     {

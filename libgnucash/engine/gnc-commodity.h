@@ -104,21 +104,15 @@ GType gnc_commodity_namespace_get_type(void);
  *  only used to populate an option menu in the commodity selection
  *  window.
  */
-#define GNC_COMMODITY_NS_LEGACY "GNC_LEGACY_CURRENCIES"
-#define GNC_COMMODITY_NS_TEMPLATE "template"
+#define GNC_COMMODITY_NS_LEGACY        "GNC_LEGACY_CURRENCIES"
+#define GNC_COMMODITY_NS_TEMPLATE      "template"
 /* The ISO define is deprecated in favor of CURRENCY */
-#define GNC_COMMODITY_NS_ISO    "ISO4217"
-#define GNC_COMMODITY_NS_CURRENCY "CURRENCY"
-#define GNC_COMMODITY_NS_NASDAQ "NASDAQ"
-#define GNC_COMMODITY_NS_NYSE   "NYSE"
-#define GNC_COMMODITY_NS_EUREX  "EUREX"
-#define GNC_COMMODITY_NS_MUTUAL "FUND"
-#define GNC_COMMODITY_NS_AMEX   "AMEX"
-#define GNC_COMMODITY_NS_ASX    "ASX"
-#define GNC_COMMODITY_NS_NONCURRENCY _("All non-currency")
-/* Delay translation of this one, we use it in both translated and untranslated form
-   when presenting the currency related namespace to the user */
-#define GNC_COMMODITY_NS_ISO_GUI N_("Currencies")
+#define GNC_COMMODITY_NS_ISO           "ISO4217"
+#define GNC_COMMODITY_NS_CURRENCY      "CURRENCY"
+#define GNC_COMMODITY_NS_NONCURRENCY "NONCURRENCY"
+
+#define GNC_COMMODITY_NS_NONISO_GUI   NC_("Commodity Type", "All non-currency")
+#define GNC_COMMODITY_NS_ISO_GUI       NC_("Commodity Type", "Currencies")
 
 /** Max fraction is 10^9 because 10^10 would require changing it to an
  * int64_t.
@@ -977,7 +971,7 @@ gboolean gnc_commodity_table_foreach_commodity(const gnc_commodity_table * table
 */
 
 /** You probably shouldn't be using gnc_commodity_table_new() directly,
- * its for internal use only. You should probably be using
+ * it's for internal use only. You should probably be using
  * gnc_commodity_table_get_table()
  */
 gnc_commodity_table * gnc_commodity_table_new(void);

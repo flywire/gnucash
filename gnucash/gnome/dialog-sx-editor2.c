@@ -63,6 +63,7 @@
 #include "gnc-ui-util.h"
 #include "gnc-tree-model-split-reg.h"
 #include "gnc-tree-control-split-reg.h"
+#include <gnc-glib-utils.h>
 
 #include "gnc-sx-instance-model.h"
 #include "dialog-sx-since-last-run.h"
@@ -421,7 +422,7 @@ gnc_sxed_check_changed (GncSxEditorDialog2 *sxed)
         sx_start_date = *xaccSchedXactionGetStartDate (sxed->sx);
         sx_schedule_str = recurrenceListToString (gnc_sx_get_schedule (sxed->sx));
 
-        g_debug ("dialog schedule [%s], sx schedule [%s]",
+        DEBUG ("dialog schedule [%s], sx schedule [%s]",
                 dialog_schedule_str, sx_schedule_str);
 
         schedules_are_the_same = (strcmp (dialog_schedule_str, sx_schedule_str) == 0);
@@ -485,7 +486,7 @@ check_credit_debit_balance (gpointer key,
         if (gnc_numeric_zero_p (gnc_numeric_sub_fixed (tcds->debitSum,
                                  tcds->creditSum)))
         {
-            g_debug ("%p | true [%s - %s = %s]",
+            DEBUG ("%p | true [%s - %s = %s]",
                      key,
                      gnc_numeric_to_string (tcds->debitSum),
                      gnc_numeric_to_string (tcds->creditSum),
@@ -494,7 +495,7 @@ check_credit_debit_balance (gpointer key,
         }
         else
         {
-            g_debug ("%p | false [%s - %s = %s]",
+            DEBUG ("%p | false [%s - %s = %s]",
                      key,
                      gnc_numeric_to_string (tcds->debitSum),
                      gnc_numeric_to_string (tcds->creditSum),
@@ -836,7 +837,7 @@ gnc_sxed_check_consistent (GncSxEditorDialog2 *sxed)
 
         g_date_clear (&nextDate, 1);
         gnc_frequency_save_to_recurrence (sxed->gncfreq, &schedule, &startDate);
-        if (g_list_length (schedule) > 0)
+        if (gnc_list_length_cmp (schedule, 0))
         {
             g_date_subtract_days (&startDate, 1);
             recurrenceListNextInstance (schedule, &startDate, &nextDate);
@@ -970,7 +971,7 @@ gnc_sxed_save_sx (GncSxEditorDialog2 *sxed )
         gnc_sx_set_schedule (sxed->sx, schedule);
         {
             gchar *recurrence_str = recurrenceListToCompactString (schedule);
-            g_debug("recurrences parsed [%s]", recurrence_str);
+            DEBUG("recurrences parsed [%s]", recurrence_str);
             g_free (recurrence_str);
         }
 
@@ -1122,7 +1123,7 @@ gnc_ui_scheduled_xaction_editor_dialog_create2 (GtkWindow *parent,
                                          sx);
     if (dlgExists != NULL)
     {
-        g_debug ("dialog already exists; using that one.");
+        DEBUG ("dialog already exists; using that one.");
         sxed = (GncSxEditorDialog2*)dlgExists->data;
         gtk_window_present (GTK_WINDOW (sxed->dialog));
         g_list_free (dlgExists);
@@ -1262,7 +1263,8 @@ schedXact_editor_create_freq_sel (GncSxEditorDialog2 *sxed)
 
     b = GTK_BOX(gtk_builder_get_object (sxed->builder, "example_cal_hbox" ));
     sxed->dense_cal_model = gnc_dense_cal_store_new (EX_CAL_NUM_MONTHS * 31);
-    sxed->example_cal = GNC_DENSE_CAL (gnc_dense_cal_new_with_model (GNC_DENSE_CAL_MODEL (sxed->dense_cal_model)));
+    sxed->example_cal = GNC_DENSE_CAL(gnc_dense_cal_new_with_model (GTK_WINDOW(sxed->dialog),
+                                                                    GNC_DENSE_CAL_MODEL (sxed->dense_cal_model)));
     g_assert (sxed->example_cal);
     gnc_dense_cal_set_num_months (sxed->example_cal, EX_CAL_NUM_MONTHS);
     gnc_dense_cal_set_months_per_col( sxed->example_cal, EX_CAL_MO_PER_COL);
@@ -1704,7 +1706,7 @@ _sx_engine_event_handler (QofInstance *ent, QofEventId event_type, gpointer user
     book = qof_instance_get_book (QOF_INSTANCE (acct));
     affected_sxes = gnc_sx_get_sxes_referencing_account (book, acct);
 
-    if (g_list_length (affected_sxes) == 0)
+    if (!gnc_list_length_cmp (affected_sxes, 0))
         return;
 
     {

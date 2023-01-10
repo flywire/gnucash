@@ -72,6 +72,7 @@ static void gnc_plugin_ab_cmd_setup(GtkAction *action, GncMainWindowActionData *
 static void gnc_plugin_ab_cmd_get_balance(GtkAction *action, GncMainWindowActionData *data);
 static void gnc_plugin_ab_cmd_get_transactions(GtkAction *action, GncMainWindowActionData *data);
 static void gnc_plugin_ab_cmd_issue_sepatransaction(GtkAction *action, GncMainWindowActionData *data);
+static void gnc_plugin_ab_cmd_issue_sepainternaltransaction(GtkAction *action, GncMainWindowActionData *data);
 static void gnc_plugin_ab_cmd_issue_inttransaction(GtkAction *action, GncMainWindowActionData *data);
 static void gnc_plugin_ab_cmd_issue_sepa_direct_debit(GtkAction *action, GncMainWindowActionData *data);
 static void gnc_plugin_ab_cmd_view_logwindow(GtkToggleAction *action, GncMainWindow *window);
@@ -113,6 +114,12 @@ static GtkActionEntry gnc_plugin_actions [] =
 		N_("Issue _SEPA Transaction..."), NULL,
         N_("Issue a new international European (SEPA) transaction online through Online Banking"),
         G_CALLBACK(gnc_plugin_ab_cmd_issue_sepatransaction)
+    },
+    {
+        "ABIssueSepaIntTransAction", NULL,
+        N_("Issue SEPA I_nternal Transaction..."), NULL,
+        N_("Issue a new internal European (SEPA) transaction online through Online Banking"),
+        G_CALLBACK(gnc_plugin_ab_cmd_issue_sepainternaltransaction)
     },
     {
         "ABIssueIntTransAction", NULL, N_("_Internal Transaction..."), NULL,
@@ -179,10 +186,21 @@ static const gchar *need_account_actions[] =
     "ABGetBalanceAction",
     "ABGetTransAction",
     "ABIssueSepaTransAction",
+#if (AQBANKING_VERSION_INT >= 60400)
+    "ABIssueSepaIntTransAction",
+#endif
     "ABIssueIntTransAction",
     "ABIssueSepaDirectDebitAction",
     NULL
 };
+
+#if (AQBANKING_VERSION_INT < 60400)
+static const gchar *inactive_account_actions[] =
+{
+    "ABIssueSepaIntTransAction",
+    NULL
+};
+#endif
 
 static const gchar *readonly_inactive_actions[] =
 {
@@ -379,6 +397,12 @@ gnc_plugin_ab_account_selected(GncPluginPage *plugin_page, Account *account,
                                    && accountid && *accountid));
         gnc_plugin_update_actions(action_group, need_account_actions,
                                   "visible", TRUE);
+#if (AQBANKING_VERSION_INT < 60400)
+        gnc_plugin_update_actions(action_group, inactive_account_actions,
+                                  "sensitive", FALSE);
+        gnc_plugin_update_actions(action_group, inactive_account_actions,
+                                  "visible", FALSE);
+#endif
     }
     else
     {
@@ -496,7 +520,7 @@ gnc_plugin_ab_cmd_get_balance(GtkAction *action, GncMainWindowActionData *data)
     account = main_window_to_account(data->window);
     if (account == NULL)
     {
-        g_message("No AqBanking account selected");
+        PINFO("No AqBanking account selected");
         LEAVE("no account");
         return;
     }
@@ -517,7 +541,7 @@ gnc_plugin_ab_cmd_get_transactions(GtkAction *action,
     account = main_window_to_account(data->window);
     if (account == NULL)
     {
-        g_message("No AqBanking account selected");
+        PINFO("No AqBanking account selected");
         LEAVE("no account");
         return;
     }
@@ -538,7 +562,7 @@ gnc_plugin_ab_cmd_issue_sepatransaction(GtkAction *action,
     account = main_window_to_account(data->window);
     if (account == NULL)
     {
-        g_message("No AqBanking account selected");
+        PINFO("No AqBanking account selected");
         LEAVE("no account");
         return;
     }
@@ -548,6 +572,39 @@ gnc_plugin_ab_cmd_issue_sepatransaction(GtkAction *action,
 
     LEAVE(" ");
 }
+
+#if (AQBANKING_VERSION_INT >= 60400)
+static void
+gnc_plugin_ab_cmd_issue_sepainternaltransaction(GtkAction *action,
+                                    GncMainWindowActionData *data)
+{
+    Account *account;
+
+    ENTER("action %p, main window data %p", action, data);
+    account = main_window_to_account(data->window);
+    if (account == NULL)
+    {
+        PINFO("No AqBanking account selected");
+        LEAVE("no account");
+        return;
+    }
+
+    gnc_main_window = data->window;
+    gnc_ab_maketrans(GTK_WIDGET(data->window), account, SEPA_INTERNAL_TRANSFER);
+
+    LEAVE(" ");
+}
+#else
+static void
+gnc_plugin_ab_cmd_issue_sepainternaltransaction(GtkAction *action,
+                                    GncMainWindowActionData *data)
+{
+
+    ENTER("action %p, main window data %p", action, data);
+    PINFO("Sepa Internal Transfer not supported by your aqbanking version!");
+    LEAVE("Sepa Internal Transfer not supported!");
+}
+#endif
 
 static void
 gnc_plugin_ab_cmd_issue_inttransaction(GtkAction *action,
@@ -559,7 +616,7 @@ gnc_plugin_ab_cmd_issue_inttransaction(GtkAction *action,
     account = main_window_to_account(data->window);
     if (account == NULL)
     {
-        g_message("No AqBanking account selected");
+        PINFO("No AqBanking account selected");
         LEAVE("no account");
         return;
     }
@@ -581,7 +638,7 @@ gnc_plugin_ab_cmd_issue_sepa_direct_debit(GtkAction *action,
     account = main_window_to_account(data->window);
     if (account == NULL)
     {
-        g_message("No AqBanking account selected");
+        PINFO("No AqBanking account selected");
         LEAVE("no account");
         return;
     }
@@ -617,7 +674,7 @@ gnc_plugin_ab_cmd_mt940_import(GtkAction *action, GncMainWindowActionData *data)
                                          GNC_PREF_FORMAT_SWIFT940);
     gnc_main_window = data->window;
     gnc_file_aqbanking_import (GTK_WINDOW (gnc_main_window),
-                               "swift", format ? format : "swift-mt940", FALSE);
+                               "swift", format && *format ? format : "swift-mt940", FALSE);
     g_free(format);
 }
 
@@ -628,7 +685,7 @@ gnc_plugin_ab_cmd_mt942_import(GtkAction *action, GncMainWindowActionData *data)
                                          GNC_PREF_FORMAT_SWIFT942);
     gnc_main_window = data->window;
     gnc_file_aqbanking_import (GTK_WINDOW (gnc_main_window),
-                               "swift", format ? format : "swift-mt942", FALSE);
+                               "swift", format && *format? format : "swift-mt942", FALSE);
     g_free(format);
 }
 
@@ -639,7 +696,7 @@ gnc_plugin_ab_cmd_dtaus_import(GtkAction *action, GncMainWindowActionData *data)
                                          GNC_PREF_FORMAT_DTAUS);
     gnc_main_window = data->window;
     gnc_file_aqbanking_import (GTK_WINDOW (gnc_main_window),
-                               "dtaus", format ? format : "default", FALSE);
+                               "dtaus", format && *format ? format : "default", FALSE);
     g_free(format);
 }
 
@@ -651,7 +708,7 @@ gnc_plugin_ab_cmd_dtaus_importsend(GtkAction *action,
                                          GNC_PREF_FORMAT_DTAUS);
     gnc_main_window = data->window;
     gnc_file_aqbanking_import (GTK_WINDOW (gnc_main_window),
-                               "dtaus", format ? format : "default", TRUE);
+                               "dtaus", format && *format ? format : "default", TRUE);
     g_free(format);
 }
 

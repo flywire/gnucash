@@ -2,23 +2,24 @@
 # Copyright (C) 2001 Free Software Foundation, Inc.
 # Duarte Loreto <happyguy_pt@hotmail.com>, 2001
 # Tiago Neiva <tneiva@gmail.com>, 2018.
-# Pedro Albuquerque <pmra@gmx.com>, 2021.
+# Pedro Albuquerque <pmra@gmx.com>, 2021, 2022.
+# Hugo Carvalho <hugokarvalho@hotmail.com>, 2022.
 msgid ""
 msgstr ""
-"Project-Id-Version: gnucash-2.4\n"
+"Project-Id-Version: GnuCash 4.8\n"
 "Report-Msgid-Bugs-To: https://bugs.gnucash.org/enter_bug."
 "cgi?product=GnuCash&component=Translations\n"
-"POT-Creation-Date: 2021-01-10 08:00+0100\n"
-"PO-Revision-Date: 2021-01-11 18:32+0000\n"
+"POT-Creation-Date: 2021-12-05 20:11+0100\n"
+"PO-Revision-Date: 2022-01-18 06:54+0000\n"
 "Last-Translator: Pedro Albuquerque <pmra@gmx.com>\n"
 "Language-Team: Portuguese <https://hosted.weblate.org/projects/gnucash/"
 "glossary/pt/>\n"
 "Language: pt\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=utf-8\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
-"X-Generator: Weblate 4.4.1-dev\n"
+"X-Generator: Weblate 4.11-dev\n"
 
 #. "English Definition (Dear translator: This file will never be visible to the user! It should only serve as a tool for you, the translator. Nothing more.)"
 msgid "Term (Dear translator: This file will never be visible to the user!)"
@@ -204,6 +205,10 @@ msgstr "idade"
 msgid "amount"
 msgstr "montante"
 
+#. "The amount finally to pay, respecting discounts, billing terms…"
+msgid "amount due"
+msgstr "montante devido"
+
 #. "The result of adding several amounts together and then dividing this total by the number of amounts"
 msgid "average"
 msgstr "média"
@@ -384,6 +389,10 @@ msgstr "dupla entrada"
 msgid "document link"
 msgstr "ligação do documento"
 
+#. "The last day to pay an invoice in time."
+msgid "due date"
+msgstr "data limite"
+
 #. "Electronic mail. Some languages allow different writings, but each team should use only one. https://en.wikipedia.org/wiki/Email"
 msgid "email"
 msgstr "email"
@@ -462,7 +471,7 @@ msgstr "factura"
 
 #. "In business accounting: Jobs are a mechanism by which you can group multiple invoices or bills that belong to the same customer or vendor. The job describes a (larger) piece of work or a task undertaken on order, for which one or many invoices or bills will be issued."
 msgid "job"
-msgstr "obra"
+msgstr "tarefa"
 
 #. "A book in which a bank, business firm, etc. records its financial accounts"
 msgid "ledger"
@@ -740,6 +749,14 @@ msgstr "fonte"
 msgid "split"
 msgstr "parcela"
 
+#. "Alias of 'shares'"
+msgid "stocks"
+msgstr "acções"
+
+#. "Sometimes one old share gets replaced by multiple new like 1 OLD @100¤ by 2 NEW @50¤"
+msgid "stock split"
+msgstr "desdobramento de acções"
+
 #. "This sets the particular design or shape of a report."
 msgid "style sheet"
 msgstr "folha de estilo"
@@ -852,36 +869,14 @@ msgstr "vale"
 msgid "withdraw (in the reconcile dialog)"
 msgstr "levantamento (no diálogo de reconciliação)"
 
-#, fuzzy
-#~ msgid "invoice owner"
-#~ msgstr "fatura"
+msgid "stock"
+msgstr "acção"
 
-#~ msgid ""
-#~ "account type: trading This account type (new in gnucash-2.4.0) is used "
-#~ "when exchanging or trading amounts from one currency into another"
-#~ msgstr "tipo de conta: câmbios"
+msgid "due"
+msgstr "devido"
 
-#~ msgid "bill owner see invoice owner"
-#~ msgstr "fornecedor"
+msgid "Online"
+msgstr "Online"
 
-#~ msgid ""
-#~ "invoice ownerThe customer (or vendor) to which this invoice is sent to."
-#~ msgstr "entidade faturada"
-
-#~ msgid ""
-#~ "markup1. Some text annotation, but this meaning isn't used inside "
-#~ "gnucash. 2. In the Customer summary report: The ratio of profit vs. "
-#~ "sales, i.e. the profit amount divided by the sales amount, shown in "
-#~ "percent."
-#~ msgstr "margem de lucro"
-
-#~ msgid ""
-#~ "sales(In the customer summary report) The total amount of money received "
-#~ "because something was sold."
-#~ msgstr "vendas"
-
-#~ msgid ""
-#~ "tax codeOn the goverment's tax forms, the tax code identifies the given "
-#~ "line or place on the form where certain amounts must be specified "
-#~ "according to the current country's legislation"
-#~ msgstr "campo de declaração"
+msgid "Direct Debit"
+msgstr "Débito direto"

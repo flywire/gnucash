@@ -536,7 +536,7 @@ gnc_combo_cell_type_ahead_search (const gchar* newval,
     GRegex* regex0 = g_regex_new (escaped_sep, 0, 0, NULL);
     char* rep_str = g_regex_replace_literal (regex0, escaped_newval, -1, 0,
                                              newval_rep, 0, NULL);
-    char* normal_rep_str = g_utf8_normalize (rep_str, -1, G_NORMALIZE_ALL);
+    char* normal_rep_str = g_utf8_normalize (rep_str, -1, G_NORMALIZE_NFC);
     GRegex *regex = g_regex_new (normal_rep_str, G_REGEX_CASELESS, 0, NULL);
 
     gboolean valid = gtk_tree_model_get_iter_first (GTK_TREE_MODEL (full_store),
@@ -565,7 +565,7 @@ gnc_combo_cell_type_ahead_search (const gchar* newval,
         gchar* normalized_str_data = NULL;
         gtk_tree_model_get (GTK_TREE_MODEL (full_store), &iter, 0,
                             &str_data, -1);
-        normalized_str_data = g_utf8_normalize (str_data, -1, G_NORMALIZE_ALL);
+        normalized_str_data = g_utf8_normalize (str_data, -1, G_NORMALIZE_NFC);
 
         if (g_regex_match (regex, normalized_str_data, 0, NULL))
         {
@@ -910,19 +910,37 @@ popup_get_height (G_GNUC_UNUSED GtkWidget* widget,
 {
     PopBox* box = user_data;
     GtkScrolledWindow* scrollwin = GNC_ITEM_LIST(widget)->scrollwin;
+    GtkWidget *hsbar = gtk_scrolled_window_get_hscrollbar (scrollwin);
+    GtkStyleContext *context = gtk_widget_get_style_context (hsbar);
+    /* Note: gtk_scrolled_window_get_overlay_scrolling (scrollwin) always returns
+       TRUE so look for style class "overlay-indicator" on the scrollbar. */
+    gboolean overlay = gtk_style_context_has_class (context, "overlay-indicator");
     int count, height;
 
     count = gnc_item_list_num_entries (box->item_list);
     height = count * (gnc_item_list_get_cell_height (box->item_list) + 2);
 
+    if (!overlay)
+    {
+        gint minh, nath;
+        gtk_widget_get_preferred_height (hsbar, &minh, &nath);
+        height = height + minh;
+    }
+
     if (height < space_available)
     {
-        gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrollwin),
-                                        GTK_POLICY_AUTOMATIC, GTK_POLICY_NEVER);
         // if the list is empty height would be 0 so return 1 instead to
         // satisfy the check_popup_height_is_true function
-        return height ? height : 1;
+        gint ret_height = height ? height : 1;
+
+        gtk_widget_set_size_request (GTK_WIDGET(scrollwin), -1, ret_height);
+        gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrollwin),
+                                        GTK_POLICY_AUTOMATIC, GTK_POLICY_NEVER);
+        return ret_height;
     }
+    else
+        gtk_widget_set_size_request (GTK_WIDGET(scrollwin), -1, -1);
+
     gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrollwin),
                                     GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
     return space_available;

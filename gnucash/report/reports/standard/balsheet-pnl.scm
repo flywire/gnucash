@@ -47,13 +47,6 @@
   (split-balance-with-closing col-datum-get-split-balance-with-closing)
   (split-value-balance col-datum-get-split-value-balance))
 
-(define FOOTER-TEXT
-  (gnc:make-html-text
-   (G_ "WARNING: Foreign currency conversions, and unrealized gains
-calculations are not confirmed correct. This report may be modified
-without notice. Bug reports are very welcome at
-https://bugs.gnucash.org/")))
-
 ;; define all option's names and help text so that they are properly
 
 (define optname-startdate (N_ "Start Date"))
@@ -382,28 +375,30 @@ also show overall period profit & loss."))
   (define (make-narrow-cell)
     (gnc:make-html-table-cell/min-width 1))
 
+  (define (show-depth? lvl)
+    (or (not depth-limit) (<= lvl depth-limit)))
+
   (define (add-indented-row indent label label-markup row-markup amount-indent rest)
-    (when (or (not depth-limit) (<= indent depth-limit))
-      (let* ((account-cell (if label-markup
-                               (gnc:make-html-table-cell/size/markup
-                                1 (if disable-account-indent? 1 (- maxindent indent))
-                                label-markup label)
-                               (gnc:make-html-table-cell/size
-                                1 (if disable-account-indent? 1 (- maxindent indent))
-                                label)))
-             (row (append
-                   (if disable-account-indent?
-                       '()
-                       (make-list-thunk indent make-narrow-cell))
-                   (list account-cell)
-                   (gnc:html-make-empty-cells
-                    (if amount-indenting? (1- amount-indent) 0))
-                   (if reverse-cols? (reverse rest) rest)
-                   (gnc:html-make-empty-cells
-                    (if amount-indenting? (- maxindent amount-indent) 0)))))
-        (if row-markup
-            (gnc:html-table-append-row/markup! table row-markup row)
-            (gnc:html-table-append-row! table row)))))
+    (let* ((account-cell (if label-markup
+                             (gnc:make-html-table-cell/size/markup
+                              1 (if disable-account-indent? 1 (- maxindent indent))
+                              label-markup label)
+                             (gnc:make-html-table-cell/size
+                              1 (if disable-account-indent? 1 (- maxindent indent))
+                              label)))
+           (row (append
+                 (if disable-account-indent?
+                     '()
+                     (make-list-thunk indent make-narrow-cell))
+                 (list account-cell)
+                 (gnc:html-make-empty-cells
+                  (if amount-indenting? (1- amount-indent) 0))
+                 (if reverse-cols? (reverse rest) rest)
+                 (gnc:html-make-empty-cells
+                  (if amount-indenting? (- maxindent amount-indent) 0)))))
+      (if row-markup
+          (gnc:html-table-append-row/markup! table row-markup row)
+          (gnc:html-table-append-row! table row))))
 
   (define (monetary+ . monetaries)
     ;; usage: (monetary+ monetary...)
@@ -518,8 +513,9 @@ also show overall period profit & loss."))
              ((_ . tail) (lp1 tail))))))))
 
   (define* (add-recursive-subtotal lvl lvl-acct #:key account-style-normal?)
-    (if (or show-zb-accts?
-            (is-not-zero? (account-and-descendants lvl-acct)))
+    (if (and (or show-zb-accts?
+                 (is-not-zero? (account-and-descendants lvl-acct)))
+             (show-depth? lvl))
         (add-indented-row lvl
                           (render-account lvl-acct (not account-style-normal?))
                           (if account-style-normal?
@@ -545,9 +541,10 @@ also show overall period profit & loss."))
   (define* (add-account-row lvl-curr curr #:key
                             (override-show-zb-accts? #f)
                             (account-indent 0))
-    (if (or show-zb-accts?
-            override-show-zb-accts?
-            (is-not-zero? (list curr)))
+    (if (and (or show-zb-accts?
+                 override-show-zb-accts?
+                 (is-not-zero? (list curr)))
+             (show-depth? lvl-curr))
         (add-indented-row lvl-curr
                           (render-account curr #f)
                           "text-cell"
@@ -753,23 +750,29 @@ also show overall period profit & loss."))
          ;; account-balances is a list of monetary amounts
          (accounts-balances
           (map
-           (lambda (acc)
-             (cons acc (let ((cols-data (assoc-ref accounts-cols-data acc)))
-                         (map col-datum-get-split-balance cols-data))))
-           accounts))
+           (match-lambda
+             ((acc . cols-data)
+              (cons acc (map col-datum-get-split-balance cols-data))))
+           accounts-cols-data))
 
          (accounts-balances-with-closing
           (map
-           (lambda (acc)
-             (cons acc (let ((cols-data (assoc-ref accounts-cols-data acc)))
-                         (map col-datum-get-split-balance-with-closing cols-data))))
-           accounts))
+           (match-lambda
+             ((acc . cols-data)
+              (cons acc (map col-datum-get-split-balance-with-closing cols-data))))
+           accounts-cols-data))
 
-         (exchange-fn (and common-currency
-                           (gnc:case-exchange-time-fn
-                            price-source common-currency
-                            (map xaccAccountGetCommodity accounts) enddate
-                            #f #f)))
+         ;; generate an exchange-fn for date, and cache its result.
+         (get-date-exchange-fn
+          (let ((h (make-hash-table)))
+            (lambda (date)
+              (or (hashv-ref h date)
+                  (let ((exchangefn (gnc:case-exchange-time-fn
+                                     price-source common-currency
+                                     (map xaccAccountGetCommodity accounts)
+                                     date #f #f)))
+                    (hashv-set! h date exchangefn)
+                    exchangefn)))))
 
          ;; from col-idx, find effective date to retrieve pricedb
          ;; entry or to limit transactions to calculate average-cost
@@ -795,9 +798,9 @@ also show overall period profit & loss."))
                        (gnc:gnc-monetary-commodity monetary)
                        common-currency))
                  (has-price? (gnc:gnc-monetary-commodity monetary))
-                 (exchange-fn
-                  monetary common-currency
-                  (col-idx->price-date col-idx)))))
+                 (let* ((col-date (col-idx->price-date col-idx))
+                        (exchange-fn (get-date-exchange-fn col-date)))
+                   (exchange-fn monetary common-currency col-date)))))
 
          ;; the following function generates an gnc:html-text object
          ;; to dump exchange rate for a particular column. From the
@@ -914,11 +917,10 @@ also show overall period profit & loss."))
              ;; split is the last one at date boundary
              (accounts-splits-dates
               (map
-               (lambda (acc)
-                 (cons acc (let ((cols-data (assoc-ref accounts-cols-data acc)))
-                             (list->vector
-                              (map col-datum-get-last-split cols-data)))))
-               accounts))
+               (match-lambda
+                 ((acc . cols-data)
+                  (cons acc (list->vector (map col-datum-get-last-split cols-data)))))
+               accounts-cols-data))
 
              (get-cell-anchor-fn
               (lambda (account col-idx)
@@ -944,10 +946,10 @@ also show overall period profit & loss."))
              ;; dates. split-value-balance determined by transaction currency.
              (accounts-value-balances
               (map
-               (lambda (acc)
-                 (cons acc (let ((cols-data (assoc-ref accounts-cols-data acc)))
-                             (map col-datum-get-split-value-balance cols-data))))
-               accounts))
+               (match-lambda
+                 ((acc . cols-data)
+                  (cons acc (map col-datum-get-split-value-balance cols-data))))
+               accounts-cols-data))
 
              ;; a vector of collectors whereby each collector is the sum
              ;; of asset and liability split-value-balances at report
@@ -1113,7 +1115,7 @@ also show overall period profit & loss."))
 
         (if (and common-currency show-rates?)
             (add-to-table multicol-table-right (G_ "Exchange Rates")
-                          asset-liability
+                          (append asset-liability equity-accounts)
                           #:get-col-header-fn get-exchange-rates-fn
                           #:show-accounts? #f
                           #:show-total? #f))
@@ -1276,9 +1278,6 @@ also show overall period profit & loss."))
       (gnc:html-document-add-object!
        doc multicol-table))
 
-    (gnc:html-document-add-object!
-     doc FOOTER-TEXT)
-
     (gnc:report-finished)
     ;; (gnc:html-document-set-style-text!
     ;;  doc " table, td{ border-width: 1px; border-style:solid; border-color: lightgray; border-collapse: collapse}")
@@ -1291,7 +1290,7 @@ also show overall period profit & loss."))
  'version 1
  'name balsheet-reportname
  'report-guid "065d5d5a77ba11e8b31e83ada73c5eea"
- 'menu-path (list gnc:menuname-experimental)
+ 'menu-path (list gnc:menuname-asset-liability)
  'options-generator (lambda () (multicol-report-options-generator 'balsheet))
  'renderer (lambda (rpt) (multicol-report-renderer rpt 'balsheet)))
 
@@ -1299,7 +1298,7 @@ also show overall period profit & loss."))
  'version 1
  'name pnl-reportname
  'report-guid "0e94fd0277ba11e8825d43e27232c9d4"
- 'menu-path (list gnc:menuname-experimental)
+ 'menu-path (list gnc:menuname-income-expense)
  'options-generator (lambda () (multicol-report-options-generator 'pnl))
  'renderer (lambda (rpt) (multicol-report-renderer rpt 'pnl)))
 

@@ -59,12 +59,14 @@
 #include "dialog-transfer.h"
 #include "dialog-utils.h"
 #include "assistant-stock-split.h"
+#include "assistant-stock-transaction.h"
 #include "gnc-component-manager.h"
 #include "gnc-date.h"
 #include "gnc-date-edit.h"
 #include "gnc-engine.h"
 #include "gnc-event.h"
 #include "gnc-features.h"
+#include "gnc-glib-utils.h"
 #include "gnc-gnome-utils.h"
 #include "gnc-gobject-utils.h"
 #include "gnc-gui-query.h"
@@ -218,6 +220,9 @@ static void gnc_plugin_page_register_cmd_style_double_line (
 
 static void gnc_plugin_page_register_cmd_reconcile (GtkAction* action,
                                                     GncPluginPageRegister* plugin_page);
+static void gnc_plugin_page_register_cmd_stock_assistant (GtkAction* action,
+                                                          GncPluginPageRegister* page);
+
 static void gnc_plugin_page_register_cmd_autoclear (GtkAction* action,
                                                     GncPluginPageRegister* plugin_page);
 static void gnc_plugin_page_register_cmd_transfer (GtkAction* action,
@@ -482,6 +487,11 @@ static GtkActionEntry gnc_plugin_page_register_actions [] =
         G_CALLBACK (gnc_plugin_page_register_cmd_autoclear)
     },
     {
+        "ActionsStockAssistantAction", "applications-utilities",
+        N_ ("Stock Ass_istant"), NULL, N_ ("Stock Assistant"),
+        G_CALLBACK (gnc_plugin_page_register_cmd_stock_assistant)
+    },
+    {
         "ActionsStockSplitAction", NULL, N_ ("Stoc_k Split..."), NULL,
         N_ ("Record a stock split or a stock merger"),
         G_CALLBACK (gnc_plugin_page_register_cmd_stock_split)
@@ -614,6 +624,12 @@ static const gchar* view_style_actions[] =
     NULL
 };
 
+static const gchar* actions_requiring_priced_account[] =
+{
+    "ActionsStockAssistantAction",
+    NULL
+};
+
 /** Short labels for use on the toolbar buttons. */
 static action_toolbar_labels toolbar_labels[] =
 {
@@ -717,7 +733,7 @@ G_DEFINE_TYPE_WITH_PRIVATE (GncPluginPageRegister, gnc_plugin_page_register,
                             GNC_TYPE_PLUGIN_PAGE)
 
 #define GNC_PLUGIN_PAGE_REGISTER_GET_PRIVATE(o)  \
-   ((GncPluginPageRegisterPrivate*)g_type_instance_get_private((GTypeInstance*)o, GNC_TYPE_PLUGIN_PAGE_REGISTER))
+   ((GncPluginPageRegisterPrivate*)gnc_plugin_page_register_get_instance_private((GncPluginPageRegister*)o))
 
 static GObjectClass* parent_class = NULL;
 
@@ -1266,6 +1282,11 @@ gnc_plugin_page_register_ui_initial_state (GncPluginPageRegister* page)
     action_group = gnc_plugin_page_get_action_group (GNC_PLUGIN_PAGE (page));
     gnc_plugin_update_actions (action_group, actions_requiring_account,
                                "sensitive", is_readwrite && account != NULL);
+
+    gnc_plugin_update_actions (action_group, actions_requiring_priced_account,
+                               "visible", account &&
+                               gnc_prefs_is_extra_enabled () &&
+                               xaccAccountIsPriced (account));
 
     /* Set "style" radio button */
     ledger_type = gnc_ledger_display_type (priv->ledger);
@@ -2710,7 +2731,6 @@ static void
 gnc_ppr_update_status_query (GncPluginPageRegister* page)
 {
     GncPluginPageRegisterPrivate* priv;
-    GSList* param_list;
     Query* query;
     SplitRegister* reg;
 
@@ -2734,9 +2754,9 @@ gnc_ppr_update_status_query (GncPluginPageRegister* page)
     reg = gnc_ledger_display_get_split_register (priv->ledger);
 
     /* Remove the old status match */
-    param_list = qof_query_build_param_list (SPLIT_RECONCILE, NULL);
-    if (param_list && (reg->type != SEARCH_LEDGER))
+    if (reg->type != SEARCH_LEDGER)
     {
+        GSList *param_list = qof_query_build_param_list (SPLIT_RECONCILE, NULL);
         qof_query_purge_terms (query, param_list);
         g_slist_free (param_list);
     }
@@ -2774,7 +2794,6 @@ static void
 gnc_ppr_update_date_query (GncPluginPageRegister* page)
 {
     GncPluginPageRegisterPrivate* priv;
-    GSList* param_list;
     Query* query;
     SplitRegister* reg;
 
@@ -2799,9 +2818,10 @@ gnc_ppr_update_date_query (GncPluginPageRegister* page)
     reg = gnc_ledger_display_get_split_register (priv->ledger);
 
     /* Delete any existing old date spec. */
-    param_list = qof_query_build_param_list (SPLIT_TRANS, TRANS_DATE_POSTED, NULL);
-    if (param_list && (reg->type != SEARCH_LEDGER))
+    if (reg->type != SEARCH_LEDGER)
     {
+        GSList *param_list = qof_query_build_param_list (SPLIT_TRANS,
+                                                         TRANS_DATE_POSTED, NULL);
         qof_query_purge_terms (query, param_list);
         g_slist_free (param_list);
     }
@@ -3316,52 +3336,38 @@ gnc_plugin_page_register_filter_response_cb (GtkDialog* dialog,
 
         if (priv->fd.save_filter)
         {
-            gchar* filter = g_strdup_printf ("0x%04x",
-                                             priv->fd.cleared_match); // cleared match
-            gchar* tmp = g_strdup (filter);
+            gchar *filter;
+            GList *flist = NULL;
+
+            // cleared match
+            flist = g_list_prepend
+                (flist, g_strdup_printf ("0x%04x", priv->fd.cleared_match));
 
             // start time
-            if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (
-                                                  priv->fd.start_date_choose)) && priv->fd.start_time != 0)
-            {
-                gchar* timeval = gnc_plugin_page_register_filter_time2dmy (
-                                     priv->fd.start_time);
-                filter = g_strconcat (tmp, ",", timeval, NULL);
-                g_free (timeval);
-            }
+            if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (priv->fd.start_date_choose)) && priv->fd.start_time != 0)
+                flist = g_list_prepend (flist, gnc_plugin_page_register_filter_time2dmy (priv->fd.start_time));
             else
-                filter = g_strconcat (tmp, ",0", NULL);
-
-            g_free (tmp);
-            tmp = g_strdup (filter);
-            g_free (filter);
+                flist = g_list_prepend (flist, g_strdup ("0"));
 
             // end time
             if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (priv->fd.end_date_choose))
                 && priv->fd.end_time != 0)
-            {
-                gchar* timeval = gnc_plugin_page_register_filter_time2dmy (priv->fd.end_time);
-                filter = g_strconcat (tmp, ",", timeval, NULL);
-                g_free (timeval);
-            }
+                flist = g_list_prepend (flist, gnc_plugin_page_register_filter_time2dmy (priv->fd.end_time));
             else
-                filter = g_strconcat (tmp, ",0", NULL);
-
-            g_free (tmp);
-            tmp = g_strdup (filter);
-            g_free (filter);
+                flist = g_list_prepend (flist, g_strdup ("0"));
 
             // number of days
             if (priv->fd.days > 0)
-                filter = g_strdup_printf ("%s,%d", tmp, priv->fd.days);
+                flist = g_list_prepend (flist, g_strdup_printf ("%d", priv->fd.days));
             else
-                filter = g_strconcat (tmp, ",0", NULL);
+                flist = g_list_prepend (flist, g_strdup ("0"));
 
-            g_free (tmp);
-
+            flist = g_list_reverse (flist);
+            filter = gnc_g_list_stringjoin (flist, ",");
             PINFO ("The filter to save is %s", filter);
             gnc_plugin_page_register_set_filter (plugin_page, filter);
             g_free (filter);
+            g_list_free_full (flist, g_free);
         }
     }
     priv->fd.dialog = NULL;
@@ -3371,42 +3377,19 @@ gnc_plugin_page_register_filter_response_cb (GtkDialog* dialog,
 
 static void
 gpp_update_match_filter_text (cleared_match_t match, const guint mask,
-                              const gchar* filter_name, gchar** show, gchar** hide)
+                              const gchar* filter_name, GList **show, GList **hide)
 {
     if ((match & mask) == mask)
-    {
-        if (*show == NULL)
-            *show = g_strdup (filter_name);
-        else
-        {
-            gchar* temp = g_strdup (*show);
-            g_free (*show);
-            *show = g_strconcat (temp, ", ", filter_name, NULL);
-        }
-    }
+        *show = g_list_prepend (*show, g_strdup (filter_name));
     else
-    {
-        if (*hide == NULL)
-            *hide = g_strdup (filter_name);
-        else
-        {
-            gchar* temp = g_strdup (*hide);
-            g_free (*hide);
-            *hide = g_strconcat (temp, ", ", filter_name, NULL);
-        }
-    }
+        *hide = g_list_prepend (*hide, g_strdup (filter_name));
 }
 
 static void
 gnc_plugin_page_register_set_filter_tooltip (GncPluginPageRegister* page)
 {
     GncPluginPageRegisterPrivate* priv;
-    GncPluginPage* plugin_page;
-    gchar* text = NULL;
-    gchar* text_header = g_strdup_printf ("%s", _ ("Filter By:"));
-    gchar* text_start = NULL;
-    gchar* text_end = NULL;
-    gchar* text_cleared = NULL;
+    GList *t_list = NULL;
 
     g_return_if_fail (GNC_IS_PLUGIN_PAGE_REGISTER (page));
 
@@ -3417,28 +3400,31 @@ gnc_plugin_page_register_set_filter_tooltip (GncPluginPageRegister* page)
     if (priv->fd.start_time != 0)
     {
         gchar* sdate = qof_print_date (priv->fd.start_time);
-        text_start = g_strdup_printf ("%s %s", _ ("Start Date:"), sdate);
+        t_list = g_list_prepend
+            (t_list, g_strdup_printf ("%s %s", _("Start Date:"), sdate));
         g_free (sdate);
     }
 
     // filtered number of days
     if (priv->fd.days > 0)
-        text_start = g_strdup_printf ("%s %d", _ ("Show previous number of days:"),
-                                      priv->fd.days);
+        t_list = g_list_prepend
+            (t_list, g_strdup_printf ("%s %d", _("Show previous number of days:"),
+                                      priv->fd.days));
 
     // filtered end time
     if (priv->fd.end_time != 0)
     {
         gchar* edate = qof_print_date (priv->fd.end_time);
-        text_end = g_strdup_printf ("%s %s", _ ("End Date:"), edate);
+        t_list = g_list_prepend
+            (t_list, g_strdup_printf ("%s %s", _("End Date:"), edate));
         g_free (edate);
     }
 
     // filtered match items
-    if (priv->fd.cleared_match != 31)
+    if (priv->fd.cleared_match != CLEARED_ALL)
     {
-        gchar* show = NULL;
-        gchar* hide = NULL;
+        GList *show = NULL;
+        GList *hide = NULL;
 
         gpp_update_match_filter_text (priv->fd.cleared_match, 0x01, _ ("Unreconciled"),
                                       &show, &hide);
@@ -3451,62 +3437,42 @@ gnc_plugin_page_register_set_filter_tooltip (GncPluginPageRegister* page)
         gpp_update_match_filter_text (priv->fd.cleared_match, 0x10, _ ("Voided"),
                                       &show, &hide);
 
-        if (show == NULL)
-            text_cleared = g_strconcat (_ ("Hide:"), " ", hide, NULL);
-        else
-            text_cleared = g_strconcat (_ ("Show:"), " ", show, "\n", _ ("Hide:"), " ",
-                                        hide, NULL);
+        show = g_list_reverse (show);
+        hide = g_list_reverse (hide);
 
-        g_free (show);
-        g_free (hide);
-    }
-    // create the tooltip based on created text variables
-    if ((text_start != NULL) || (text_end != NULL) || (text_cleared != NULL))
-    {
-        if (text_start != NULL)
-            text = g_strconcat (text_header, "\n", text_start, NULL);
-
-        if (text_end != NULL)
+        if (show)
         {
-            if (text == NULL)
-                text = g_strconcat (text_header, "\n", text_end, NULL);
-            else
-            {
-                gchar* temp = g_strdup (text);
-                g_free (text);
-                text = g_strconcat (temp, "\n", text_end, NULL);
-                g_free (temp);
-            }
+            char *str = gnc_g_list_stringjoin (show, ", ");
+            t_list = g_list_prepend
+                (t_list, g_strdup_printf ("%s %s", _("Show:"), str));
+            g_free (str);
         }
 
-        if (text_cleared != NULL)
+        if (hide)
         {
-            if (text == NULL)
-                text = g_strconcat (text_header, "\n", text_cleared, NULL);
-            else
-            {
-                gchar* temp = g_strdup (text);
-                g_free (text);
-                text = g_strconcat (temp, "\n", text_cleared, NULL);
-                g_free (temp);
-            }
+            char *str = gnc_g_list_stringjoin (hide, ", ");
+            t_list = g_list_prepend
+                (t_list, g_strdup_printf ("%s %s", _("Hide:"), str));
+            g_free (str);
         }
+
+        g_list_free_full (show, g_free);
+        g_list_free_full (hide, g_free);
     }
+
+    t_list = g_list_reverse (t_list);
+
+    if (t_list)
+        t_list = g_list_prepend (t_list, g_strdup (_("Filter By:")));
+
     // free the existing text if present
     if (priv->gsr->filter_text != NULL)
         g_free (priv->gsr->filter_text);
 
     // set the tooltip text variable in the gsr
-    priv->gsr->filter_text = g_strdup (text);
+    priv->gsr->filter_text = gnc_g_list_stringjoin (t_list, "\n");
 
-    if (text_start)
-        g_free (text_start);
-    if (text_end)
-        g_free (text_end);
-    if (text_cleared)
-        g_free (text_cleared);
-    g_free (text_header);
-    g_free (text);
+    g_list_free_full (t_list, g_free);
 
     LEAVE (" ");
 }
@@ -3744,7 +3710,10 @@ gnc_plugin_page_register_cmd_print_check (GtkAction* action,
     else if (ledger_type == LD_GL && reg->type == SEARCH_LEDGER)
     {
         Account* common_acct = NULL;
+
+        /* the following GList* splits must not be freed */
         splits = qof_query_run (gnc_ledger_display_get_query (priv->ledger));
+
         /* Make sure each split is from the same account */
         for (item = splits; item; item = g_list_next (item))
         {
@@ -3786,7 +3755,6 @@ gnc_plugin_page_register_cmd_print_check (GtkAction* action,
             }
         }
         gnc_ui_print_check_dialog_create (window, splits);
-        g_list_free (splits);
     }
     else
     {
@@ -4072,13 +4040,6 @@ gnc_plugin_page_register_cmd_reverse_transaction (GtkAction* action,
     if (trans == NULL)
         return;
 
-    if (xaccTransGetReversedBy (trans))
-    {
-        gnc_error_dialog (GTK_WINDOW (window), "%s",
-                          _ ("A reversing entry has already been created for this transaction."));
-        return;
-    }
-
     split = gnc_split_register_get_current_split (reg);
     account = xaccSplitGetAccount (split);
 
@@ -4086,6 +4047,17 @@ gnc_plugin_page_register_cmd_reverse_transaction (GtkAction* action,
     {
         LEAVE ("shouldn't try to reverse the blank transaction...");
         return;
+    }
+
+    new_trans = xaccTransGetReversedBy (trans);
+    if (new_trans)
+    {
+        const char *rev = _("A reversing entry has already been created for this transaction.");
+        const char *jump = _("Jump to the transaction?");
+        if (gnc_verify_dialog (GTK_WINDOW (window), TRUE, "%s\n\n%s", rev, jump))
+            goto jump_to_trans;
+        else
+            return;
     }
 
     if (!gnc_dup_time64_dialog (window, _("Reverse Transaction"),
@@ -4104,6 +4076,7 @@ gnc_plugin_page_register_cmd_reverse_transaction (GtkAction* action,
 
     gnc_resume_gui_refresh();
 
+ jump_to_trans:
     /* Now jump to new trans */
     gsr = gnc_plugin_page_register_get_gsr (GNC_PLUGIN_PAGE (page));
     split = xaccTransFindSplitByAccount(new_trans, account);
@@ -4533,6 +4506,23 @@ gnc_plugin_page_register_cmd_reconcile (GtkAction* action,
 }
 
 static void
+gnc_plugin_page_register_cmd_stock_assistant (GtkAction* action,
+                                              GncPluginPageRegister* page)
+{
+    Account *account;
+    GtkWindow *window;
+
+    ENTER ("(action %p, plugin_page %p)", action, page);
+
+    g_return_if_fail (GNC_IS_PLUGIN_PAGE_REGISTER (page));
+    window = gnc_window_get_gtk_window (GNC_WINDOW (GNC_PLUGIN_PAGE (page)->window));
+    account = gnc_plugin_page_register_get_account (page);
+    gnc_stock_transaction_assistant (GTK_WIDGET (window), account);
+
+    LEAVE (" ");
+}
+
+static void
 gnc_plugin_page_register_cmd_autoclear (GtkAction* action,
                                         GncPluginPageRegister* page)
 {
@@ -4558,13 +4548,15 @@ gnc_plugin_page_register_cmd_stock_split (GtkAction* action,
                                           GncPluginPageRegister* page)
 {
     Account* account;
+    GtkWindow* window;
 
     ENTER ("(action %p, plugin_page %p)", action, page);
 
     g_return_if_fail (GNC_IS_PLUGIN_PAGE_REGISTER (page));
 
     account = gnc_plugin_page_register_get_account (page);
-    gnc_stock_split_dialog (NULL, account);
+    window = gnc_window_get_gtk_window (GNC_WINDOW (GNC_PLUGIN_PAGE (page)->window));
+    gnc_stock_split_dialog (GTK_WIDGET (window), account);
     LEAVE (" ");
 }
 
@@ -4726,6 +4718,7 @@ gnc_plugin_page_register_cmd_jump_linked_invoice (GtkAction* action,
     SplitRegister* reg;
     GncInvoice* invoice;
     Transaction *txn;
+    GtkWidget *window;
 
     ENTER ("(action %p, plugin_page %p)", action, plugin_page);
 
@@ -4734,6 +4727,7 @@ gnc_plugin_page_register_cmd_jump_linked_invoice (GtkAction* action,
     reg = gnc_ledger_display_get_split_register (priv->gsr->ledger);
     txn = gnc_split_register_get_current_trans (reg);
     invoice = invoice_from_split (gnc_split_register_get_current_split (reg));
+    window = GNC_PLUGIN_PAGE(plugin_page)->window;
 
     if (!invoice)
     {
@@ -4768,7 +4762,7 @@ gnc_plugin_page_register_cmd_jump_linked_invoice (GtkAction* action,
             }
             details = g_list_reverse (details);
             choice = gnc_choose_radio_option_dialog
-                (GNC_PLUGIN_PAGE (plugin_page)->window, _("Select document"),
+                (window, _("Select document"),
                  _("Several documents are linked with this transaction. \
 Please choose one:"), _("Select"), 0, details);
             if (choice >= 0)
@@ -4779,7 +4773,10 @@ Please choose one:"), _("Select"), 0, details);
     }
 
     if (invoice)
-        gnc_ui_invoice_edit (NULL, invoice);
+    {
+        GtkWindow *gtk_window = gnc_window_get_gtk_window (GNC_WINDOW (window));
+        gnc_ui_invoice_edit (gtk_window, invoice);
+    }
 
     LEAVE (" ");
 }
@@ -5261,6 +5258,11 @@ gnc_plugin_page_help_changed_cb (GNCSplitReg* gsr,
         // window.
         return;
     }
+
+    // only update status text if on current page
+    if (GNC_IS_MAIN_WINDOW(window) && (gnc_main_window_get_current_page 
+       (GNC_MAIN_WINDOW(window)) != GNC_PLUGIN_PAGE(register_page)))
+       return;
 
     /* Get the text from the ledger */
     priv = GNC_PLUGIN_PAGE_REGISTER_GET_PRIVATE (register_page);

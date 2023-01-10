@@ -9,14 +9,17 @@
 # Frank H. Ellenberger <frank.h.ellenberger@gmail.com>, 2021.
 # ayiniho <ayiniho@tedomum.net>, 2021.
 # Thomas Jungers <thomasjungers@gmail.com>, 2021.
+# Maxime Leroy <lisacintosh@gmail.com>, 2021.
+# Sébastien Ray <sebastien.ray@normalesup.org>, 2022.
+# aleksej0R <omolice@hotmail.fr>, 2022.
 msgid ""
 msgstr ""
-"Project-Id-Version: gnucash 2.0\n"
+"Project-Id-Version: GnuCash 4.8\n"
 "Report-Msgid-Bugs-To: https://bugs.gnucash.org/enter_bug."
 "cgi?product=GnuCash&component=Translations\n"
-"POT-Creation-Date: 2021-01-10 08:00+0100\n"
-"PO-Revision-Date: 2021-04-24 07:32+0000\n"
-"Last-Translator: Anonymous <noreply@weblate.org>\n"
+"POT-Creation-Date: 2021-12-05 20:11+0100\n"
+"PO-Revision-Date: 2022-12-19 23:55+0000\n"
+"Last-Translator: aleksej0R <omolice@hotmail.fr>\n"
 "Language-Team: French <https://hosted.weblate.org/projects/gnucash/glossary/"
 "fr/>\n"
 "Language: fr\n"
@@ -24,7 +27,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n > 1;\n"
-"X-Generator: Weblate 4.7-dev\n"
+"X-Generator: Weblate 4.15.1-dev\n"
 
 #. "English Definition (Dear translator: This file will never be visible to the user! It should only serve as a tool for you, the translator. Nothing more.)"
 msgid "Term (Dear translator: This file will never be visible to the user!)"
@@ -46,7 +49,7 @@ msgstr "code du compte"
 
 #. "the tree view of all accounts"
 msgid "account hierarchy"
-msgstr "hiérarchie du compte"
+msgstr "plan de comptes"
 
 #. "-"
 msgid "account name"
@@ -210,7 +213,11 @@ msgstr "vieillissement"
 
 #. "A sum of money"
 msgid "amount"
-msgstr "montant brut"
+msgstr "montant brut, montant"
+
+#. "The amount finally to pay, respecting discounts, billing terms…"
+msgid "amount due"
+msgstr "montant à payer"
 
 #. "The result of adding several amounts together and then dividing this total by the number of amounts"
 msgid "average"
@@ -391,6 +398,10 @@ msgstr "entrée double"
 #. "Transactions or bills/invoices can contain a document link which links either to some file on the local disk or to some arbitrary URL."
 msgid "document link"
 msgstr "lien du document, lien vers un document, document lié"
+
+#. "The last day to pay an invoice in time."
+msgid "due date"
+msgstr "échéance"
 
 #. "Electronic mail. Some languages allow different writings, but each team should use only one. https://en.wikipedia.org/wiki/Email"
 msgid "email"
@@ -574,11 +585,11 @@ msgstr "options"
 
 #. "Watch out: Although this word exists in gnucash program code, all that program code in gnucash is currently not activated. In the future, it will be used in business accounting as follows: A particular request to make or supply goods, but belonging to a (larger) job. Such a request can come from a customer or be sent to a vendor. An order will probably generate one invoice or bill."
 msgid "order"
-msgstr "rang"
+msgstr "commande"
 
 #. "Name of an automatically created account that holds splits that have no account."
 msgid "orphan"
-msgstr "orphelin"
+msgstr "non soldé"
 
 #. "The customer to (or employee or vendor from) which this invoice is sent - or short your business partner."
 msgid "owner (of bill, invoice or expense voucher)"
@@ -748,6 +759,14 @@ msgstr "source"
 msgid "split"
 msgstr "répartition"
 
+#. "Alias of 'shares'"
+msgid "stocks"
+msgstr "actions"
+
+#. "Sometimes one old share gets replaced by multiple new like 1 OLD @100¤ by 2 NEW @50¤"
+msgid "stock split"
+msgstr "fractionnement d'actions"
+
 #. "This sets the particular design or shape of a report."
 msgid "style sheet"
 msgstr "feuille de style"
@@ -860,8 +879,14 @@ msgstr "bon (commande), pièce justificative"
 msgid "withdraw (in the reconcile dialog)"
 msgstr "retrait (dans le dialogue de rapprochement)"
 
-#~ msgid "invoice owner"
-#~ msgstr "destinataire de la facture"
+msgid "stock"
+msgstr "action"
 
-msgid "enter"
-msgstr "saisir, saisie"
+msgid "due"
+msgstr "à payer"
+
+msgid "Online"
+msgstr "En ligne"
+
+msgid "Direct Debit"
+msgstr "Prélèvement automatique"

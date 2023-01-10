@@ -331,15 +331,10 @@ gnc_scm2guid_glist (SCM guids_scm)
     return g_list_reverse (guids);
 }
 
-static void
+static inline void
 gnc_guid_glist_free (GList *guids)
 {
-    GList *node;
-
-    for (node = guids; node; node = node->next)
-        guid_free (node->data);
-
-    g_list_free (guids);
+    g_list_free_full (guids, (GDestroyNotify)guid_free);
 }
 
 static SCM
@@ -1116,6 +1111,7 @@ gnc_scm2query_and_terms (SCM and_terms, query_version_t vers)
             if (q_and)
             {
                 q_new = qof_query_merge (q, q_and, QOF_QUERY_AND);
+                qof_query_destroy (q_and);
 
                 if (q_new)
                 {
@@ -1158,6 +1154,7 @@ gnc_scm2query_or_terms (SCM or_terms, query_version_t vers)
             if (q_or)
             {
                 q_new = qof_query_merge (q, q_or, QOF_QUERY_OR);
+                qof_query_destroy (q_or);
 
                 if (q_new)
                 {

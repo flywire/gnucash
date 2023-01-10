@@ -4,21 +4,23 @@
 # Zdenko Podobný <zdpo@mailbox.sk>, 2001, 2002, 2003, 2008.
 # Juraj Korec <euro777@gmail.com>, 2008.
 # Zdenko Podobny <zdenop@gmail.com>, 2008.
+# Dullus <dullus@gmail.com>, 2022.
 msgid ""
 msgstr ""
-"Project-Id-Version: gnucash-glossary\n"
+"Project-Id-Version: GnuCash 4.8\n"
 "Report-Msgid-Bugs-To: https://bugs.gnucash.org/enter_bug.cgi?"
 "product=GnuCash&component=Translations\n"
-"POT-Creation-Date: 2021-01-10 08:00+0100\n"
-"PO-Revision-Date: 2008-11-14 21:02+0100\n"
-"Last-Translator: Zdenko Podobny <zdenop@gmail.com>\n"
-"Language-Team: Slovak <sk-i18n@lists.linux.sk>\n"
+"POT-Creation-Date: 2021-12-05 20:11+0100\n"
+"PO-Revision-Date: 2022-01-07 11:54+0000\n"
+"Last-Translator: Dullus <dullus@gmail.com>\n"
+"Language-Team: Slovak <https://hosted.weblate.org/projects/gnucash/glossary/"
+"sk/>\n"
 "Language: sk\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"X-Generator: KBabel 1.11.4\n"
-"Plural-Forms:  nplurals=3; plural=(n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2;\n"
+"Plural-Forms: nplurals=3; plural=(n==1) ? 0 : (n>=2 && n<=4) ? 1 : 2;\n"
+"X-Generator: Weblate 4.10.1\n"
 
 #. "English Definition (Dear translator: This file will never be visible to the user! It should only serve as a tool for you, the translator. Nothing more.)"
 msgid "Term (Dear translator: This file will never be visible to the user!)"
@@ -45,18 +47,16 @@ msgid "account name"
 msgstr "názov účtu"
 
 #. "The left side of the balance sheet in T account form shows the application of funds in form of assets. Because it contains only assets use assets directly. Complement: Passive. See also: Report Form"
-#, fuzzy
 msgid "account type: Active"
-msgstr "account type: Aktíva"
+msgstr "account type: Aktívny"
 
 #. "A thing, esp. owned by a person or company, that has value and can be used or sold to pay debts. Dependent on the context you might use 'account type: Active' instead."
 msgid "account type: Asset"
 msgstr "account type: Aktíva"
 
 #. "in fact: 'Active & Passive', group aka 'Balance Sheet accounts'; complement of 'Profit & Loss'"
-#, fuzzy
 msgid "account type: Assets & Liabilities"
-msgstr "account type: Záväzky"
+msgstr "account type: Aktíva a  záväzky"
 
 #. "(esp. US) (Brit = current account) a bank account from which money can be withdrawn without previous notice"
 msgid "account type: checking"
@@ -91,14 +91,12 @@ msgid "account type: Mutual fund"
 msgstr "account type: Podielový fond"
 
 #. "The right side of the balance sheet in T account form shows the source of funds and contains equity & liability. While not common in english, most languages would translate 'equity & liability' with 'passive'. Complement: Active. See also: Report Form Implementation: https://bugs.gnucash.org/show_bug.cgi?id=421766"
-#, fuzzy
 msgid "account type: Passive"
-msgstr "account type: Aktíva"
+msgstr "account type: Pasívny"
 
 #. "Group of accounts tracking your success, complement of 'Assets & Liabilities'"
-#, fuzzy
 msgid "account type: Profit & Loss"
-msgstr "account type: Aktíva"
+msgstr "account type: Zisky a straty"
 
 #. "1. (US) any type of account that earns interest 2. (Brit) any type of bank account that earns a higher level of interest than a current account or deposit account"
 msgid "account type: saving"
@@ -109,9 +107,8 @@ msgid "account type: Stock"
 msgstr "account type: Akcie"
 
 #. "This account type (new in gnucash-2.4.0) is used when exchanging or trading amounts from one currency into another"
-#, fuzzy
 msgid "account type: trading"
-msgstr "account type: sporiaci účet"
+msgstr "account type: obchodný účet"
 
 #. "-"
 msgid "account: parent account"
@@ -207,6 +204,12 @@ msgstr ""
 
 #. "A sum of money"
 msgid "amount"
+msgstr "čiastka"
+
+#. "The amount finally to pay, respecting discounts, billing terms…"
+#, fuzzy
+#| msgid "amount"
+msgid "amount due"
 msgstr "čiastka"
 
 #. "The result of adding several amounts together and then dividing this total by the number of amounts"
@@ -393,6 +396,10 @@ msgstr "podvojnosť"
 
 #. "Transactions or bills/invoices can contain a document link which links either to some file on the local disk or to some arbitrary URL."
 msgid "document link"
+msgstr ""
+
+#. "The last day to pay an invoice in time."
+msgid "due date"
 msgstr ""
 
 #. "Electronic mail. Some languages allow different writings, but each team should use only one. https://en.wikipedia.org/wiki/Email"
@@ -762,6 +769,16 @@ msgstr "zdroj"
 msgid "split"
 msgstr "rozdelenie"
 
+#. "Alias of 'shares'"
+msgid "stocks"
+msgstr ""
+
+#. "Sometimes one old share gets replaced by multiple new like 1 OLD @100¤ by 2 NEW @50¤"
+#, fuzzy
+#| msgid "split"
+msgid "stock split"
+msgstr "rozdelenie"
+
 #. "This sets the particular design or shape of a report."
 msgid "style sheet"
 msgstr "štýl"
@@ -877,6 +894,14 @@ msgstr "náhrada hotovostných výdajov"
 msgid "withdraw (in the reconcile dialog)"
 msgstr "výber (v dialógu vysporiadania)"
 
-#, fuzzy
-#~ msgid "invoice owner"
-#~ msgstr "faktúra"
+msgid "stock"
+msgstr ""
+
+msgid "due"
+msgstr ""
+
+msgid "Online"
+msgstr ""
+
+msgid "Direct Debit"
+msgstr ""

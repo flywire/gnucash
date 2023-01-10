@@ -49,6 +49,7 @@ set (engine_HEADERS
   gnc-date.h
   gnc-datetime.hpp
   gnc-engine.h
+  gnc-euro.h
   gnc-event.h
   gnc-features.h
   gnc-hooks.h
@@ -93,6 +94,7 @@ set (engine_HEADERS
   qof-backend.hpp
   qofbackend.h
   qofbook.h
+  qofbook.hpp
   qofbookslots.h
   qofchoice.h
   qofclass.h
@@ -139,13 +141,14 @@ set (engine_SOURCES
   cap-gains.c
   cashobjects.c
   gnc-aqbanking-templates.cpp
-  gnc-budget.c
+  gnc-budget.cpp
   gnc-commodity.c
   gnc-date.cpp
   gnc-datetime.cpp
   gnc-engine.c
+  gnc-euro.c
   gnc-event.c
-  gnc-features.c
+  gnc-features.cpp
   gnc-hooks.c
   gnc-int128.cpp
   gnc-lot.c

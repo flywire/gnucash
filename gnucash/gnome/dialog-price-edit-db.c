@@ -49,6 +49,7 @@
 #include "swig-runtime.h"
 #include "guile-mappings.h"
 #include "gnc-engine-guile.h"
+#include <gnc-glib-utils.h>
 
 
 #define DIALOG_PRICE_DB_CM_CLASS "dialog-price-edit-db"
@@ -61,6 +62,7 @@ static QofLogModule log_module = GNC_MOD_GUI;
 
 void gnc_prices_dialog_destroy_cb (GtkWidget *object, gpointer data);
 void gnc_prices_dialog_close_cb (GtkDialog *dialog, gpointer data);
+void gnc_prices_dialog_help_cb (GtkDialog *dialog, gpointer data);
 void gnc_prices_dialog_edit_clicked (GtkWidget *widget, gpointer data);
 void gnc_prices_dialog_remove_clicked (GtkWidget *widget, gpointer data);
 void gnc_prices_dialog_remove_old_clicked (GtkWidget *widget, gpointer data);
@@ -130,6 +132,15 @@ gnc_prices_dialog_close_cb (GtkDialog *dialog, gpointer data)
     ENTER(" ");
     gnc_close_gui_component_by_data (DIALOG_PRICE_DB_CM_CLASS, pdb_dialog);
     LEAVE(" ");
+}
+
+
+void
+gnc_prices_dialog_help_cb (GtkDialog *dialog, gpointer data)
+{
+    PricesDialog *pdb_dialog = data;
+
+    gnc_gnome_help (GTK_WINDOW (pdb_dialog->window), HF_HELP, HL_PRICE_DB);
 }
 
 
@@ -366,7 +377,7 @@ selection_changed_cb (GtkTreeSelection *selection, gpointer data)
     PricesDialog *pdb_dialog = data;
     GtkTreeModel *model = gtk_tree_view_get_model (GTK_TREE_VIEW(pdb_dialog->remove_view));
     GList *rows = gtk_tree_selection_get_selected_rows (selection, &model);
-    gboolean have_rows = (g_list_length (rows) > 0 ? TRUE : FALSE);
+    gboolean have_rows = (gnc_list_length_cmp (rows, 0));
 
     change_source_flag (PRICE_REMOVE_SOURCE_COMM, have_rows, pdb_dialog);
     g_list_foreach (rows, (GFunc) gtk_tree_path_free, NULL);
@@ -547,7 +558,7 @@ gnc_prices_dialog_add_clicked (GtkWidget *widget, gpointer data)
     }
     else if (comm_list) // selection contains price parent rows
     {
-        if (g_list_length (comm_list) == 1) // make sure it is only one parent
+        if (!gnc_list_length_cmp (comm_list, 1)) // make sure it is only one parent
         {
             price = gnc_price_create (pdb_dialog->book);
             gnc_price_set_commodity (price, comm_list->data);

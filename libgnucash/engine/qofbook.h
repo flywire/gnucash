@@ -87,7 +87,7 @@ struct _QofBook
     /* Boolean indicates that the session is dirty -- that is, it has
      * not yet been written out to disk after the last time the
      * backend ran commit_edit(). This is distinct from the inherited
-     * QofInstance::dirty, which indicates that some persisitent
+     * QofInstance::dirty, which indicates that some persistent
      * property of the book object itself has been edited and not
      * committed. Some backends write data out as part of
      * commit_edit() and so don't use this flag.
@@ -382,6 +382,7 @@ void qof_book_option_frame_delete (QofBook *book, const char* opt_name);
 /** Access functions for reading and setting the used-features on this book.
  */
 GHashTable *qof_book_get_features (QofBook *book);
+void qof_book_unset_feature (QofBook *book, const gchar *key);
 void qof_book_set_feature (QofBook *book, const gchar *key, const gchar *descr);
 
 void qof_book_begin_edit(QofBook *book);

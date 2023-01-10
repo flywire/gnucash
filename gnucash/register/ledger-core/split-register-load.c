@@ -105,6 +105,7 @@ gnc_split_register_load_type_cells (SplitRegister* reg)
     /* FIXME: These should get moved to an i18n function */
     gnc_recn_cell_set_valid_flags (cell, "IP?", 'I');
     gnc_recn_cell_set_flag_order (cell, "IP");
+    gnc_recn_cell_set_read_only (cell, TRUE);
 }
 
 /** Add a transaction to the register.
@@ -238,9 +239,6 @@ _find_split_with_parent_txn (gconstpointer a, gconstpointer b)
 static void add_quickfill_completions (TableLayout* layout, Transaction* trans,
                                        Split* split, gboolean has_last_num)
 {
-    Split* s;
-    int i = 0;
-
     gnc_quickfill_cell_add_completion (
         (QuickFillCell*) gnc_table_layout_get_cell (layout, DESC_CELL),
         xaccTransGetDescription (trans));
@@ -254,12 +252,12 @@ static void add_quickfill_completions (TableLayout* layout, Transaction* trans,
             (NumCell*) gnc_table_layout_get_cell (layout, NUM_CELL),
             gnc_get_num_action (trans, split));
 
-    while ((s = xaccTransGetSplit (trans, i)) != NULL)
+    for (GList *n = xaccTransGetSplitList (trans); n; n = n->next)
     {
+        Split *s = n->data;
         gnc_quickfill_cell_add_completion (
             (QuickFillCell*) gnc_table_layout_get_cell (layout, MEMO_CELL),
             xaccSplitGetMemo (s));
-        i++;
     }
 }
 

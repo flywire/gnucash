@@ -301,7 +301,7 @@ struct GncTreeViewSplitRegPrivate
 #define SHOW_SYMBOL FALSE
 
 #define GNC_TREE_VIEW_SPLIT_REG_GET_PRIVATE(o)  \
-   ((GncTreeViewSplitRegPrivate*)g_type_instance_get_private((GTypeInstance*)o, GNC_TYPE_TREE_VIEW_SPLIT_REG))
+   ((GncTreeViewSplitRegPrivate*)gnc_tree_view_split_reg_get_instance_private((GncTreeViewSplitReg*)o))
 
 static GObjectClass *parent_class = NULL;
 
@@ -1164,8 +1164,6 @@ static Split *
 gtv_sr_get_this_split (GncTreeViewSplitReg *view, Transaction *trans)
 {
     GncTreeModelSplitReg *model;
-    int i;
-    Split *split = NULL;
     Account *anchor;
 
     model = gnc_tree_view_split_reg_get_model_from_view (view);
@@ -1178,7 +1176,9 @@ gtv_sr_get_this_split (GncTreeViewSplitReg *view, Transaction *trans)
             return gnc_tree_model_split_get_blank_split (model);
     }
 
-    for (i = 0; (split = xaccTransGetSplit (trans, i)); i++) {
+    for (GList *n = xaccTransGetSplitList (trans); n; n = n->next)
+    {
+        Split *split = n->data;
         if (anchor == xaccSplitGetAccount (split))
             return split;
     }
@@ -1210,8 +1210,7 @@ gtv_sr_get_split_pair (GncTreeViewSplitReg *view, Transaction *trans, Split **os
     }
     else
     {
-        int i;
-        Split *s, *first_split;
+        Split *first_split;
 
         first_split = xaccTransGetSplit (trans, 0);
 
@@ -1219,8 +1218,9 @@ gtv_sr_get_split_pair (GncTreeViewSplitReg *view, Transaction *trans, Split **os
             return FALSE;
         else // two split trans
         {
-            for (i = 0; (s = xaccTransGetSplit (trans, i)); i++)
+            for (GList *n = xaccTransGetSplitList (trans); n; n = n->next)
             {
+                Split *s = n->data;
                 if (anchor == xaccSplitGetAccount (s))
                 {
                     *split = s;
@@ -1241,13 +1241,12 @@ gtv_sr_get_split_pair (GncTreeViewSplitReg *view, Transaction *trans, Split **os
 static gboolean
 gtv_sr_get_imbalance (Transaction *trans)
 {
-    int i;
-    Split *split = NULL;
     const gchar *acc_name;
     const gchar *prefix = _("Imbalance");
 
-    for (i = 0; (split = xaccTransGetSplit (trans, i)); i++)
+    for (GList *n = xaccTransGetSplitList (trans); n; n = n->next)
     {
+        Split *split = n->data;
         if (xaccSplitGetAccount (split) != NULL)
         {
             acc_name = xaccAccountGetName (xaccSplitGetAccount (split));
@@ -2724,7 +2723,7 @@ gtv_sr_titles (GncTreeViewSplitReg *view, RowDepth depth)
                 else if (depth == TRANS2)
                     gtk_tree_view_column_set_title (tvc, _("Date Entered"));
                 else if (depth == SPLIT3)
-                    gtk_tree_view_column_set_title (tvc, _("Date Reconciled"));
+                    gtk_tree_view_column_set_title (tvc, _("Reconciled Date"));
                 else
                     gtk_tree_view_column_set_title (tvc, _("Date Posted / Entered / Reconciled"));
                 break;
@@ -3773,7 +3772,7 @@ gtv_sr_key_press_cb (GtkWidget *widget, GdkEventKey *event, gpointer user_data)
     case GDK_KEY_minus:
     case GDK_KEY_KP_Add:
     case GDK_KEY_KP_Subtract:
-
+    case GDK_KEY_semicolon: // See https://bugs.gnucash.org/show_bug.cgi?id=798386
         if (!spath)
             return TRUE;
 
@@ -3989,7 +3988,7 @@ gtv_sr_key_press_cb (GtkWidget *widget, GdkEventKey *event, gpointer user_data)
                  if (view->priv->dirty_trans != NULL) // from a dirty trans
                     trans_changed = TRUE;
 
-                 /* Reset allow changes for reconciled transctions */
+                 /* Reset allow changes for reconciled transactions */
                  view->change_allowed = FALSE;
             }
 
@@ -6063,7 +6062,7 @@ gnc_tree_view_split_reg_cancel_edit (GncTreeViewSplitReg *view, gboolean reg_clo
         split = gnc_tree_model_split_get_blank_split (model);
         xaccSplitReinit (split); // Clear the blank split
     }
-    /* Reset allow changes for reconciled transctions */
+    /* Reset allow changes for reconciled transactions */
     view->change_allowed = FALSE;
 
     view->priv->auto_complete = FALSE; // reset auto_complete has run flag

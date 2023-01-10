@@ -32,6 +32,7 @@
 #include "gnc-ui.h"
 #include "gnc-gui-query.h"
 #include "gnc-ui-util.h"
+#include <gnc-glib-utils.h>
 #include "qof.h"
 #include "gnc-date.h"
 #include "gnc-date-edit.h"
@@ -53,6 +54,9 @@
 #include "dialog-transfer.h"
 #include "dialog-print-check.h"
 #include "gnc-general-search.h"
+#include <qoflog.h>
+
+static const QofLogModule log_module = G_LOG_DOMAIN;
 
 #define DIALOG_PAYMENT_CM_CLASS "payment-dialog"
 
@@ -335,14 +339,11 @@ calculate_selected_total_helper (GtkTreeModel *model,
 {
     gnc_numeric *subtotal = (gnc_numeric*) data;
     gnc_numeric cur_val;
-    GValue value = { 0 };
     GNCLot *lot;
     Account *acct;
     gnc_commodity *currency;
 
-    gtk_tree_model_get_value (model, iter, 5, &value);
-    lot = (GNCLot *) g_value_get_pointer (&value);
-    g_value_unset (&value);
+    gtk_tree_model_get (model, iter, 5, &lot, -1);
 
     /* Find the amount's currency to determine the required precision */
     acct = gnc_lot_get_account (lot);
@@ -409,13 +410,10 @@ gnc_payment_dialog_highlight_documents (PaymentWindow *pw)
     {
         do
         {
-            GValue value = { 0 };
             GNCLot *lot;
             GList *li_node;
 
-            gtk_tree_model_get_value (model, &iter, 5, &value);
-            lot = (GNCLot *) g_value_get_pointer (&value);
-            g_value_unset (&value);
+            gtk_tree_model_get (model, &iter, 5, &lot, -1);
 
             if (!lot)
                 continue; /* Lot has been deleted behind our back... */
@@ -945,11 +943,8 @@ get_selected_lots (GtkTreeModel *model,
 {
     GList **return_list = data;
     GNCLot *lot;
-    GValue value = { 0 };
 
-    gtk_tree_model_get_value (model, iter, 5, &value);
-    lot = (GNCLot *) g_value_get_pointer (&value);
-    g_value_unset (&value);
+    gtk_tree_model_get (model, iter, 5, &lot, -1);
 
     if (lot)
         *return_list = g_list_insert_sorted (*return_list, lot, (GCompareFunc)gncOwnerLotsSortFunc);
@@ -1182,16 +1177,13 @@ static void print_date (G_GNUC_UNUSED GtkTreeViewColumn *tree_column,
                         GtkTreeIter *iter,
                         G_GNUC_UNUSED gpointer data)
 {
-    GValue value = { 0 };
     time64 doc_date_time;
     gchar *doc_date_str;
 
     g_return_if_fail (cell && iter && tree_model);
 
 
-    gtk_tree_model_get_value (tree_model, iter, 0, &value);
-    doc_date_time = (time64) g_value_get_int64 (&value);
-    g_value_unset (&value);
+    gtk_tree_model_get (tree_model, iter, 0, &doc_date_time, -1);
     doc_date_str = qof_print_date (doc_date_time);
     g_object_set (G_OBJECT (cell), "text", doc_date_str, NULL);
     g_free (doc_date_str);
@@ -1561,7 +1553,7 @@ gboolean gnc_ui_payment_is_customer_payment(const Transaction *txn)
     {
         /* Transaction isn't valid for a payment, just return the default
          * Calling code will have to handle this situation properly */
-        g_message("No asset splits in txn \"%s\"; cannot use this for assigning a payment.",
+        PINFO("No asset splits in txn \"%s\"; cannot use this for assigning a payment.",
                   xaccTransGetDescription(txn));
         return result;
     }
@@ -1569,7 +1561,7 @@ gboolean gnc_ui_payment_is_customer_payment(const Transaction *txn)
     assetaccount_split = xaccTransGetFirstPaymentAcctSplit(txn);
     amount = xaccSplitGetValue(assetaccount_split);
     result = gnc_numeric_positive_p(amount); // positive amounts == customer
-    //g_message("Amount=%s", gnc_numeric_to_string(amount));
+    //PINFO("Amount=%s", gnc_numeric_to_string(amount));
     return result;
 }
 
@@ -1618,7 +1610,7 @@ static Split *select_payment_split (GtkWindow *parent, Transaction *txn)
                                          _("The selected transaction doesn't have splits that can be assigned as a payment"));
         gtk_dialog_run (GTK_DIALOG(dialog));
         gtk_widget_destroy (dialog);
-        g_message("No asset splits in txn \"%s\"; cannot use this for assigning a payment.",
+        PINFO("No asset splits in txn \"%s\"; cannot use this for assigning a payment.",
                   xaccTransGetDescription(txn));
         return NULL;
     }
@@ -1732,7 +1724,7 @@ static GList *select_txn_lots (GtkWindow *parent, Transaction *txn, Account **po
     /* If the txn has both APAR splits linked to a business lot and
      * splits that are not, issue a warning some will be discarded.
      */
-    if (has_no_lot_apar_splits && (g_list_length (txn_lots) > 0))
+    if (has_no_lot_apar_splits && gnc_list_length_cmp (txn_lots, 0))
     {
         GtkWidget *dialog;
         char *split_str = g_strdup ("");

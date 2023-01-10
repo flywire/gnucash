@@ -578,7 +578,7 @@ gsr_update_summary_label( GtkWidget *label,
     char string[256];
     const gchar *label_str = NULL;
     GtkWidget *text_label, *hbox;
-    gchar *tooltip;
+    gchar *bidi_string;
 
     if ( label == NULL )
         return;
@@ -605,11 +605,13 @@ gsr_update_summary_label( GtkWidget *label,
     }
 
     gnc_set_label_color( label, amount );
-    gtk_label_set_text( GTK_LABEL(label), string );
+    bidi_string = gnc_wrap_text_with_bidi_ltr_isolate (string);
+    gtk_label_set_text( GTK_LABEL(label), bidi_string );
+    g_free (bidi_string);
 
     if (label_str)
     {
-        tooltip = g_strdup_printf ("%s %s", label_str, string);
+        gchar *tooltip = g_strdup_printf ("%s %s", label_str, string);
         gtk_widget_set_tooltip_text (GTK_WIDGET(hbox), tooltip);
         g_free (tooltip);
     }
@@ -742,9 +744,8 @@ gsr_redraw_all_cb (GnucashRegister *g_reg, gpointer data)
 
             gtk_widget_set_tooltip_text (GTK_WIDGET(gsr->filter_label), gsr->filter_text);
 
-            if (old_tt_text)
-                g_free (old_tt_text);
         }
+        g_free (old_tt_text);
     }
 
     if (gsr->shares_label == NULL && gsr->value_label == NULL)
@@ -964,11 +965,11 @@ gsr_default_cut_txn_handler (GNCSplitReg *gsr, gpointer data)
         {
             gtk_message_dialog_format_secondary_text (GTK_MESSAGE_DIALOG(dialog),
                     "%s", recn_warn);
-            warning = GNC_PREF_WARN_REG_SPLIT_DEL_RECD;
+            warning = GNC_PREF_WARN_REG_SPLIT_CUT_RECD;
         }
         else
         {
-            warning = GNC_PREF_WARN_REG_SPLIT_DEL;
+            warning = GNC_PREF_WARN_REG_SPLIT_CUT;
         }
 
         gtk_dialog_add_button (GTK_DIALOG(dialog),
@@ -1003,11 +1004,11 @@ gsr_default_cut_txn_handler (GNCSplitReg *gsr, gpointer data)
         {
             gtk_message_dialog_format_secondary_text (GTK_MESSAGE_DIALOG(dialog),
                      "%s", recn_warn);
-            warning = GNC_PREF_WARN_REG_TRANS_DEL_RECD;
+            warning = GNC_PREF_WARN_REG_TRANS_CUT_RECD;
         }
         else
         {
-            warning = GNC_PREF_WARN_REG_TRANS_DEL;
+            warning = GNC_PREF_WARN_REG_TRANS_CUT;
         }
         gtk_dialog_add_button (GTK_DIALOG(dialog),
                                _("_Cancel"), GTK_RESPONSE_CANCEL);

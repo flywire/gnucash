@@ -348,7 +348,7 @@ typedef struct GncPluginBusinessPrivate
 } GncPluginBusinessPrivate;
 
 #define GNC_PLUGIN_BUSINESS_GET_PRIVATE(o)  \
-   ((GncPluginBusinessPrivate*)g_type_instance_get_private((GTypeInstance*)o, GNC_TYPE_PLUGIN_BUSINESS))
+   ((GncPluginBusinessPrivate*)gnc_plugin_business_get_instance_private((GncPluginBusiness*)o))
 
 static GObjectClass *parent_class = NULL;
 
@@ -821,7 +821,7 @@ static void gnc_business_assign_payment (GtkWindow *parent,
     if (xaccTransCountSplits(trans) <= 1)
         return;
 
-    //g_message("Creating payment dialog with trans %p", trans);
+    //PINFO("Creating payment dialog with trans %p", trans);
     gnc_ui_payment_new_with_txn(parent, owner, trans);
 }
 

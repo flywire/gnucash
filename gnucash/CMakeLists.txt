@@ -4,6 +4,7 @@
 set(SCHEMADIR_BUILD ${DATADIR_BUILD}/glib-2.0/schemas)
 file(MAKE_DIRECTORY ${SCHEMADIR_BUILD})
 unset(gschema_depends CACHE)
+unset(gschema_preftrans_files CACHE)
 # The subdirectories
 add_subdirectory (gnome)
 add_subdirectory (gnome-utils)
@@ -15,6 +16,8 @@ add_subdirectory (python)
 add_subdirectory (register)
 add_subdirectory (report)
 add_subdirectory (ui)
+# gschemas directory goes last to ensure all schema files are installed
+# before glib-compile-schemas is called
 add_subdirectory (gschemas)
 
 add_definitions (-DHAVE_CONFIG_H)

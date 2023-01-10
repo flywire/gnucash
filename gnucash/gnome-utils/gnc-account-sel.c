@@ -191,7 +191,7 @@ gnc_account_sel_set_hexpand (GNCAccountSel *gas, gboolean expand)
 typedef struct
 {
     GNCAccountSel *gas;
-    GList **outList;
+    GList *outList;
 } account_filter_data;
 
 static void
@@ -203,26 +203,27 @@ gas_populate_list (GNCAccountSel *gas)
     GtkTreeIter iter;
     GtkEntry *entry;
     gint i, active = -1;
-    GList *accts, *ptr, *filteredAccts;
-    gchar *currentSel, *name;
+    GList *accts, *ptr;
+    const gchar *currentSel;
+    gchar *name;
 
     entry = GTK_ENTRY(gtk_bin_get_child (GTK_BIN(gas->combo)));
-    currentSel = gtk_editable_get_chars (GTK_EDITABLE(entry), 0, -1 );
+    currentSel = gtk_entry_get_text (entry);
 
     g_signal_handlers_block_by_func (gas->combo, combo_changed_cb , gas);
 
     root = gnc_book_get_root_account (gnc_get_current_book ());
     accts = gnc_account_get_descendants_sorted (root);
 
-    filteredAccts   = NULL;
     atnd.gas        = gas;
-    atnd.outList    = &filteredAccts;
+    atnd.outList    = NULL;
 
     g_list_foreach (accts, gas_filter_accounts, (gpointer)&atnd);
     g_list_free (accts);
+    atnd.outList = g_list_reverse (atnd.outList);
 
     gtk_list_store_clear (gas->store);
-    for (ptr = filteredAccts, i = 0; ptr; ptr = g_list_next(ptr), i++)
+    for (ptr = atnd.outList, i = 0; ptr; ptr = g_list_next(ptr), i++)
     {
         acc = ptr->data;
         name = gnc_account_get_full_name (acc);
@@ -243,9 +244,7 @@ gas_populate_list (GNCAccountSel *gas)
 
     g_signal_handlers_unblock_by_func (gas->combo, combo_changed_cb , gas);
 
-    g_list_free (filteredAccts);
-    if (currentSel)
-        g_free (currentSel);
+    g_list_free (atnd.outList);
 }
 
 static void
@@ -280,7 +279,7 @@ gas_filter_accounts (gpointer data, gpointer user_data)
             return;
         }
     }
-    *atnd->outList = g_list_append (*atnd->outList, a);
+    atnd->outList = g_list_prepend (atnd->outList, a);
 }
 
 GtkWidget *
@@ -402,6 +401,9 @@ gnc_account_sel_finalize (GObject *object)
 
     if (gas->acctTypeFilters)
         g_list_free (gas->acctTypeFilters);
+
+    if (gas->acctCommodityFilters)
+        g_list_free (gas->acctCommodityFilters);
 
     G_OBJECT_CLASS (parent_class)->finalize (object);
 }

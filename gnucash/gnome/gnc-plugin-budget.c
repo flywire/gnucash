@@ -85,13 +85,23 @@ static GtkActionEntry gnc_plugin_actions [] =
 };
 static guint gnc_plugin_n_actions = G_N_ELEMENTS (gnc_plugin_actions);
 
+
+static const gchar *plugin_writeable_actions[] =
+{
+    /* actions which must be disabled on a readonly book. */
+    "NewBudgetAction",
+    "CopyBudgetAction",
+    "DeleteBudgetAction",
+    NULL
+};
+
 typedef struct GncPluginBudgetPrivate
 {
     gpointer dummy;
 } GncPluginBudgetPrivate;
 
 #define GNC_PLUGIN_BUDGET_GET_PRIVATE(o)  \
-   ((GncPluginBudgetPrivate*)g_type_instance_get_private ((GTypeInstance*)o, GNC_TYPE_PLUGIN_BUDGET))
+   ((GncPluginBudgetPrivate*)gnc_plugin_budget_get_instance_private((GncPluginBudget*)o))
 
 static GObjectClass *parent_class = NULL;
 
@@ -107,6 +117,27 @@ GncPlugin * gnc_plugin_budget_new (void)
     plugin = g_object_new (GNC_TYPE_PLUGIN_BUDGET, NULL);
     LEAVE(" ");
     return GNC_PLUGIN(plugin);
+}
+
+static void page_changed (GncMainWindow *window, GncPluginPage *page,
+                          gpointer user_data)
+{
+    GtkActionGroup *action_group =
+        gnc_main_window_get_action_group (window, PLUGIN_ACTIONS_NAME);
+
+    if (qof_book_is_readonly (gnc_get_current_book()))
+        gnc_plugin_update_actions (action_group, plugin_writeable_actions,
+                                   "sensitive", FALSE);
+}
+
+static void add_to_window (GncPlugin *plugin, GncMainWindow *mainwindow, GQuark type)
+{
+    g_signal_connect (mainwindow, "page_changed", G_CALLBACK (page_changed), plugin);
+}
+
+static void remove_from_window (GncPlugin *plugin, GncMainWindow *window, GQuark type)
+{
+    g_signal_handlers_disconnect_by_func (window, G_CALLBACK(page_changed), plugin);
 }
 
 G_DEFINE_TYPE_WITH_PRIVATE(GncPluginBudget, gnc_plugin_budget, GNC_TYPE_PLUGIN)
@@ -126,6 +157,8 @@ gnc_plugin_budget_class_init (GncPluginBudgetClass *klass)
     plugin_class->actions      = gnc_plugin_actions;
     plugin_class->n_actions    = gnc_plugin_n_actions;
     plugin_class->ui_filename  = PLUGIN_UI_FILENAME;
+    plugin_class->add_to_window = add_to_window;
+    plugin_class->remove_from_window = remove_from_window;
 
     LEAVE (" ");
 }
@@ -303,7 +336,11 @@ gnc_budget_gui_select_budget (GtkWindow *parent, QofBook *book)
     bgt = gnc_budget_get_default (book);
 
     if (bgt && gnc_tree_model_budget_get_iter_for_budget (tm, &iter, bgt))
-        gtk_tree_view_set_cursor (tv, gtk_tree_model_get_path (tm, &iter), NULL, FALSE);
+    {
+        GtkTreePath *path = gtk_tree_model_get_path (tm, &iter);
+        gtk_tree_view_set_cursor (tv, path, NULL, FALSE);
+        gtk_tree_path_free (path);
+    }
 
     bgt = NULL;
     response = gtk_dialog_run (dlg);

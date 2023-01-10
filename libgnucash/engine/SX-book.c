@@ -127,7 +127,7 @@ sxtg_book_begin (QofBook *book)
 static void
 sxtg_book_end (QofBook *book)
 {
-//    gnc_book_set_template_root (book, NULL);
+    gnc_book_set_template_root (book, NULL);
 }
 
 static gboolean
@@ -281,6 +281,7 @@ book_sxes_end(QofBook* book)
     sxes = qof_collection_get_data(col);
     if (sxes != NULL)
     {
+        g_list_free (sxes->sx_list);
         g_object_unref(sxes);
         qof_collection_set_data(col, NULL);
     }

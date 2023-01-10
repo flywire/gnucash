@@ -10,14 +10,15 @@
 # Marco Zietzling <marco.zietzling@gmail.com>, 2021.
 # Moritz Höppner <moritz.hoeppner@resourcify.de>, 2021.
 # Tobias Mohr <tobias_mohr_1991@gmx.de>, 2021.
+# Christian Wehling <christian.wehling@web.de>, 2022.
 msgid ""
 msgstr ""
-"Project-Id-Version: gnucash 2.6.18\n"
+"Project-Id-Version: GnuCash 4.8\n"
 "Report-Msgid-Bugs-To: https://bugs.gnucash.org/enter_bug."
 "cgi?product=GnuCash&component=Translations\n"
-"POT-Creation-Date: 2021-01-10 08:00+0100\n"
-"PO-Revision-Date: 2021-01-23 19:32+0000\n"
-"Last-Translator: Tobias Mohr <tobias_mohr_1991@gmx.de>\n"
+"POT-Creation-Date: 2021-12-05 20:11+0100\n"
+"PO-Revision-Date: 2022-08-01 18:18+0000\n"
+"Last-Translator: Christian Wehling <christian.wehling@web.de>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/gnucash/glossary/"
 "de/>\n"
 "Language: de\n"
@@ -25,7 +26,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 4.5-dev\n"
+"X-Generator: Weblate 4.14-dev\n"
 
 #. "English Definition (Dear translator: This file will never be visible to the user! It should only serve as a tool for you, the translator. Nothing more.)"
 msgid "Term (Dear translator: This file will never be visible to the user!)"
@@ -219,6 +220,10 @@ msgstr "Verlauf"
 msgid "amount"
 msgstr "Betrag"
 
+#. "The amount finally to pay, respecting discounts, billing terms…"
+msgid "amount due"
+msgstr "fälliger Betrag"
+
 #. "The result of adding several amounts together and then dividing this total by the number of amounts"
 msgid "average"
 msgstr "Durchschnitt/Durchschnittlich"
@@ -309,7 +314,7 @@ msgstr "Schliessen"
 
 #. "An article that is bought and sold. The most general term of what an account keeps track of, e.g. a currency or a stock."
 msgid "commodity"
-msgstr "Handelsgut, Devise/Wertpapier (auch: Währung, Aktie, Option)"
+msgstr "Handelsgut, Währung/Wertpapier (auch: Aktie, Option, Bonds)"
 
 # bis <=2.2.4: Börsenplatzkürzel
 #. "e.g. NASDAQ"
@@ -408,6 +413,11 @@ msgstr "Doppelte Buchführung"
 msgid "document link"
 msgstr "Verknüpfung, Verknüpftes Dokument"
 
+#. "The last day to pay an invoice in time."
+#, fuzzy
+msgid "due date"
+msgstr "Fälligkeitsdatum"
+
 #. "Electronic mail. Some languages allow different writings, but each team should use only one. https://en.wikipedia.org/wiki/Email"
 msgid "email"
 msgstr "E-Mail"
@@ -453,10 +463,8 @@ msgid "financial calculator: payments"
 msgstr "Raten"
 
 #. "formal records of the financial activities and position of a business, person, or other entity. See https://en.wikipedia.org/wiki/Financial_statement for a list."
-#, fuzzy
-#| msgid "income statement"
 msgid "financial statement"
-msgstr "Einnahmeüberschussrechnung"
+msgstr "Jahresabschluss"
 
 #. "Free software is a matter of liberty, not price … see https://en.wikipedia.org/wiki/Free_software"
 msgid "free software"
@@ -753,7 +761,8 @@ msgstr "speichern"
 
 #. "A transaction or reminder of a transaction that can be automatically executed at a specific time. It can be executed either once, or several times at regular intervals."
 msgid "Scheduled Transaction"
-msgstr "Terminierte Buchung (Dauerauftrag, Termin-Überweisung)"
+msgstr ""
+"Geplante Buchung (Terminierte Buchung, Dauerauftrag, Termin-Überweisung)"
 
 # bis 1.6: ausbuchen
 #. "DEPRECATED. To repair unbalanced transactions and orphan splits in an account tree. Any transactions that have debits != credits will get a balancing split added (pointing to a special new account called 'Imbalance'). Any splits that do not have accounts are put into another special account called 'Orphan'. Deprecated - use the term 'to check and repair' now."
@@ -781,6 +790,15 @@ msgstr "Quelle"
 #. "One of the two or several parts a transaction is divided into"
 msgid "split"
 msgstr "Buchungsteil"
+
+#. "Alias of 'shares'"
+msgid "stocks"
+msgstr "Aktien"
+
+# bis gnucash 1.8.7: Buchung
+#. "Sometimes one old share gets replaced by multiple new like 1 OLD @100¤ by 2 NEW @50¤"
+msgid "stock split"
+msgstr "Aktienteilung"
 
 #. "This sets the particular design or shape of a report."
 msgid "style sheet"
@@ -897,3 +915,15 @@ msgstr "Auslagenerstattung"
 #. "see debit"
 msgid "withdraw (in the reconcile dialog)"
 msgstr "Belastung"
+
+msgid "stock"
+msgstr "Aktie"
+
+msgid "due"
+msgstr "fällig"
+
+msgid "Online"
+msgstr "Online"
+
+msgid "Direct Debit"
+msgstr "Lastschrift"

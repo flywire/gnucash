@@ -23,7 +23,6 @@ set (app_utils_HEADERS
   gnc-accounting-period.h
   gnc-addr-quickfill.h
   gnc-entry-quickfill.h
-  gnc-euro.h
   gnc-exp-parser.h
   gnc-gsettings.h
   gnc-help-utils.h
@@ -60,9 +59,8 @@ set (app_utils_SOURCES
   gnc-accounting-period.c
   gnc-addr-quickfill.c
   gnc-entry-quickfill.c
-  gnc-euro.c
   gnc-exp-parser.c
-  gnc-gsettings.c
+  gnc-gsettings.cpp
   gnc-helpers.c
   gnc-prefs-utils.c
   gnc-sx-instance-model.c
@@ -162,7 +160,7 @@ if (WITH_PYTHON)
 
 endif()
 
-
+add_dependencies (gnc-app-utils swig-apputils-guile-c )
 
 install(FILES ${app_utils_HEADERS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/gnucash)
 

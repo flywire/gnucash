@@ -6,7 +6,7 @@ if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.14.0)
 endif()
 
 project (gnucash
-    VERSION 4.6
+    VERSION 4.13
 )
 
 enable_testing()
@@ -83,7 +83,7 @@ foreach(install_dir ${CMAKE_INSTALL_FULL_BINDIR}
   string(FIND ${install_dir} ${CMAKE_INSTALL_PREFIX} in_prefix)
   if(NOT (in_prefix EQUAL 0))
     set(ENABLE_BINRELOC OFF)
-    message(WARNING "${install_dir} is set outside of the intallation prefix ${CMAKE_INSTALL_PREFIX}. That will break relocation so ENABLE_BINRELOC is set to off. With relocation disabled GnuCash will run only in its configured install location. You must set GNC_UNINSTALLED=1 and GNC_BUILDDIR=/path/to/builddir to run from the build directory. GnuCash will not run from a DESTDIR.")
+    message(WARNING "${install_dir} is set outside of the installation prefix ${CMAKE_INSTALL_PREFIX}. That will break relocation so ENABLE_BINRELOC is set to off. With relocation disabled GnuCash will run only in its configured install location. You must set GNC_UNINSTALLED=1 and GNC_BUILDDIR=/path/to/builddir to run from the build directory. GnuCash will not run from a DESTDIR.")
     break()
   endif()
 endforeach()
@@ -211,7 +211,10 @@ if (WITH_GNUCASH)
     pkg_check_modules (WEBKIT REQUIRED IMPORTED_TARGET webkitgtk-3.0)
     set(WEBKIT1 1 CACHE INTERNAL "WebKitGtk")
   else()
-    pkg_check_modules (WEBKIT REQUIRED IMPORTED_TARGET webkit2gtk-4.0>=2.14.0)
+    pkg_check_modules (WEBKIT IMPORTED_TARGET webkit2gtk-4.0>=2.14.0)
+    if (NOT WEBKIT_FOUND)
+      pkg_check_modules (WEBKIT REQUIRED IMPORTED_TARGET webkit2gtk-4.1)
+    endif()
     set(WEBKIT2 1 CACHE INTERNAL "WebKit2Gtk4")
   endif()
 
@@ -653,6 +656,7 @@ set(gnucash_DOCS
     ChangeLog.2018
     ChangeLog.2019
     ChangeLog.2020
+    ChangeLog.2021
     DOCUMENTERS
     HACKING
     LICENSE
@@ -668,12 +672,11 @@ install(FILES ${gnucash_DOCS} DESTINATION ${CMAKE_INSTALL_DOCDIR})
 # Create config.h
 
 if (WIN32)
-if (MINGW)
-set (HAVE_SCANF_LLD 1)
-else ()
-set (HAVE_SCANF_I64D 1)
-endif()
-set (HAVE_HTMLHELPW 1)
+  if (MINGW)
+    set (HAVE_SCANF_LLD 1)
+  else ()
+    set (HAVE_SCANF_I64D 1)
+  endif()
 endif()
 
 check_include_files (dirent.h HAVE_DIRENT_H)
@@ -762,10 +765,6 @@ set(PLATFORM_OSX 1)
 set(HAVE_OSX_KEYCHAIN 1)
 endif()
 
-if(GLIB2_VERSION VERSION_GREATER_EQUAL 2.46.0)
-set(HAVE_GLIB_2_46 1)
-endif()
-
 if(DISABLE_DEPRECATED_GNOME)
 set(GNOME_DISABLE_DEPRECATED 1)
 endif()
@@ -808,7 +807,7 @@ add_subdirectory(cmake)
 
 if (BUILDING_FROM_VCS)
     add_custom_target(ChangeLog ALL
-        COMMAND ${GIT_EXECUTABLE} log --format=\"%ad %aN %n%n%x09* %s%d%n\" --date=short --since=2021-01-01 > ${CMAKE_BINARY_DIR}/ChangeLog
+        COMMAND ${GIT_EXECUTABLE} log --format=\"%ad %aN %n%n%x09* %s%d%n\" --date=short --since=2022-01-01 > ${CMAKE_BINARY_DIR}/ChangeLog
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     )
     install(FILES ${CMAKE_BINARY_DIR}/ChangeLog DESTINATION ${CMAKE_INSTALL_DOCDIR})

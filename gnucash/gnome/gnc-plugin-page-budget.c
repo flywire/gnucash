@@ -202,6 +202,17 @@ static GtkActionEntry gnc_plugin_page_budget_actions [] =
 
 };
 
+static const gchar *writeable_actions[] =
+{
+    /* actions which must be disabled on a readonly book. */
+    "DeleteBudgetAction",
+    "OptionsBudgetAction",
+    "EstimateBudgetAction",
+    "AllPeriodsBudgetAction",
+    "BudgetNoteAction",
+    NULL
+};
+
 static guint gnc_plugin_page_budget_n_actions =
     G_N_ELEMENTS(gnc_plugin_page_budget_actions);
 
@@ -272,7 +283,7 @@ typedef struct GncPluginPageBudgetPrivate
 G_DEFINE_TYPE_WITH_PRIVATE(GncPluginPageBudget, gnc_plugin_page_budget, GNC_TYPE_PLUGIN_PAGE)
 
 #define GNC_PLUGIN_PAGE_BUDGET_GET_PRIVATE(o)  \
-   ((GncPluginPageBudgetPrivate*)g_type_instance_get_private ((GTypeInstance*)o, GNC_TYPE_PLUGIN_PAGE_BUDGET))
+   ((GncPluginPageBudgetPrivate*)gnc_plugin_page_budget_get_instance_private((GncPluginPageBudget*)o))
 
 static GObjectClass *parent_class = NULL;
 
@@ -365,6 +376,10 @@ gnc_plugin_page_budget_init (GncPluginPageBudget *plugin_page)
                                   gnc_plugin_page_budget_n_actions,
                                   plugin_page);
     gnc_plugin_init_short_names (action_group, toolbar_labels);
+
+    if (qof_book_is_readonly (gnc_get_current_book()))
+        gnc_plugin_update_actions (action_group, writeable_actions,
+                                   "sensitive", FALSE);
 
     /* Visible types */
     priv->fd.visible_types = -1; /* Start with all types */
@@ -1071,7 +1086,9 @@ gnc_plugin_page_budget_cmd_estimate_budget (GtkAction *action,
 
         priv->useAvg = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(avg));
 
+        gnc_budget_begin_edit (priv->budget);
         gtk_tree_selection_selected_foreach (sel, estimate_budget_helper, page);
+        gnc_budget_commit_edit (priv->budget);
         break;
     default:
         break;
@@ -1200,8 +1217,12 @@ gnc_plugin_page_budget_cmd_allperiods_budget (GtkAction *action,
 
         if (xaccParseAmount (txt, TRUE, &priv->allValue, NULL) ||
             priv->action == UNSET)
+        {
+            gnc_budget_begin_edit (priv->budget);
             gtk_tree_selection_selected_foreach (sel, allperiods_budget_helper,
                                                  page);
+            gnc_budget_commit_edit (priv->budget);
+        }
         break;
     default:
         break;
@@ -1266,9 +1287,8 @@ gnc_plugin_page_budget_cmd_budget_note(GtkAction *action,
         GTK_WINDOW(gnc_plugin_page_get_window(GNC_PLUGIN_PAGE(page))));
 
     note = GTK_WIDGET(gtk_builder_get_object(builder, "BudgetNote"));
-    txt  = gnc_budget_get_account_period_note(priv->budget, acc, period_num);
-    xxxgtk_textview_set_text(GTK_TEXT_VIEW(note), txt);
-    g_free (txt);
+    xxxgtk_textview_set_text(GTK_TEXT_VIEW(note),
+                             gnc_budget_get_account_period_note(priv->budget, acc, period_num));
 
     gtk_widget_show_all(dialog);
     result = gtk_dialog_run(GTK_DIALOG(dialog));
@@ -1276,9 +1296,9 @@ gnc_plugin_page_budget_cmd_budget_note(GtkAction *action,
     {
     case GTK_RESPONSE_OK:
         txt = xxxgtk_textview_get_text(GTK_TEXT_VIEW(note));
-        if (!strlen(txt))
-            txt = NULL;
-        gnc_budget_set_account_period_note(priv->budget, acc, period_num, txt);
+        gnc_budget_set_account_period_note (priv->budget, acc, period_num,
+                                            (txt && *txt) ? txt : NULL);
+        g_free (txt);
         break;
     default:
         break;

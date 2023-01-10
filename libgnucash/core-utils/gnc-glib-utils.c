@@ -328,14 +328,6 @@ void gnc_gpid_kill(GPid pid)
 #endif /* G_OS_WIN32 */
 }
 
-static inline char*
-gnc_strcat (char* dest, const char* src)
-{
-    while (*dest) dest++;
-    while ((*dest++ = *src++));
-    return --dest;
-}
-
 gchar *
 gnc_g_list_stringjoin (GList *list_of_strings, const gchar *sep)
 {
@@ -343,19 +335,36 @@ gnc_g_list_stringjoin (GList *list_of_strings, const gchar *sep)
     gint length = -seplen;
     gchar *retval, *p;
 
-    if (!list_of_strings)
-        return NULL;
-
     for (GList *n = list_of_strings; n; n = n->next)
-        length += strlen ((gchar*)n->data) + seplen;
+    {
+        gchar *str = n->data;
+        if (str && *str)
+            length += strlen (str) + seplen;
+    }
+
+    if (length <= 0)
+        return NULL;
 
     p = retval = (gchar*) g_malloc0 (length * sizeof (gchar) + 1);
     for (GList *n = list_of_strings; n; n = n->next)
     {
-        p = gnc_strcat (p, (gchar*)n->data);
-        if (n->next && sep)
-            p = gnc_strcat (p, sep);
+        gchar *str = n->data;
+        if (!str || !str[0])
+            continue;
+        if (sep && (p != retval))
+            p = g_stpcpy (p, sep);
+        p = g_stpcpy (p, str);
     }
 
     return retval;
+}
+
+gint
+gnc_list_length_cmp (const GList *list, size_t len)
+{
+    for (GList *lst = (GList*) list;; lst = g_list_next (lst), len--)
+    {
+        if (!lst) return (len ? -1 : 0);
+        if (!len) return 1;
+    }
 }

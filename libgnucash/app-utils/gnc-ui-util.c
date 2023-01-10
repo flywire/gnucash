@@ -210,13 +210,15 @@ gnc_get_default_directory (const gchar *section)
     gchar *dir;
 
     dir = gnc_prefs_get_string (section, GNC_PREF_LAST_PATH);
-    if (!dir)
+    if (!(dir && *dir))
+    {
+        g_free (dir); // if it's ""
 #ifdef G_OS_WIN32
         dir = g_strdup (g_get_user_data_dir ()); /* equivalent of "My Documents" */
 #else
         dir = g_strdup (g_get_home_dir ());
 #endif
-
+    }
     return dir;
 }
 
@@ -563,7 +565,9 @@ gnc_get_current_root_account (void)
 gnc_commodity_table *
 gnc_get_current_commodities (void)
 {
-    return gnc_commodity_table_get_table (gnc_get_current_book ());
+     if (gnc_current_session_exist())
+          return gnc_commodity_table_get_table (gnc_get_current_book ());
+     return NULL;
 }
 
 gchar *
@@ -1168,25 +1172,31 @@ gnc_default_currency_common (gchar *requested_currency,
                                           GNC_COMMODITY_NS_CURRENCY,
                                           requested_currency);
 
-    if (gnc_book_use_book_currency (gnc_get_current_book ()))
+    if (gnc_current_session_exist() &&
+        gnc_book_use_book_currency (gnc_get_current_book ()))
         return gnc_book_get_book_currency (gnc_get_current_book ());
 
-    if (gnc_prefs_get_bool (section, GNC_PREF_CURRENCY_CHOICE_OTHER))
+
+    if (gnc_current_session_exist() &&
+        gnc_prefs_get_bool (section, GNC_PREF_CURRENCY_CHOICE_OTHER))
     {
         mnemonic = gnc_prefs_get_string(section, GNC_PREF_CURRENCY_OTHER);
         currency = gnc_commodity_table_lookup(gnc_get_current_commodities(),
                                               GNC_COMMODITY_NS_CURRENCY, mnemonic);
-        DEBUG("mnemonic %s, result %p", mnemonic ? mnemonic : "(null)", currency);
+        DEBUG("mnemonic %s, result %p",
+              mnemonic && *mnemonic ? mnemonic : "(null)", currency);
         g_free(mnemonic);
     }
 
     if (!currency)
         currency = gnc_locale_default_currency ();
+
     if (currency)
     {
         mnemonic = requested_currency;
         g_free(mnemonic);
     }
+
     return currency;
 }
 
@@ -1850,11 +1860,13 @@ xaccSPrintAmount (char * bufp, gnc_numeric val, GNCPrintAmountInfo info)
     return (bufp - orig_bufp);
 }
 
+#define BUFLEN 1024
+
 const char *
 xaccPrintAmount (gnc_numeric val, GNCPrintAmountInfo info)
 {
     /* hack alert -- this is not thread safe ... */
-    static char buf[1024];
+    static char buf[BUFLEN];
 
     if (!xaccSPrintAmount (buf, val, info))
         buf[0] = '\0';
@@ -1863,6 +1875,55 @@ xaccPrintAmount (gnc_numeric val, GNCPrintAmountInfo info)
     return buf;
 }
 
+const char *
+gnc_print_amount_with_bidi_ltr_isolate (gnc_numeric val, GNCPrintAmountInfo info)
+{
+    /* hack alert -- this is not thread safe ... */
+    static char buf[BUFLEN];
+    static const char ltr_isolate[] = { 0xe2, 0x81, 0xa6 };
+    static const char ltr_pop_isolate[] = { 0xe2, 0x81, 0xa9 };
+    size_t offset = info.use_symbol ? 3 : 0;
+
+    memset (buf, 0, BUFLEN);
+    if (!xaccSPrintAmount (buf + offset, val, info))
+    {
+        buf[0] = '\0';
+        return buf;
+    };
+
+    if (!info.use_symbol)
+        return buf;
+
+    memcpy (buf, ltr_isolate, 3);
+
+    if (buf[BUFLEN - 4] == '\0')
+    {
+        size_t length = strlen (buf);
+        memcpy (buf + length, ltr_pop_isolate, 3);
+    }
+    else
+    {
+        buf[BUFLEN - 1] = '\0';
+        memcpy (buf + BUFLEN - 4, ltr_pop_isolate, 3);
+
+        PWARN("buffer length %d exceeded, string truncated was %s", BUFLEN, buf);
+    }
+    /* its OK to return buf, since we declared it static
+       and is immediately g_strdup'd */
+    return buf;
+}
+
+gchar *
+gnc_wrap_text_with_bidi_ltr_isolate (const gchar *text)
+{
+    static const char *ltr = "\u2066"; // ltr isolate
+    static const char *pop = "\u2069"; // pop directional formatting
+
+    if (!text)
+        return NULL;
+
+    return g_strconcat (ltr, text, pop, NULL);
+}
 
 /********************************************************************\
  ********************************************************************/
@@ -2061,6 +2122,14 @@ multiplier (int num_decimals)
 {
     switch (num_decimals)
     {
+    case 12:
+        return 1000000000000;
+    case 11:
+        return 100000000000;
+    case 10:
+        return 10000000000;
+    case 9:
+        return 1000000000;
     case 8:
         return 100000000;
     case 7:
@@ -2077,6 +2146,8 @@ multiplier (int num_decimals)
         return 100;
     case 1:
         return 10;
+    case 0:
+         return 1;
     default:
         PERR("bad fraction length");
         g_assert_not_reached();
@@ -2374,10 +2445,10 @@ xaccParseAmountExtended (const char * in_str, gboolean monetary,
 
         len = strlen(out_str);
 
-        if (len > 8)
+        if (len > 12)
         {
-            out_str[8] = '\0';
-            len = 8;
+            out_str[12] = '\0';
+            len = 12;
         }
 
         if (sscanf (out_str, QOF_SCANF_LLD, &fraction) < 1)
@@ -2392,7 +2463,7 @@ xaccParseAmountExtended (const char * in_str, gboolean monetary,
     }
     else if (monetary && auto_decimal_enabled && !got_decimal)
     {
-        if ((auto_decimal_places > 0) && (auto_decimal_places < 9))
+        if ((auto_decimal_places > 0) && (auto_decimal_places <= 12))
         {
             denom = multiplier(auto_decimal_places);
 
@@ -2531,7 +2602,7 @@ unichar_is_cntrl (gunichar uc)
 gchar *
 gnc_filter_text_for_control_chars (const gchar *text)
 {
-    gchar *normal_text, *nt;
+    const char *ch;
     GString *filtered;
     gboolean cntrl = FALSE;
     gboolean text_found = FALSE;
@@ -2542,20 +2613,18 @@ gnc_filter_text_for_control_chars (const gchar *text)
     if (!g_utf8_validate (text, -1, NULL))
         return NULL;
 
-    normal_text = g_utf8_normalize (text, -1, G_NORMALIZE_ALL_COMPOSE);
+    filtered = g_string_sized_new (strlen (text) + 1);
 
-    filtered = g_string_sized_new (strlen (normal_text) + 1);
+    ch = text;
 
-    nt = normal_text;
-
-    while (*nt)
+    while (*ch)
     {
-        gunichar uc = g_utf8_get_char (nt);
+        gunichar uc = g_utf8_get_char (ch);
 
         // check for starting with control characters
         if (unichar_is_cntrl (uc) && !text_found)
         {
-            nt = g_utf8_next_char (nt);
+            ch = g_utf8_next_char (ch);
             continue;
         }
         // check for alpha, num and punctuation
@@ -2568,18 +2637,17 @@ gnc_filter_text_for_control_chars (const gchar *text)
         if (unichar_is_cntrl (uc))
             cntrl = TRUE;
 
-        nt = g_utf8_next_char (nt);
+        ch = g_utf8_next_char (ch);
 
         if (cntrl) // if control characters in text replace with space
         {
-            gunichar uc2 = g_utf8_get_char (nt);
+            gunichar uc2 = g_utf8_get_char (ch);
 
             if (!unichar_is_cntrl (uc2))
                 filtered = g_string_append_unichar (filtered, ' ');
         }
         cntrl = FALSE;
     }
-    g_free (normal_text);
     return g_string_free (filtered, FALSE);
 }
 

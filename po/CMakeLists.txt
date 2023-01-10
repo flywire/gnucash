@@ -1,15 +1,7 @@
 add_subdirectory(glossary)
 
 # Set of available languages:
-# * managed at the Translation Project (TP):
-set (TP_LINGUAS ca cs da eu fa pt ro rw sk sr sv uk)
-# * already marked as external at TP or they have no language team:
-set (GC_LINGUAS ar as az bg brx de doi el en_GB es es_NI et fi fr gu he hi hr hu id it ja kn ko kok kok@latin ks lt lv mai mni mni@bengali mr nb ne nl pl pt_BR ru ta te tr ur vi zh_CN zh_TW)
-# * New or unmarked: The release manager should announce them to TP 
-# and when listed there move in the respective group above.
-set (NEW_LINGUAS)
-
-set (ALL_LINGUAS ${TP_LINGUAS} ${GC_LINGUAS} ${NEW_LINGUAS})
+set (ALL_LINGUAS ar as az bg brx ca cs da de doi el en_AU en_GB en_NZ es es_NI et eu fa fi fr gu he hi hr hu id it ja kn ko kok kok@latin ks lt lv mai mk mni mni@bengali mr nb ne nl pl pt pt_BR ro rw sk sr sv ru ta te tr uk ur vi zh_CN zh_TW)
 # LINGUAS is used to create localized destkop and appdata files
 string(REPLACE ";" " " LINGUAS "${ALL_LINGUAS}")
 file(WRITE ${CMAKE_CURRENT_SOURCE_DIR}/LINGUAS "${LINGUAS}")
@@ -39,7 +31,7 @@ endforeach (lingua)
 add_custom_target(po-gmo ALL DEPENDS ${CATALOGS})
 
 set_local_dist(po_DIST_local ${po_SOURCES} CMakeLists.txt
-  POTFILES.in POTFILES.skip README gnucash-pot.cmake)
+  POTFILES.in POTFILES.ignore POTFILES.skip README gnucash-pot.cmake)
 set(po_DIST ${po_DIST_local} ${po_glossary_DIST} PARENT_SCOPE)
 
 function(read_file_removing_comments OUTPUT PATH)
@@ -81,6 +73,12 @@ function(make_gnucash_potfiles)
 
   # Remove the paths that we have marked as explicitly skipped
   read_file_removing_comments(SKIP_LINES POTFILES.skip)
+  foreach (path ${SKIP_LINES})
+      list(REMOVE_ITEM GOOD_FILES ${path})
+  endforeach ()
+
+  # Remove the paths that we have marked as explicitly ignore
+  read_file_removing_comments(SKIP_LINES POTFILES.ignore)
   foreach (path ${SKIP_LINES})
       list(REMOVE_ITEM GOOD_FILES ${path})
   endforeach ()
@@ -143,3 +141,7 @@ if(BUILD_GNUCASH_POT)
   add_custom_target (pot DEPENDS gnucash.pot)
 endif()
 dist_add_generated (${BUILDING_FROM_VCS} gnucash.pot)
+
+if(BUILD_GNUCASH_POT)
+  add_dependencies (dist-po-gnucash-pot pot)
+endif()

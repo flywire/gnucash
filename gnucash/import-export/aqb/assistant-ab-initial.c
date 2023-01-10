@@ -88,8 +88,8 @@ void aai_destroy_cb(GtkWidget *object, gpointer user_data);
 
 gboolean aai_key_press_event_cb(GtkWidget *widget, GdkEventKey *event, gpointer user_data);
 
-void aai_wizard_page_prepare (GtkAssistant *assistant, gpointer user_data);
-void aai_wizard_button_clicked_cb(GtkButton *button, gpointer user_data);
+void aai_page_prepare (GtkAssistant *assistant, gpointer user_data);
+void aai_button_clicked_cb(GtkButton *button, gpointer user_data);
 void aai_match_delete_button_clicked_cb(GtkButton *button, gpointer user_data);
 
 #ifdef AQBANKING6
@@ -198,7 +198,7 @@ aai_destroy_cb(GtkWidget *object, gpointer user_data)
 
     if (info->deferred_info)
     {
-        g_message("Online Banking assistant is being closed but the wizard is still "
+        PINFO("Online Banking assistant is being closed but the wizard is still "
                   "running.  Inoring.");
 
         /* Tell child_exit_cb() that there is no assistant anymore */
@@ -234,7 +234,7 @@ aai_destroy_cb(GtkWidget *object, gpointer user_data)
 }
 
 void
-aai_wizard_page_prepare (GtkAssistant *assistant, gpointer user_data)
+aai_page_prepare (GtkAssistant *assistant, gpointer user_data)
 {
     ABInitialInfo *info = user_data;
     gint num = gtk_assistant_get_current_page (assistant);
@@ -250,7 +250,7 @@ aai_wizard_page_prepare (GtkAssistant *assistant, gpointer user_data)
 }
 
 void
-aai_wizard_button_clicked_cb(GtkButton *button, gpointer user_data)
+aai_button_clicked_cb(GtkButton *button, gpointer user_data)
 {
     ABInitialInfo *info = user_data;
     gint num = gtk_assistant_get_current_page (GTK_ASSISTANT(info->window));
@@ -755,7 +755,7 @@ save_kvp_acc_cb(gpointer key, gpointer value, gpointer user_data)
     const gchar *ab_bankcode, *gnc_bankcode;
 #ifdef AQBANKING6
     gchar *ab_online_id;
-    const gchar *gnc_online_id;
+    gchar *gnc_online_id;
 #endif
 
     g_return_if_fail(ab_acc && gnc_acc);
@@ -796,6 +796,7 @@ save_kvp_acc_cb(gpointer key, gpointer value, gpointer user_data)
     if (ab_online_id && (!gnc_online_id || (strcmp(ab_online_id, gnc_online_id) != 0)))
         gnc_import_set_acc_online_id(gnc_acc, ab_online_id);
     g_free(ab_online_id);
+    g_free (gnc_online_id);
 #endif
 }
 
@@ -815,7 +816,7 @@ void aai_on_prepare (GtkAssistant  *assistant, GtkWidget *page,
     {
     case 1:
         /* Current page is wizard button page */
-        aai_wizard_page_prepare (assistant , user_data );
+        aai_page_prepare (assistant , user_data );
         break;
     case 2:
         /* Current page is match page */

@@ -315,7 +315,7 @@ struct _print_check_dialog
 };
 
 
-/* This function walks ths list of available check formats looking for a
+/* This function walks the list of available check formats looking for a
  * specific format as specified by guid number.  If found, a pointer to it is
  * returned to the caller.  Additionally, if the caller passed a pointer to a
  * GtkTreeIter, then the iter for that entry will also be returned.
@@ -606,13 +606,12 @@ gnc_ui_print_restore_dialog(PrintCheckDialog *pcd)
 
     /* Options page */
     guid = gnc_prefs_get_string (GNC_PREFS_GROUP, GNC_PREF_CHECK_FORMAT_GUID);
-    if (guid == NULL)
+    if (!(guid && *guid))
         gtk_combo_box_set_active(GTK_COMBO_BOX(pcd->format_combobox), 0);
     else if (strcmp(guid, "custom") == 0)
     {
         gtk_combo_box_set_active(GTK_COMBO_BOX(pcd->format_combobox),
                                  pcd->format_max - 1);
-        g_free (guid);
     }
     else
     {
@@ -625,8 +624,8 @@ gnc_ui_print_restore_dialog(PrintCheckDialog *pcd)
         {
             gtk_combo_box_set_active(GTK_COMBO_BOX(pcd->format_combobox), 0);
         }
-        g_free (guid);
     }
+    g_free (guid);
 
     active = gnc_prefs_get_int(GNC_PREFS_GROUP, GNC_PREF_CHECK_POSITION);
 
@@ -642,7 +641,7 @@ gnc_ui_print_restore_dialog(PrintCheckDialog *pcd)
     if (active == QOF_DATE_FORMAT_CUSTOM)
     {
         format = gnc_prefs_get_string (GNC_PREFS_GROUP, GNC_PREF_DATE_FORMAT_USER);
-        if (format)
+        if (format && *format)
         {
             gnc_date_format_set_custom(GNC_DATE_FORMAT(pcd->date_format), format);
             g_free(format);
@@ -947,7 +946,7 @@ format_read_item_placement(const gchar *file,
             }
             goto failed;
         }
-        g_debug("Check file %s, group %s, key %s, value: %s",
+        DEBUG("Check file %s, group %s, key %s, value: %s",
                 file, KF_GROUP_ITEMS, key, value);
         g_free(key);
 
@@ -965,7 +964,7 @@ format_read_item_placement(const gchar *file,
         if (error)
             goto failed;
         value = doubles_to_string(dd, dd_len);
-        g_debug("Check file %s, group %s, key %s, length %"G_GSIZE_FORMAT"; values: %s",
+        DEBUG("Check file %s, group %s, key %s, length %"G_GSIZE_FORMAT"; values: %s",
                 file, KF_GROUP_ITEMS, key, dd_len, value);
         g_free(value);
 
@@ -1002,7 +1001,7 @@ format_read_item_placement(const gchar *file,
                 g_key_file_get_string(key_file, KF_GROUP_ITEMS, key, &error);
             if (!error)
             {
-                g_debug("Check file %s, group %s, key %s, value: %s",
+                DEBUG("Check file %s, group %s, key %s, value: %s",
                         file, KF_GROUP_ITEMS, key, data->font);
             }
             else
@@ -1020,7 +1019,7 @@ format_read_item_placement(const gchar *file,
                 g_key_file_get_string(key_file, KF_GROUP_ITEMS, key, &error);
             if (!error)
             {
-                g_debug("Check file %s, group %s, key %s, value: %s",
+                DEBUG("Check file %s, group %s, key %s, value: %s",
                         file, KF_GROUP_ITEMS, key, value);
                 name = g_utf8_strdown(value, -1);
                 if (strcmp(name, "right") == 0)
@@ -1048,7 +1047,7 @@ format_read_item_placement(const gchar *file,
                 g_key_file_get_boolean(key_file, KF_GROUP_ITEMS, key, &error);
             if (!error)
             {
-                g_debug("Check file %s, group %s, key %s, value: %d",
+                DEBUG("Check file %s, group %s, key %s, value: %d",
                         file, KF_GROUP_ITEMS, key, bval);
                 data->blocking = bval;
             }
@@ -1073,7 +1072,7 @@ format_read_item_placement(const gchar *file,
                                       &error);
             if (error)
                 goto failed;
-            g_debug("Check file %s, group %s, key %s, value: %s",
+            DEBUG("Check file %s, group %s, key %s, value: %s",
                     file, KF_GROUP_ITEMS, key, data->filename);
             g_free(key);
             break;
@@ -1084,7 +1083,7 @@ format_read_item_placement(const gchar *file,
                                       &error);
             if (error)
                 goto failed;
-            g_debug("Check file %s, group %s, key %s, value: %s",
+            DEBUG("Check file %s, group %s, key %s, value: %s",
                     file, KF_GROUP_ITEMS, key, data->text);
             g_free(key);
             break;
@@ -1094,7 +1093,7 @@ format_read_item_placement(const gchar *file,
             bval = g_key_file_get_boolean(key_file, KF_GROUP_ITEMS, key, &error);
             if (!error)
             {
-                g_debug("Check file %s, group %s, key %s, value: %d",
+                DEBUG("Check file %s, group %s, key %s, value: %d",
                         file, KF_GROUP_ITEMS, key, bval);
                 data->print_date_format = bval;
             }
@@ -1244,14 +1243,14 @@ format_read_general_info(const gchar *file,
     parts = g_strsplit(value, "-", -1);
     format->guid = g_strjoinv("", parts);
     g_strfreev(parts);
-    g_debug("Check file %s, group %s, key %s, value: %s",
+    DEBUG("Check file %s, group %s, key %s, value: %s",
             file, KF_GROUP_TOP, KF_KEY_GUID, format->guid);
 
     format->title =
         g_key_file_get_string(key_file, KF_GROUP_TOP, KF_KEY_TITLE, &error);
     if (!error)
     {
-        g_debug("Check file %s, group %s, key %s, value: %s",
+        DEBUG("Check file %s, group %s, key %s, value: %s",
                 file, KF_GROUP_TOP, KF_KEY_TITLE, format->title);
     }
     else
@@ -1266,7 +1265,7 @@ format_read_general_info(const gchar *file,
                                &error);
     if (!error)
     {
-        g_debug("Check file %s, group %s, key %s, value: %d",
+        DEBUG("Check file %s, group %s, key %s, value: %d",
                 file, KF_GROUP_TOP, KF_KEY_BLOCKING, format->blocking);
     }
     else
@@ -1291,7 +1290,7 @@ format_read_general_info(const gchar *file,
                                &error);
     if (!error)
     {
-        g_debug("Check file %s, group %s, key %s, value: %d",
+        DEBUG("Check file %s, group %s, key %s, value: %d",
                 file, KF_GROUP_TOP, KF_KEY_DATE_FORMAT, format->print_date_format);
     }
     else
@@ -1316,7 +1315,7 @@ format_read_general_info(const gchar *file,
                                &error);
     if (!error)
     {
-        g_debug("Check file %s, group %s, key %s, value: %d",
+        DEBUG("Check file %s, group %s, key %s, value: %d",
                 file, KF_GROUP_TOP, KF_KEY_SHOW_GRID, format->show_grid);
     }
     else
@@ -1334,7 +1333,7 @@ format_read_general_info(const gchar *file,
                                &error);
     if (!error)
     {
-        g_debug("Check file %s, group %s, key %s, value: %d",
+        DEBUG("Check file %s, group %s, key %s, value: %d",
                 file, KF_GROUP_TOP, KF_KEY_SHOW_BOXES, format->show_boxes);
     }
     else
@@ -1351,7 +1350,7 @@ format_read_general_info(const gchar *file,
         g_key_file_get_string(key_file, KF_GROUP_TOP, KF_KEY_FONT, &error);
     if (!error)
     {
-        g_debug("Check file %s, group %s, key %s, value: %s",
+        DEBUG("Check file %s, group %s, key %s, value: %s",
                 file, KF_GROUP_TOP, KF_KEY_FONT, format->font);
     }
     else
@@ -1367,7 +1366,7 @@ format_read_general_info(const gchar *file,
         g_key_file_get_double(key_file, KF_GROUP_TOP, KF_KEY_ROTATION, &error);
     if (!error)
     {
-        g_debug("Check file %s, group %s, key %s, value: %f",
+        DEBUG("Check file %s, group %s, key %s, value: %f",
                 file, KF_GROUP_TOP, KF_KEY_ROTATION, format->rotation);
     }
     else
@@ -1385,7 +1384,7 @@ format_read_general_info(const gchar *file,
     if (!error)
     {
         value = doubles_to_string(dd, dd_len);
-        g_debug("Check file %s, group %s, key %s, length %"G_GSIZE_FORMAT"; values: %s",
+        DEBUG("Check file %s, group %s, key %s, length %"G_GSIZE_FORMAT"; values: %s",
                 file, KF_GROUP_TOP, KF_KEY_TRANSLATION, dd_len, value);
         g_free(value);
 
@@ -1701,7 +1700,7 @@ gnc_ui_print_check_dialog_create(GtkWidget *parent,
 
     /* Default font (set in preferences) */
     font = gnc_prefs_get_string(GNC_PREFS_GROUP, GNC_PREF_DEFAULT_FONT);
-    pcd->default_font = font ? font : g_strdup(DEFAULT_FONT);
+    pcd->default_font = font && *font ? font : g_strdup(DEFAULT_FONT);
 
     /* Update the combo boxes bases on the available check formats */
     initialize_format_combobox(pcd);
@@ -1867,14 +1866,14 @@ draw_text(GtkPrintContext *context, const gchar *text, check_item_t *data,
     /* Clip text to the enclosing rectangle */
     if (data->w && data->h)
     {
-        g_debug("Text clip rectangle, coords %f,%f, size %f,%f",
+        DEBUG("Text clip rectangle, coords %f,%f, size %f,%f",
                 data->x, data->y - data->h, data->w, data->h);
         cairo_rectangle(cr, data->x, data->y - data->h, data->w, data->h);
         cairo_clip_preserve(cr);
     }
 
     /* Draw the text */
-    g_debug("Text move to %f,%f, print '%s'", data->x, data->y,
+    DEBUG("Text move to %f,%f, print '%s'", data->x, data->y,
             text ? text : "(null)");
     cairo_move_to(cr, data->x, data->y - height);
     pango_cairo_show_layout(cr, layout);
@@ -1963,13 +1962,13 @@ draw_picture(GtkPrintContext *context, check_item_t *data)
     if (data->w && data->h)
     {
         cairo_rectangle(cr, data->x, data->y - data->h, data->w, data->h);
-        g_debug("Picture clip rectangle, user coords %f,%f, user size %f,%f",
+        DEBUG("Picture clip rectangle, user coords %f,%f, user size %f,%f",
                 data->x, data->y - data->h, data->w, data->h);
     }
     else
     {
         cairo_rectangle(cr, data->x, data->y - pix_h, pix_w, pix_h);
-        g_debug("Picture clip rectangle, user coords %f,%f, pic size %d,%d",
+        DEBUG("Picture clip rectangle, user coords %f,%f, pic size %d,%d",
                 data->x, data->y - data->h, pix_w, pix_h);
     }
     cairo_clip_preserve(cr);
@@ -2265,8 +2264,8 @@ draw_check_format(GtkPrintContext *context, gint position,
          * need to be moved (hence the test for position > 0 above. */
         cairo_translate(cr, 0, format->height); /* Translation is relative to previous
                                                    check translation, not to page border ! */
-        g_debug("Position %d translated by %f relative to previous check (pre-defined)", position, format->height);
-        g_debug("                      by %f relative to page (pre-defined)", position * format->height);
+        DEBUG("Position %d translated by %f relative to previous check (pre-defined)", position, format->height);
+        DEBUG("                      by %f relative to page (pre-defined)", position * format->height);
     }
     else if (position == pcd->position_max)
     {
@@ -2275,10 +2274,10 @@ draw_check_format(GtkPrintContext *context, gint position,
         x = multip * gtk_spin_button_get_value(pcd->translation_x);
         y = multip * gtk_spin_button_get_value(pcd->translation_y);
         cairo_translate(cr, x, y);
-        g_debug("Position translated by %f,%f (custom)", x, y);
+        DEBUG("Position translated by %f,%f (custom)", x, y);
         r = gtk_spin_button_get_value(pcd->check_rotation);
         cairo_rotate(cr, r * DEGREES_TO_RADIANS);
-        g_debug("Position rotated by %f degrees (custom)", r);
+        DEBUG("Position rotated by %f degrees (custom)", r);
     }
 
     /* Draw layout boxes if requested. Also useful when determining check
@@ -2317,12 +2316,12 @@ draw_check_custom(GtkPrintContext *context, gpointer user_data)
     degrees = gtk_spin_button_get_value(pcd->check_rotation);
     cr = gtk_print_context_get_cairo_context(context);
     cairo_rotate(cr, degrees * DEGREES_TO_RADIANS);
-    g_debug("Page rotated by %f degrees", degrees);
+    DEBUG("Page rotated by %f degrees", degrees);
 
     x = multip * gtk_spin_button_get_value(pcd->translation_x);
     y = multip * gtk_spin_button_get_value(pcd->translation_y);
     cairo_translate(cr, x, y);
-    g_debug("Page translated by %f,%f", x, y);
+    DEBUG("Page translated by %f,%f", x, y);
 
     item.x = multip * gtk_spin_button_get_value(pcd->payee_x);
     item.y = multip * gtk_spin_button_get_value(pcd->payee_y);
@@ -2438,9 +2437,9 @@ draw_page(GtkPrintOperation *operation,
 
         /* Do page level translations/rotations */
         cairo_translate(cr, format->trans_x, format->trans_y);
-        g_debug("Page translated by %f,%f", format->trans_x, format->trans_y);
+        DEBUG("Page translated by %f,%f", format->trans_x, format->trans_y);
         cairo_rotate(cr, format->rotation * DEGREES_TO_RADIANS);
-        g_debug("Page rotated by %f degrees", format->rotation);
+        DEBUG("Page rotated by %f degrees", format->rotation);
 
         /* The grid is useful when determining check layouts */
         if (format->show_grid)

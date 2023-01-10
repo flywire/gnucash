@@ -3,14 +3,15 @@
 # Bernard Meens <meensb@xs4all.nl>, 2006.
 # Geert Janssens <geert@kobaltwit.be>, 2020, 2021.
 # eol <joshua.de.clercq@gmail.com>, 2021.
+# Jaimie85 <alsemgeest@gmail.com>, 2022.
 msgid ""
 msgstr ""
-"Project-Id-Version: GnuCash 4.1+\n"
+"Project-Id-Version: GnuCash 4.8\n"
 "Report-Msgid-Bugs-To: https://bugs.gnucash.org/enter_bug."
 "cgi?product=GnuCash&component=Translations\n"
-"POT-Creation-Date: 2021-01-10 08:00+0100\n"
-"PO-Revision-Date: 2021-03-27 11:29+0000\n"
-"Last-Translator: Geert Janssens <geert@kobaltwit.be>\n"
+"POT-Creation-Date: 2021-12-05 20:11+0100\n"
+"PO-Revision-Date: 2022-01-17 13:55+0000\n"
+"Last-Translator: Jaimie85 <alsemgeest@gmail.com>\n"
 "Language-Team: Dutch <https://hosted.weblate.org/projects/gnucash/glossary/"
 "nl/>\n"
 "Language: nl\n"
@@ -18,7 +19,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 4.6-dev\n"
+"X-Generator: Weblate 4.10.1\n"
 
 #. "English Definition (Dear translator: This file will never be visible to the user! It should only serve as a tool for you, the translator. Nothing more.)"
 msgid "Term (Dear translator: This file will never be visible to the user!)"
@@ -204,6 +205,10 @@ msgstr "historiek"
 msgid "amount"
 msgstr "bedrag"
 
+#. "The amount finally to pay, respecting discounts, billing terms…"
+msgid "amount due"
+msgstr "verschuldigd bedrag"
+
 #. "The result of adding several amounts together and then dividing this total by the number of amounts"
 msgid "average"
 msgstr "gemiddelde"
@@ -383,6 +388,10 @@ msgstr "dubbele boekhouding"
 #. "Transactions or bills/invoices can contain a document link which links either to some file on the local disk or to some arbitrary URL."
 msgid "document link"
 msgstr "document link"
+
+#. "The last day to pay an invoice in time."
+msgid "due date"
+msgstr "vervaldatum"
 
 #. "Electronic mail. Some languages allow different writings, but each team should use only one. https://en.wikipedia.org/wiki/Email"
 msgid "email"
@@ -740,6 +749,14 @@ msgstr "bron"
 msgid "split"
 msgstr "boekregel"
 
+#. "Alias of 'shares'"
+msgid "stocks"
+msgstr "aandelen"
+
+#. "Sometimes one old share gets replaced by multiple new like 1 OLD @100¤ by 2 NEW @50¤"
+msgid "stock split"
+msgstr "aandelensplitsing"
+
 #. "This sets the particular design or shape of a report."
 msgid "style sheet"
 msgstr "stijlblad"
@@ -852,6 +869,14 @@ msgstr "voucher"
 msgid "withdraw (in the reconcile dialog)"
 msgstr "opname"
 
-#, fuzzy
-#~ msgid "invoice owner"
-#~ msgstr "factuur"
+msgid "stock"
+msgstr "aandeel"
+
+msgid "due"
+msgstr "verschuldigd"
+
+msgid "Online"
+msgstr "Online"
+
+msgid "Direct Debit"
+msgstr "Automatische incasso"

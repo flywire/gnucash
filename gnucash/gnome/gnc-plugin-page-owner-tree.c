@@ -87,8 +87,10 @@ typedef struct GncPluginPageOwnerTreePrivate
     OwnerFilterDialog fd;
 } GncPluginPageOwnerTreePrivate;
 
+G_DEFINE_TYPE_WITH_PRIVATE(GncPluginPageOwnerTree, gnc_plugin_page_owner_tree, GNC_TYPE_PLUGIN_PAGE)
+
 #define GNC_PLUGIN_PAGE_OWNER_TREE_GET_PRIVATE(o)  \
-   ((GncPluginPageOwnerTreePrivate*)g_type_instance_get_private((GTypeInstance*)o, GNC_TYPE_PLUGIN_PAGE_OWNER_TREE))
+   ((GncPluginPageOwnerTreePrivate*)gnc_plugin_page_owner_tree_get_instance_private((GncPluginPageOwnerTree*)o))
 
 static GObjectClass *parent_class = NULL;
 
@@ -338,7 +340,6 @@ gnc_plugin_page_owner_tree_new (GncOwnerType owner_type)
 
     GtkActionGroup *action_group;
     GtkAction    *action;
-    GValue        gvalue = { 0 };
     gint          i;
 
     g_return_val_if_fail( (owner_type != GNC_OWNER_UNDEFINED)
@@ -365,15 +366,14 @@ gnc_plugin_page_owner_tree_new (GncOwnerType owner_type)
 
     /* Hide menu and toolbar items that are not relevant for the active owner list */
     action_group = gnc_plugin_page_get_action_group(GNC_PLUGIN_PAGE(plugin_page));
-    g_value_init (&gvalue, G_TYPE_BOOLEAN);
     for (i = 0; action_owners[i].action_name; i++)
     {
         action = gtk_action_group_get_action (action_group, action_owners[i].action_name);
-        g_value_set_boolean (&gvalue, (priv->owner_type == action_owners[i].owner_type) );
-        g_object_set_property (G_OBJECT(action), "visible", &gvalue);
+        g_object_set (G_OBJECT(action),
+                      "visible", (priv->owner_type == action_owners[i].owner_type),
+                      NULL);
     }
 
-    g_value_unset (&gvalue);
     LEAVE("new %s tree page %p", gncOwnerTypeToQofIdType(owner_type), plugin_page);
     return GNC_PLUGIN_PAGE(plugin_page);
 }
@@ -398,8 +398,6 @@ gnc_plugin_page_owner_focus_widget (GncPluginPage *owner_plugin_page)
     }
     return FALSE;
 }
-
-G_DEFINE_TYPE_WITH_PRIVATE(GncPluginPageOwnerTree, gnc_plugin_page_owner_tree, GNC_TYPE_PLUGIN_PAGE)
 
 static void
 gnc_plugin_page_owner_tree_class_init (GncPluginPageOwnerTreeClass *klass)

@@ -116,7 +116,9 @@ GncXmlBackend::session_begin(QofSession* session, const char* new_uri,
                       SessionOpenMode mode)
 {
     /* Make sure the directory is there */
-    m_fullpath = gnc_uri_get_path (new_uri);
+    auto path_str = gnc_uri_get_path (new_uri);
+    m_fullpath = path_str;
+    g_free (path_str);
 
     if (m_fullpath.empty())
     {
@@ -149,14 +151,7 @@ GncXmlBackend::session_begin(QofSession* session, const char* new_uri,
 
     /* Set the lock file */
     m_lockfile = m_fullpath + ".LCK";
-    auto locked = get_file_lock();
-    if (mode == SESSION_BREAK_LOCK && !locked)
-    {
-        // Don't pass on locked or readonly errors.
-        QofBackendError berror = get_error();
-        if (!(berror == ERR_BACKEND_LOCKED || berror == ERR_BACKEND_READONLY))
-            set_error(berror);
-    }
+    get_file_lock(mode);
 }
 
 void
@@ -171,8 +166,11 @@ GncXmlBackend::session_end()
     if (!m_linkfile.empty())
         g_unlink (m_linkfile.c_str());
 
-    if (m_lockfd > 0)
+    if (m_lockfd != -1)
+    {
         close (m_lockfd);
+        m_lockfd = -1;
+    }
 
     if (!m_lockfile.empty())
     {
@@ -623,125 +621,45 @@ GncXmlBackend::link_or_make_backup (const std::string& orig,
     return true;
 }
 
-bool
-GncXmlBackend::get_file_lock ()
+void
+GncXmlBackend::get_file_lock (SessionOpenMode mode)
 {
-    GStatBuf statbuf;
-#ifndef G_OS_WIN32
-    char* pathbuf = NULL, *tmpbuf = NULL;
-    size_t pathbuf_size = 0;
-#endif
-    QofBackendError be_err;
-
-    auto rc = g_stat (m_lockfile.c_str(), &statbuf);
-    if (!rc)
-    {
-        /* oops .. file is locked by another user  .. */
-        set_error(ERR_BACKEND_LOCKED);
-        return false;
-    }
-
     m_lockfd = g_open (m_lockfile.c_str(), O_RDWR | O_CREAT | O_EXCL ,
-                         S_IRUSR | S_IWUSR);
-    if (m_lockfd < 0)
+                       S_IRUSR | S_IWUSR);
+    if (m_lockfd == -1)
     {
+        QofBackendError be_err{ERR_BACKEND_NO_ERR};
         /* oops .. we can't create the lockfile .. */
         switch (errno)
         {
         case EACCES:
-        case EROFS:
-        case ENOSPC:
+            set_message("Unable to create lockfile, make sure that you have write access to the directory.");
             be_err = ERR_BACKEND_READONLY;
             break;
-        default:
+
+        case EROFS:
+            set_message("Unable to create lockfile, data file is on a read-only filesystem.");
+            be_err = ERR_BACKEND_READONLY;
+            break;
+        case ENOSPC:
+            set_message("Unable to create lockfile, no space on filesystem.");
+            be_err = ERR_BACKEND_READONLY;
+            break;
+        case EEXIST:
             be_err = ERR_BACKEND_LOCKED;
             break;
-        }
-        if (errno != EEXIST) // Can't lock, but not because the file is locked
+        default: 
             PWARN ("Unable to create the lockfile %s: %s",
                    m_lockfile.c_str(), strerror(errno));
-        set_error(be_err);
-        return false;
-    }
-
-    /* OK, now work around some NFS atomic lock race condition
-     * mumbo-jumbo.  We do this by linking a unique file, and
-     * then examining the link count.  At least that's what the
-     * NFS programmers guide suggests.
-     * Note: the "unique filename" must be unique for the
-     * triplet filename-host-process, otherwise accidental
-     * aliases can occur.
-     */
-
-    /* apparently, even this code may not work for some NFS
-     * implementations. In the long run, I am told that
-     * ftp.debian.org
-     *  /pub/debian/dists/unstable/main/source/libs/liblockfile_0.1-6.tar.gz
-     * provides a better long-term solution.
-     */
-
-#ifndef G_OS_WIN32
-    auto path = m_lockfile.find_last_of('.');
-    std::stringstream linkfile;
-    if (path != std::string::npos)
-        linkfile << m_lockfile.substr(0, path);
-    else
-        linkfile << m_lockfile;
-    linkfile << "." << gethostid() << "." << getpid() << ".LNK";
-    rc = link (m_lockfile.c_str(), linkfile.str().c_str());
-    if (rc)
-    {
-        /* If hard links aren't supported, just allow the lock. */
-        if (errno == EPERM || errno == ENOSYS
-# ifdef EOPNOTSUPP
-            || errno == EOPNOTSUPP
-# endif
-# ifdef ENOTSUP
-            || errno == ENOTSUP
-# endif
-           )
-        {
-            return true;
+            set_message("Lockfile creation failed. Please see the tracefile for details.");
+            be_err = ERR_FILEIO_FILE_LOCKERR;
         }
-
-        /* Otherwise, something else is wrong. */
-        set_error(ERR_BACKEND_LOCKED);
-        g_unlink (linkfile.str().c_str());
-        close (m_lockfd);
-        g_unlink (m_lockfile.c_str());
-        return false;
+        if (!(mode == SESSION_BREAK_LOCK && be_err == ERR_BACKEND_LOCKED))
+        {
+            set_error(be_err);
+            m_lockfile.clear();
+        }
     }
-
-    rc = g_stat (m_lockfile.c_str(), &statbuf);
-    if (rc)
-    {
-        /* oops .. stat failed!  This can't happen! */
-        set_error(ERR_BACKEND_LOCKED);
-        std::string msg{"Failed to stat lockfile "};
-        set_message(msg + m_lockfile);
-        g_unlink (linkfile.str().c_str());
-        close (m_lockfd);
-        g_unlink (m_lockfile.c_str());
-        return false;
-    }
-
-    if (statbuf.st_nlink != 2)
-    {
-        set_error(ERR_BACKEND_LOCKED);
-        g_unlink (linkfile.str().c_str());
-        close (m_lockfd);
-        g_unlink (m_lockfile.c_str());
-        return false;
-    }
-
-    m_linkfile = linkfile.str();
-    return true;
-
-#else /* ifndef G_OS_WIN32 */
-    /* On windows, there is no NFS and the open(,O_CREAT | O_EXCL)
-       is sufficient for locking. */
-    return true;
-#endif /* ifndef G_OS_WIN32 */
 }
 
 bool

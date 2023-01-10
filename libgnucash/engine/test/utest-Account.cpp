@@ -195,6 +195,17 @@ static AccountParms complex_accts[] =
 
 };
 
+static AccountParms complex_accts_duplicated[] =
+{
+    {ACCT_TYPE_EXPENSE, "A", "root", "1A", "", "", "", "", NULL},
+    {ACCT_TYPE_EXPENSE, "B", "root", "1B", "", "", "", "", NULL},
+    {ACCT_TYPE_EXPENSE, "C", "root", "1C", "", "", "", "", NULL},
+    {ACCT_TYPE_EXPENSE, "D", "A", "2D", "", "", "", "", NULL},
+    {ACCT_TYPE_EXPENSE, "E", "B", "2E", "", "", "", "", NULL},
+    {ACCT_TYPE_EXPENSE, "F", "C", "2F", "", "", "", "", NULL},
+    {ACCT_TYPE_EXPENSE, "B", "D", "3B", "", "", "", "", NULL},
+};
+
 static TxnParms lot_txns[] =
 {
     {
@@ -256,6 +267,10 @@ static TxnParms lot_txns[] =
 static SetupData complex = {G_N_ELEMENTS (complex_accts),
                             (AccountParms**)(&complex_accts), 0, NULL
                            };
+
+static SetupData complex_duplicated = {G_N_ELEMENTS (complex_accts_duplicated),
+    (AccountParms**)(&complex_accts_duplicated), 0, NULL
+};
 
 static SetupData complex_data = {G_N_ELEMENTS (complex_accts),
                                  (AccountParms**)(&complex_accts),
@@ -1108,6 +1123,60 @@ test_gnc_account_kvp_setters_getters (Fixture *fixture, gconstpointer pData)
     xaccAccountSetColor (account, nullptr);
     g_assert_cmpstr (xaccAccountGetColor (account), ==, nullptr);
 
+    // last_num getter/setter
+    g_assert_cmpstr (xaccAccountGetLastNum (account), ==, nullptr);
+
+    xaccAccountSetLastNum (account, "red");
+    g_assert_cmpstr (xaccAccountGetLastNum (account), ==, "red");
+
+    xaccAccountSetLastNum (account, "");
+    g_assert_cmpstr (xaccAccountGetLastNum (account), ==, "");
+
+    xaccAccountSetLastNum (account, "  ");
+    g_assert_cmpstr (xaccAccountGetLastNum (account), ==, "  ");
+
+    xaccAccountSetLastNum (account, "unset");
+    g_assert_cmpstr (xaccAccountGetLastNum (account), ==, "unset");
+
+    xaccAccountSetLastNum (account, nullptr);
+    g_assert_cmpstr (xaccAccountGetLastNum (account), ==, nullptr);
+
+    // tax_us_code getter/setter
+    g_assert_cmpstr (xaccAccountGetTaxUSCode (account), ==, nullptr);
+
+    xaccAccountSetTaxUSCode (account, "red");
+    g_assert_cmpstr (xaccAccountGetTaxUSCode (account), ==, "red");
+
+    xaccAccountSetTaxUSCode (account, "");
+    g_assert_cmpstr (xaccAccountGetTaxUSCode (account), ==, "");
+
+    xaccAccountSetTaxUSCode (account, "  ");
+    g_assert_cmpstr (xaccAccountGetTaxUSCode (account), ==, "  ");
+
+    xaccAccountSetTaxUSCode (account, "unset");
+    g_assert_cmpstr (xaccAccountGetTaxUSCode (account), ==, "unset");
+
+    xaccAccountSetTaxUSCode (account, nullptr);
+    g_assert_cmpstr (xaccAccountGetTaxUSCode (account), ==, nullptr);
+
+    // tax_us_pns getter/setter
+    g_assert_cmpstr (xaccAccountGetTaxUSPayerNameSource (account), ==, nullptr);
+
+    xaccAccountSetTaxUSPayerNameSource (account, "red");
+    g_assert_cmpstr (xaccAccountGetTaxUSPayerNameSource (account), ==, "red");
+
+    xaccAccountSetTaxUSPayerNameSource (account, "");
+    g_assert_cmpstr (xaccAccountGetTaxUSPayerNameSource (account), ==, "");
+
+    xaccAccountSetTaxUSPayerNameSource (account, "  ");
+    g_assert_cmpstr (xaccAccountGetTaxUSPayerNameSource (account), ==, "  ");
+
+    xaccAccountSetTaxUSPayerNameSource (account, "unset");
+    g_assert_cmpstr (xaccAccountGetTaxUSPayerNameSource (account), ==, "unset");
+
+    xaccAccountSetTaxUSPayerNameSource (account, nullptr);
+    g_assert_cmpstr (xaccAccountGetTaxUSPayerNameSource (account), ==, nullptr);
+
     // filter getter/setter
     g_assert_cmpstr (xaccAccountGetFilter (account), ==, nullptr);
 
@@ -1161,6 +1230,79 @@ test_gnc_account_kvp_setters_getters (Fixture *fixture, gconstpointer pData)
 
     xaccAccountSetNotes (account, nullptr);
     g_assert_cmpstr (xaccAccountGetNotes (account), ==, nullptr);
+
+    // STOCK_ACCOUNT tests from now on
+    xaccAccountSetType (account, ACCT_TYPE_STOCK);
+
+    // dxaccAccountGetPriceSrc getter/setter
+    g_assert_cmpstr (dxaccAccountGetPriceSrc (account), ==, nullptr);
+
+    dxaccAccountSetPriceSrc (account, "boo");
+    g_assert_cmpstr (dxaccAccountGetPriceSrc (account), ==, "boo");
+
+    dxaccAccountSetPriceSrc (account, "");
+    g_assert_cmpstr (dxaccAccountGetPriceSrc (account), ==, "");
+
+    dxaccAccountSetPriceSrc (account, nullptr);
+    g_assert_cmpstr (dxaccAccountGetPriceSrc (account), ==, nullptr);
+
+    // dxaccAccountGetQuoteTZ getter/setter
+    g_assert_cmpstr (dxaccAccountGetQuoteTZ (account), ==, nullptr);
+
+    dxaccAccountSetQuoteTZ (account, "boo");
+    g_assert_cmpstr (dxaccAccountGetQuoteTZ (account), ==, "boo");
+
+    dxaccAccountSetQuoteTZ (account, "");
+    g_assert_cmpstr (dxaccAccountGetQuoteTZ (account), ==, "");
+
+    dxaccAccountSetQuoteTZ (account, nullptr);
+    g_assert_cmpstr (dxaccAccountGetQuoteTZ (account), ==, nullptr);
+
+    xaccAccountBeginEdit (account);
+    xaccAccountDestroy (account);
+}
+
+static void
+set_kvp_string_path (Account *acc, std::vector<std::string> const & path,
+                     const char *value)
+{
+    xaccAccountBeginEdit(acc);
+    if (value)
+    {
+        GValue v = G_VALUE_INIT;
+        g_value_init (&v, G_TYPE_STRING);
+        g_value_set_string (&v, value);
+        qof_instance_set_path_kvp (QOF_INSTANCE (acc), &v, path);
+        g_value_unset (&v);
+    }
+    else
+        qof_instance_set_path_kvp (QOF_INSTANCE (acc), NULL, path);
+
+    xaccAccountCommitEdit(acc);
+}
+
+static void
+test_gnc_account_get_map_entry (Fixture *fixture, gconstpointer pData)
+{
+    Account *account = xaccMallocAccount (gnc_account_get_book (fixture->acct));
+
+    g_assert_cmpstr (gnc_account_get_map_entry (account, "one", NULL), ==, nullptr);
+    g_assert_cmpstr (gnc_account_get_map_entry (account, "one", "two"), ==, nullptr);
+
+    set_kvp_string_path (account, {"one"}, "uno");
+    g_assert_cmpstr (gnc_account_get_map_entry (account, "one", NULL), ==, "uno");
+    g_assert_cmpstr (gnc_account_get_map_entry (account, "one", "two"), ==, nullptr);
+
+    set_kvp_string_path (account, {"one", "two"}, "dos");
+    g_assert_cmpstr (gnc_account_get_map_entry (account, "one", "tw0"), ==, nullptr);
+    g_assert_cmpstr (gnc_account_get_map_entry (account, "one", "two"), ==, "dos");
+
+    set_kvp_string_path (account, {"one"}, nullptr);
+    g_assert_cmpstr (gnc_account_get_map_entry (account, "one", NULL), ==, nullptr);
+    g_assert_cmpstr (gnc_account_get_map_entry (account, "one", "two"), ==, nullptr);
+
+    set_kvp_string_path (account, {"one", "two"}, "dos");
+    g_assert_cmpstr (gnc_account_get_map_entry (account, "one", "two"), ==, "dos");
 
     xaccAccountBeginEdit (account);
     xaccAccountDestroy (account);
@@ -1758,6 +1900,24 @@ test_gnc_account_lookup_by_name (Fixture *fixture, gconstpointer pData)
     g_free (code);
 
 }
+
+/* gnc_account_lookup_by_name
+Account *
+gnc_account_lookup_by_name_duplicated (const Account *parent, const char * name)
+ */
+static void
+test_gnc_account_lookup_by_name_duplicated (Fixture *fixture, gconstpointer pData)
+{
+    Account *root, *target;
+    gchar *code;
+    root = gnc_account_get_root (fixture->acct);
+    target = gnc_account_lookup_by_name (root, "B");
+    g_assert (target != NULL);
+    g_object_get (target, "code", &code, NULL);
+    g_assert_cmpstr (code, == , "1B");
+    g_free (code);
+}
+
 /* gnc_account_lookup_by_code
 Account *
 gnc_account_lookup_by_code (const Account *parent, const char * code)// C: 5 in 3 */
@@ -2649,6 +2809,7 @@ test_suite_account (void)
 // GNC_TEST_ADD (suitename, "xaccAcctChildrenEqual", Fixture, NULL, setup, test_xaccAcctChildrenEqual,  teardown );
 // GNC_TEST_ADD (suitename, "xaccAccountEqual", Fixture, NULL, setup, test_xaccAccountEqual,  teardown );
     GNC_TEST_ADD (suitename, "gnc account kvp getters & setters", Fixture, NULL, setup, test_gnc_account_kvp_setters_getters,  teardown );
+    GNC_TEST_ADD (suitename, "test_gnc_account_get_map_entry", Fixture, NULL, setup, test_gnc_account_get_map_entry,  teardown );
     GNC_TEST_ADD (suitename, "gnc account insert & remove split", Fixture, NULL, setup, test_gnc_account_insert_remove_split,  teardown );
     GNC_TEST_ADD (suitename, "xaccAccount Insert and Remove Lot", Fixture, &good_data, setup, test_xaccAccountInsertRemoveLot,  teardown );
     GNC_TEST_ADD (suitename, "xaccAccountRecomputeBalance", Fixture, &some_data, setup, test_xaccAccountRecomputeBalance,  teardown );
@@ -2661,6 +2822,7 @@ test_suite_account (void)
     GNC_TEST_ADD (suitename, "gnc account get descendants", Fixture, &complex, setup, test_gnc_account_get_descendants,  teardown );
     GNC_TEST_ADD (suitename, "gnc account get descendants sorted", Fixture, &complex, setup, test_gnc_account_get_descendants_sorted,  teardown );
     GNC_TEST_ADD (suitename, "gnc account lookup by name", Fixture, &complex, setup, test_gnc_account_lookup_by_name,  teardown );
+    GNC_TEST_ADD (suitename, "gnc account lookup by name - duplicated", Fixture, &complex_duplicated, setup, test_gnc_account_lookup_by_name_duplicated,  teardown );
     GNC_TEST_ADD (suitename, "gnc account lookup by code", Fixture, &complex, setup, test_gnc_account_lookup_by_code,  teardown );
     GNC_TEST_ADD (suitename, "gnc account lookup by full name helper", Fixture, &complex, setup, test_gnc_account_lookup_by_full_name_helper,  teardown );
     GNC_TEST_ADD (suitename, "gnc account lookup by full name", Fixture, &complex, setup, test_gnc_account_lookup_by_full_name,  teardown );

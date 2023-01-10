@@ -355,6 +355,17 @@ xaccAccountScrubImbalance (Account *acc, QofPercentageFunc percentagefunc)
     gint split_count = 0, curr_split_no = 0;
 
     if (!acc) return;
+    /* If it's a trading account and an imbalanced transaction is
+     * found the trading splits will be replaced, invalidating the
+     * split list in mid-traversal, see
+     * https://bugs.gnucash.org/show_bug.cgi?id=798346. Also the
+     * transactions will get scrubbed at least twice from their "real"
+     * accounts anyway so doing so from the trading accounts is wasted
+     * effort.
+     */
+    if (xaccAccountGetType(acc) == ACCT_TYPE_TRADING)
+         return;
+
     scrub_depth++;
 
     str = xaccAccountGetName(acc);
@@ -612,7 +623,7 @@ gnc_transaction_get_commodity_imbalance (Transaction *trans,
 
 /* GFunc wrapper for xaccSplitDestroy */
 static void
-destroy_split (void* ptr, void* data)
+destroy_split (void* ptr)
 {
     Split *split = GNC_SPLIT (ptr);
     if (split)
@@ -642,7 +653,10 @@ xaccTransClearTradingSplits (Transaction *trans)
         return;
 
     xaccTransBeginEdit (trans);
-    g_list_foreach (trading_splits, destroy_split, NULL);
+    /* destroy_splits doesn't actually free the splits but this gets
+     * the list itself freed.
+     */
+    g_list_free_full (trading_splits, destroy_split);
     xaccTransCommitEdit (trans);
 }
 
@@ -786,11 +800,8 @@ xaccTransScrubImbalance (Transaction *trans, Account *root,
 
     ENTER ("()");
 
-    /* Must look for orphan splits and remove trading splits even if
-     * there is no imbalance and we're not using trading accounts.
-     */
+    /* Must look for orphan splits even if there is no imbalance. */
     xaccTransScrubSplits (trans);
-    xaccTransClearTradingSplits (trans);
 
     /* Return immediately if things are balanced. */
     if (xaccTransIsBalanced (trans))
@@ -802,10 +813,11 @@ xaccTransScrubImbalance (Transaction *trans, Account *root,
     if (! xaccTransUseTradingAccounts (trans))
     {
         gnc_transaction_balance_no_trading (trans, root, account);
-        LEAVE ("transaction balanced, no trading accounts");
+        LEAVE ("transaction balanced, no managed trading accounts");
         return;
     }
 
+    xaccTransClearTradingSplits (trans);
     imbalance = xaccTransGetImbalanceValue (trans);
     if (! gnc_numeric_zero_p (imbalance))
     {

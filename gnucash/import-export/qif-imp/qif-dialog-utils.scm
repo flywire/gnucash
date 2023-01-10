@@ -724,6 +724,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define (qif-dialog:default-namespace qif-symbol qif-type prefs)
 
+  (define (currency_ns? ns)
+    (or (string=? (GNC-COMMODITY-NS-CURRENCY) ns)
+        (string=? (GNC-COMMODITY-NS-LEGACY) ns)
+        (string=? (GNC-COMMODITY-NS-ISO) ns)))
+
   ;; Guess a namespace based on the symbol alone.
   (define (guess-by-symbol s)
     (if (string? s)
@@ -736,58 +741,22 @@
                           ;; compatible with the QIF type?
                           (and (string=? s (caddr elt))
                                (not (and (string? qif-type)
-                                         (string=? GNC_COMMODITY_NS_MUTUAL
-                                                   (cadr elt))
+                                         (not (currency_ns? (cadr elt)))
                                          (or (string-ci=? qif-type "stock")
-                                             (string-ci=? qif-type "etf"))))))
+                                             (string-ci=? qif-type "etf")
+                                             (string-ci=? qif-type "mutual fund")
+                                             (string-ci=? qif-type "index"))))))
                         prefs)
                    #f)))
-        (cond
-          ;; If a preferences match was found, use its namespace.
-          (pref-match
-           (cadr pref-match))
+        ;; If a preferences match was found, use its namespace,
+        ;; otherwise the default non-currency namespace.
+        (if pref-match
+             (cadr pref-match)
+             (GNC-COMMODITY-NS-NONCURRENCY)))
+      ;; There's no symbol. Use the built-in default.
+      (GNC-COMMODITY-NS-NONCURRENCY)))
 
-          ;; Guess NYSE for symbols of 1-3 characters.
-          ((< l 4)
-           GNC_COMMODITY_NS_NYSE)
-
-          ;; Guess NYSE for symbols of 1-3 characters
-          ;; followed by a dot and 1-2 characters.
-          ((and d
-                (< l 7)
-                (< 0 d 4)
-                (<= 2 (- l d) 3))
-           GNC_COMMODITY_NS_NYSE)
-
-          ;; Guess NASDAQ for symbols of 4 characters.
-          ((= l 4)
-           GNC_COMMODITY_NS_NASDAQ)
-
-          ;; Otherwise it's probably a fund.
-          (else
-           GNC_COMMODITY_NS_MUTUAL)))
-      ;; There's no symbol. Default to a fund.
-      GNC_COMMODITY_NS_MUTUAL))
-
-  ;; Was a QIF type given?
-  (if (string? qif-type)
-     ;; Yes. We might be able to definitely determine the namespace.
-     (cond
-       ;; Mutual fund
-       ((string-ci=? qif-type "mutual fund")
-        GNC_COMMODITY_NS_MUTUAL)
-
-       ;; Index
-       ((string-ci=? qif-type "index")
-        ;; This QIF type must be wrong; indexes aren't tradable!
-        GNC_COMMODITY_NS_MUTUAL)
-
-       (else
-        (guess-by-symbol qif-symbol)))
-
-     ;; No QIF type was given, so guess a
-     ;; default namespace by symbol alone.
-     (guess-by-symbol qif-symbol)))
+  (guess-by-symbol qif-symbol))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -848,6 +817,7 @@
                          (set! qif-symbol security-name))
 
                      ;; Create the new security and add it to the hash table.
+
                      (hash-set! security-hash
                                 security-name
                                 (gnc-commodity-new book

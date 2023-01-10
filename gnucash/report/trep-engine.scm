@@ -94,6 +94,7 @@
 ;;General
 (define optname-startdate (N_ "Start Date"))
 (define optname-enddate (N_ "End Date"))
+(define optname-date-source (N_ "Date Filter"))
 (define optname-table-export (N_ "Table for Exporting"))
 (define optname-infobox-display (N_ "Add options summary"))
 
@@ -109,6 +110,8 @@
 (define optname-account-matcher (N_ "Account Name Filter"))
 (define optname-account-matcher-regex
   (N_ "Use regular expressions for account name filter"))
+(define optname-account-matcher-exclude
+  (N_ "Account Name Filter excludes matched strings"))
 (define optname-transaction-matcher (N_ "Transaction Filter"))
 (define optname-transaction-matcher-regex
   (N_ "Use regular expressions for transaction filter"))
@@ -467,18 +470,28 @@ in the Options panel."))
          str)
         (display #\" port))))
 
-  (define max-items (apply max (map length lst)))
+  (define max-items
+    (let lp ((lst lst) (maximum 0))
+      (cond
+       ((null? lst) maximum)
+       ((pair? lst) (lp (cdr lst) (max maximum (length (car lst)))))
+       (else (error "strify " lst " must be a proper list")))))
 
   (define (strify obj)
     (cond
-     ((not obj) "")
+     ((or (null? obj) (not obj)) "")
      ((string? obj) (string-sanitize-csv obj))
      ((number? obj) (number->string (exact->inexact obj)))
-     ((list? obj) (string-join
-                   (map strify
-                        (append obj
-                                (make-list (- max-items (length obj)) #f)))
-                   ","))
+     ((pair? obj) (let lp ((row obj) (acc '()) (pad max-items))
+                    (cond
+                     ((zero? pad) (string-concatenate-reverse acc))
+                     ((null? row) (lp '() (cons "," acc) (1- pad)))
+                     ((pair? row) (lp (cdr row)
+                                      (cons* (if (pair? (cdr row)) "," "")
+                                             (strify (car row))
+                                             acc)
+                                      (1- pad)))
+                     (else (error "strify " obj " must be a proper list")))))
      ((gnc:gnc-monetary? obj) (strify (gnc:gnc-monetary-amount obj)))
      (else (object->string obj))))
 
@@ -510,6 +523,15 @@ in the Options panel."))
 
   (gnc:options-add-date-interval!
    options gnc:pagename-general optname-startdate optname-enddate "a")
+
+  (gnc:register-trep-option
+   (gnc:make-multichoice-option
+    gnc:pagename-general optname-date-source
+    "a5" (G_ "Specify date to filter by...")
+    'posted
+    (list (vector 'posted (G_ "Date Posted"))
+          (vector 'reconciled (G_ "Reconciled Date"))
+          (vector 'entered (G_ "Date Entered")))))
 
   (gnc:register-trep-option
    (gnc:make-complex-boolean-option
@@ -573,6 +595,12 @@ Expenses:Car and Expenses:Flights. Use a period (.) to match a single character 
     #f))
 
   (gnc:register-trep-option
+   (gnc:make-simple-boolean-option
+    pagename-filter optname-account-matcher-exclude "a7"
+    (G_ "If this option is selected, accounts matching filter are excluded.")
+    #f))
+
+  (gnc:register-trep-option
    (gnc:make-string-option
     pagename-filter optname-transaction-matcher
     "i1" (G_ "Show only transactions where description, notes, or memo matches this filter.
@@ -586,7 +614,7 @@ blank, which will disable the filter.")
     "i2"
     (G_ "By default the transaction filter will search substring only. Set this to true to \
 enable full POSIX regular expressions capabilities. '#work|#family' will match both \
-tags within description, notes or memo. ")
+tags within description, notes or memo.")
     #f))
 
   (gnc:register-trep-option
@@ -914,6 +942,7 @@ be excluded from periodic reporting.")
      (list
       (list (N_ "Date")                         "a"  (G_ "Display the date?") #t)
       (list (N_ "Reconciled Date")              "a2" (G_ "Display the reconciled date?") #f)
+      (list (N_ "Date Entered")                 "a3" (G_ "Display the entered date?") #f)
       (if BOOK-SPLIT-ACTION
           (list (N_ "Num/Action")               "b"  (G_ "Display the check number?") #t)
           (list (N_ "Num")                      "b"  (G_ "Display the check number?") #t))
@@ -944,8 +973,7 @@ be excluded from periodic reporting.")
     (gnc:register-trep-option
      (gnc:make-complex-boolean-option
       gnc:pagename-display (N_ "Memo")
-      "d"  (G_ "Display the memo?") disp-memo?
-      disp-memo?
+      "d"  (G_ "Display the memo?") disp-memo? #f
       (lambda (x)
         (set! disp-memo? x)
         (apply-selectable-by-name-display-options))))
@@ -954,8 +982,7 @@ be excluded from periodic reporting.")
     (gnc:register-trep-option
      (gnc:make-complex-boolean-option
       gnc:pagename-display (N_ "Account Name")
-      "e"  (G_ "Display the account name?") disp-accname?
-      disp-accname?
+      "e"  (G_ "Display the account name?") disp-accname? #f
       (lambda (x)
         (set! disp-accname? x)
         (apply-selectable-by-name-display-options))))
@@ -964,8 +991,7 @@ be excluded from periodic reporting.")
     (gnc:register-trep-option
      (gnc:make-complex-boolean-option
       gnc:pagename-display (N_ "Other Account Name")
-      "h5"  (G_ "Display the other account name? (if this is a split transaction, this parameter is guessed).") disp-other-accname?
-      disp-other-accname?
+      "h5"  (G_ "Display the other account name? (if this is a split transaction, this parameter is guessed).") disp-other-accname? #f
       (lambda (x)
         (set! disp-other-accname? x)
         (apply-selectable-by-name-display-options))))
@@ -1038,6 +1064,7 @@ be excluded from periodic reporting.")
     (define amount-setting (opt-val gnc:pagename-display (N_ "Amount")))
     (list (cons 'date (opt-val gnc:pagename-display (N_ "Date")))
           (cons 'reconciled-date (opt-val gnc:pagename-display (N_ "Reconciled Date")))
+          (cons 'entered (opt-val gnc:pagename-display (N_ "Date Entered")))
           (cons 'num (if BOOK-SPLIT-ACTION
                          (opt-val gnc:pagename-display (N_ "Num/Action"))
                          (opt-val gnc:pagename-display (N_ "Num"))))
@@ -1139,6 +1166,15 @@ be excluded from periodic reporting.")
                                        (qof-print-date
                                         (xaccTransGetDate
                                          (xaccSplitGetParent split))))))))
+
+               (add-if (column-uses? 'entered)
+                       (vector (G_ "Date Entered")
+                               (lambda (split transaction-row?)
+                                 (and transaction-row?
+                                      (gnc:make-html-table-cell/markup
+                                       "date-cell" (qof-print-date
+                                                    (xaccTransRetDateEntered
+                                                     (xaccSplitGetParent split))))))))
 
                (add-if (column-uses? 'reconciled-date)
                        (vector (G_ "Reconciled Date")
@@ -1280,17 +1316,13 @@ be excluded from periodic reporting.")
                                              (opt-val pagename-currency
                                                       optname-currency)))
                                     ""))))
-           ;; For conversion to row-currency. Use midday as the
-           ;; transaction time so it matches a price on the same day.
-           ;; Otherwise it uses midnight which will likely match a
-           ;; price on the previous day
+           ;; For conversion to row-currency.
            (converted-amount (lambda (s)
                                (exchange-fn
                                 (gnc:make-gnc-monetary (split-currency s)
                                                        (split-amount s))
                                 (row-currency s)
-                                (time64CanonicalDayTime
-                                 (xaccTransGetDate (xaccSplitGetParent s))))))
+                                (xaccTransGetDate (xaccSplitGetParent s)))))
            (converted-debit-amount (lambda (s) (and (positive? (split-amount s))
                                                     (converted-amount s))))
            (converted-credit-amount (lambda (s)
@@ -1842,25 +1874,22 @@ be excluded from periodic reporting.")
    (lambda (cell)
      (cell-match? cell row col))
    grid))
-(define (grid-del grid row col)
-  ;; grid filter - del all row/col - if #f then delete whole row/col
-  (filter
-   (lambda (cell)
-     (not (cell-match? cell row col)))
-   grid))
 (define (grid-rows grid)
   (delete-duplicates (map (lambda (cell) (vector-ref cell 0)) grid)))
 (define (grid-cols grid)
   (delete-duplicates (map (lambda (cell) (vector-ref cell 1)) grid)))
 (define (grid-add grid row col data)
-  ;;misonomer - we don't 'add' to existing data, we delete old data
-  ;;stored at row/col and add again. this is fine because the grid
-  ;;should never have duplicate data in the trep.
-  (set! grid (grid-del grid row col))
-  (set! grid (cons (vector row col data) grid))
-  grid)
-(define (grid->html-table grid list-of-rows list-of-cols)
-  (define row-average-enabled? (> (length list-of-cols) 1))
+  ;; we don't need to check for duplicate cells in a row/col because
+  ;; in the trep it should never happen.
+  (cons (vector row col data) grid))
+(define (grid->html-table grid)
+  (define (<? a b)
+    (cond ((string? (car a)) (gnc:string-locale<? (car a) (car b)))
+          ((number? (car a)) (< (car a) (car b)))
+          (else (gnc:error "unknown sortvalue"))))
+  (define list-of-rows (sort (delete 'row-total (grid-rows grid)) <?))
+  (define list-of-cols (sort (delete 'col-total (grid-cols grid)) <?))
+  (define row-average-enabled? (and (pair? list-of-cols) (pair? (cdr list-of-cols))))
   (define (monetary-div monetary divisor)
     (and monetary
          (let* ((amount (gnc:gnc-monetary-amount monetary))
@@ -1933,7 +1962,8 @@ be excluded from periodic reporting.")
   ;; #:empty-report-message - a str or html-object displayed at the initial run
   ;; #:custom-split-filter - a split->bool function to add to the split filter
   ;; #:split->date - a split->time64 which overrides the default posted date filter
-  ;;     (see reconcile report)
+  ;;     if a derived report specifies this, the Date Filter option
+  ;;     becomes unused and should be hidden via gnc:option-make-internal!
   ;; #:split->date-include-false? - addendum to above, specifies filter behaviour if
   ;;     split->date returns #f. useful to include unreconciled splits in reconcile
   ;;     report. it can be useful for alternative date filtering, e.g. filter by
@@ -1965,6 +1995,7 @@ warning will be removed in GnuCash 5.0"))
 
   (let* ((document (gnc:make-html-document))
          (account-matcher (opt-val pagename-filter optname-account-matcher))
+         (account-matcher-neg (opt-val pagename-filter optname-account-matcher-exclude))
          (account-matcher-regexp
           (and (opt-val pagename-filter optname-account-matcher-regex)
                (if (defined? 'make-regexp)
@@ -1974,14 +2005,16 @@ warning will be removed in GnuCash 5.0"))
                    'no-guile-regex-support)))
          (c_account_0 (or custom-source-accounts
                           (opt-val gnc:pagename-accounts optname-accounts)))
-         (c_account_1 (filter
-                       (lambda (acc)
-                         (if (regexp? account-matcher-regexp)
-                             (regexp-exec account-matcher-regexp
-                                          (gnc-account-get-full-name acc))
-                             (string-contains (gnc-account-get-full-name acc)
-                                              account-matcher)))
-                       c_account_0))
+         (acct? (lambda (acc)
+                  (if (regexp? account-matcher-regexp)
+                      (regexp-exec account-matcher-regexp
+                                   (gnc-account-get-full-name acc))
+                      (string-contains (gnc-account-get-full-name acc)
+                                       account-matcher))))
+         (c_account_1 (if (string-null? account-matcher)
+                          c_account_0
+                          (filter (if account-matcher-neg (negate acct?) acct?)
+                                  c_account_0)))
          (c_account_2 (opt-val gnc:pagename-accounts optname-filterby))
          (filter-mode (opt-val gnc:pagename-accounts optname-filtertype))
          (begindate (gnc:time64-start-day-time
@@ -1990,6 +2023,9 @@ warning will be removed in GnuCash 5.0"))
          (enddate (gnc:time64-end-day-time
                    (gnc:date-option-absolute-time
                     (opt-val gnc:pagename-general optname-enddate))))
+         (date-source (if split->date
+                          'custom
+                          (opt-val gnc:pagename-general optname-date-source)))
          (transaction-matcher (opt-val pagename-filter optname-transaction-matcher))
          (transaction-filter-case-insensitive?
           (opt-val pagename-filter optname-transaction-matcher-caseinsensitive))
@@ -2132,7 +2168,7 @@ warning will be removed in GnuCash 5.0"))
       (qof-query-set-book query (gnc-get-current-book))
       (xaccQueryAddAccountMatch query c_account_1 QOF-GUID-MATCH-ANY QOF-QUERY-AND)
       (xaccQueryAddClearedMatch query cleared-filter QOF-QUERY-AND)
-      (unless split->date
+      (when (eq? date-source 'posted)
         (xaccQueryAddDateMatchTT query #t begindate #t enddate QOF-QUERY-AND))
       (when (boolean? closing-match)
         (xaccQueryAddClosingTransMatch query closing-match QOF-QUERY-AND))
@@ -2161,11 +2197,19 @@ warning will be removed in GnuCash 5.0"))
         (filter
          (lambda (split)
            (let* ((trans (xaccSplitGetParent split)))
-             (and (or (not split->date)
-                      (let ((date (split->date split)))
+             (and (case date-source
+                    ((posted) #t)
+                    ((reconciled)
+                     (if (char=? (xaccSplitGetReconcile split) #\y)
+                         (<= begindate (xaccSplitGetDateReconciled split) enddate)
+                         #t))
+                    ((entered) (<= begindate (xaccTransRetDateEntered trans) enddate))
+                    ((custom)
+                     (let ((date (split->date split)))
                         (if date
                             (<= begindate date enddate)
                             split->date-include-false?)))
+                    (else (gnc:warn "invalid date-source" date-source) #t))
                   (case filter-mode
                     ((none) #t)
                     ((include) (is-filter-member split c_account_2))
@@ -2222,19 +2266,7 @@ warning will be removed in GnuCash 5.0"))
              (gnc:html-render-options-changed options)))
 
           (when subtotal-table?
-            (let* ((generic<?
-                    (lambda (a b)
-                      (cond ((string? (car a)) (gnc:string-locale<? (car a) (car b)))
-                            ((number? (car a)) (< (car a) (car b)))
-                            (else (gnc:error "unknown sortvalue")))))
-                   (list-of-rows
-                    (stable-sort! (delete 'row-total (grid-rows grid))
-                                  generic<?))
-                   (list-of-cols
-                    (stable-sort! (delete 'col-total (grid-cols grid))
-                                  generic<?)))
-              (gnc:html-document-add-object!
-               document (grid->html-table grid list-of-rows list-of-cols))))
+            (gnc:html-document-add-object! document (grid->html-table grid)))
 
           (unless (and subtotal-table?
                        (opt-val pagename-sorting optname-show-subtotals-only))

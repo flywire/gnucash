@@ -132,7 +132,7 @@ GNC_DEFINE_TYPE_WITH_CODE(GncTreeView, gnc_tree_view, GTK_TYPE_TREE_VIEW,
                           G_ADD_PRIVATE(GncTreeView))
 
 #define GNC_TREE_VIEW_GET_PRIVATE(o)  \
-   ((GncTreeViewPrivate*)g_type_instance_get_private((GTypeInstance*)o, GNC_TYPE_TREE_VIEW))
+   ((GncTreeViewPrivate*)gnc_tree_view_get_instance_private((GncTreeView*)o))
 
 
 /************************************************************/
@@ -1037,13 +1037,17 @@ gnc_tree_view_set_state_section (GncTreeView *view,
             gchar *key = keys[idx];
             if (g_strcmp0 (key, STATE_KEY_SORT_COLUMN) == 0)
             {
-                gnc_tree_view_set_sort_column (view,
-                                               g_key_file_get_string (state_file, priv->state_section, key, NULL));
+                gchar *name = g_key_file_get_string (state_file, priv->state_section,
+                                                     key, NULL);
+                gnc_tree_view_set_sort_column (view, name);
+                g_free (name);
             }
             else if (g_strcmp0 (key, STATE_KEY_SORT_ORDER) == 0)
             {
-                gnc_tree_view_set_sort_order (view,
-                                              g_key_file_get_string (state_file, priv->state_section, key, NULL));
+                gchar *name = g_key_file_get_string (state_file, priv->state_section,
+                                                     key, NULL);
+                gnc_tree_view_set_sort_order (view, name);
+                g_free (name);
             }
             else if (g_strcmp0 (key, STATE_KEY_COLUMN_ORDER) == 0)
             {
@@ -2118,6 +2122,7 @@ gnc_tree_view_add_numeric_column (GncTreeView *view,
 {
     GtkTreeViewColumn *column;
     GtkCellRenderer *renderer;
+    gfloat alignment = 1.0;
 
     column = gnc_tree_view_add_text_column (view, column_title, pref_name,
                                             NULL, sizing_text, model_data_column,
@@ -2126,9 +2131,12 @@ gnc_tree_view_add_numeric_column (GncTreeView *view,
 
     renderer = gnc_tree_view_column_get_renderer (column);
 
-    /* Right align the column title and data */
-    g_object_set (G_OBJECT(column), "alignment",   1.0, NULL);
-    g_object_set (G_OBJECT(renderer), "xalign",   1.0, NULL);
+    /* Right align the column title and data for both ltr and rtl */
+    if (gtk_widget_get_direction (GTK_WIDGET(view)) == GTK_TEXT_DIR_RTL)
+        alignment = 0.0;
+
+    g_object_set (G_OBJECT(column), "alignment", alignment, NULL);
+    g_object_set (G_OBJECT(renderer), "xalign", alignment, NULL);
 
     /* Change the text color */
     if (model_color_column != GNC_TREE_VIEW_COLUMN_COLOR_NONE)
@@ -2150,13 +2158,7 @@ gint
 gnc_tree_view_append_column (GncTreeView *view,
                              GtkTreeViewColumn *column)
 {
-    GList *columns;
-    int n;
-
-    /* There's no easy way to get this number. */
-    columns = gtk_tree_view_get_columns (GTK_TREE_VIEW(view));
-    n = g_list_length (columns);
-    g_list_free (columns);
+    int n = gtk_tree_view_get_n_columns (GTK_TREE_VIEW(view));
 
     /* Ignore the initial column, the selection menu */
     if (n >= 1)
@@ -2173,7 +2175,7 @@ get_column_next_to (GtkTreeView *tv, GtkTreeViewColumn **col, gboolean backward)
     gboolean wrapped = FALSE;
 
     cols = gtk_tree_view_get_columns (tv);
-    g_return_val_if_fail (g_list_length (cols) > 0, FALSE);
+    g_return_val_if_fail (cols != NULL, FALSE);
 
     node = g_list_find (cols, *col);
     g_return_val_if_fail (node, FALSE);

@@ -142,7 +142,7 @@
 .invoice-notes { margin-top: 20px }
 .entries-table > table { min-width: 600px }"))))
 
-   (cons 'fancy-invoice (list (cons '1a 'company)
+   (cons 'fancy-invoice (list (cons '1a 'none)
                               (cons '1b 'invoice)
                               (cons '2a 'client)
                               (cons '2b 'company)
@@ -286,8 +286,6 @@ for styling the invoice. Please see the exported report for the CSS class names.
    (gnc:make-simple-boolean-option
     (N_ "Display") (N_ "Use Detailed Tax Summary")
     "o" (N_ "Display all tax categories separately (one per line) instead of one single tax line.?") #f))
-
-  (gnc:register-inv-option (gnc:make-internal-option "Display" "Totals" #t))
 
   (gnc:register-inv-option
    (gnc:make-simple-boolean-option
@@ -449,7 +447,9 @@ for styling the invoice. Please see the exported report for the CSS class names.
           (addif (quantity-col used-columns)
                  (gnc:make-html-table-cell/markup
                   "number-cell"
-                  (gncEntryGetDocQuantity entry credit-note?)))
+                  (xaccPrintAmount
+                   (gncEntryGetDocQuantity entry credit-note?)
+                   (gnc-default-print-info #f))))
 
           (addif (price-col used-columns)
                  (gnc:make-html-table-cell/markup

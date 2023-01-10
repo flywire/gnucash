@@ -67,6 +67,7 @@
   (test-begin "transaction.scm")
   (null-test)
   (trep-tests)
+  (csv-tests)
   (reconcile-tests)
   ;; (test-end) must be run as the last function, it will
   ;; return #f if any of the tests have failed.
@@ -330,6 +331,21 @@
           '("$31.00")
           (get-row-col sxml -1 -1)))
 
+      ;; Filter Account Name Filters
+      (set-option! options "Filter" "Account Name Filter excludes matched strings"
+                   #t)
+      (let ((sxml (options->sxml options "accounts filter exclude expen.es regex")))
+        (test-equal "account name filter to 'expen.es, regex, negated', sum = -$31.00"
+          '("-$31.00")
+          (get-row-col sxml -1 -1)))
+
+      (set-option! options "Filter" "Use regular expressions for account name filter"
+                   #f)
+      (let ((sxml (options->sxml options "accounts filter exclude expen.es")))
+        (test-equal "account name filter to 'expen.es, negated', sum = $0.00"
+          '("$0.00")
+          (get-row-col sxml -1 -1)))
+
       ;; Test Transaction Filters
       (set! options (default-testing-options))
       (set-option! options "General" "Start Date" (cons 'absolute (gnc-dmy2time64 01 01 1969)))
@@ -378,19 +394,19 @@
       (set! options (default-testing-options))
       (set-option! options "General" "Start Date" (cons 'absolute (gnc-dmy2time64 01 01 1969)))
       (set-option! options "General" "End Date" (cons 'absolute (gnc-dmy2time64 31 12 1970)))      
-      (set-option! options "Filter" "Reconcile Status" 'unreconciled)
+      (set-option! options "Filter" "Reconciled Status" 'unreconciled)
       (let ((sxml (options->sxml options "unreconciled")))
         (test-equal "filter unreconciled only, sum = -$20.00"
           '("-$20.00")
           (get-row-col sxml -1 -1)))
 
-      (set-option! options "Filter" "Reconcile Status" 'cleared)
+      (set-option! options "Filter" "Reconciled Status" 'cleared)
       (let ((sxml (options->sxml options "cleared")))
         (test-equal "filter cleared only, sum = $29.00"
           '("$29.00")
           (get-row-col sxml -1 -1)))
 
-      (set-option! options "Filter" "Reconcile Status" 'reconciled)
+      (set-option! options "Filter" "Reconciled Status" 'reconciled)
       (let ((sxml (options->sxml options "reconciled")))
         (test-equal "filter reconciled only, sum = -$8.00"
           '("-$8.00")
@@ -894,7 +910,7 @@
                    (cons 'absolute (gnc-dmy2time64 31 12 1970)))
       (set-option! options "Display" "Subtotal Table" #t)
       (set-option! options "Currency" "Common Currency" #t)
-      (set-option! options "Currency" "Report Currency" foreign2)
+      (set-option! options "Currency" "Report's currency" foreign2)
       (set-option! options "Currency" "Show original currency amount" #t)
       (set-option! options "Sorting" "Primary Key" 'account-name)
       (set-option! options "Sorting" "Primary Subtotal" #t)
@@ -912,6 +928,30 @@
           "\"from\",\"1969-01-01\"\n\"to\",\"1970-12-31\"\n\"Amount (GBP)\",2.15\n\"Amount\",3.0"
           (gnc:html-document-export-string document))))
     (test-end "csv-export")))
+
+(define (csv-tests)
+  (test-begin "csv tests")
+  (test-equal "gnc:lists->csv empty"
+    ""
+    (gnc:lists->csv '(())))
+  (test-equal "gnc:lists->csv simple"
+    "\"from\",\"01/01/2010\""
+    (gnc:lists->csv
+     '(("from" "01/01/2010"))))
+  (test-equal "gnc:lists->csv complex"
+    "\"from\",\"01/01/2010\",,,
+\"to\",\"31/12/2010\",,,
+\"total\",23500.0,30000.0,3.5714285714285716,sym"
+    (gnc:lists->csv
+     '(("from" "01/01/2010")
+       ("to" "31/12/2010")
+       ("total" 23500 30000 25/7 sym))))
+  (test-error "gnc:lists->csv improper list"
+    (gnc:lists->csv
+     '(("from" "01/01/2010")
+       ("to" "31/12/2010")
+       ("total" 23500 30000 25/7 . sym))))
+  (test-end "csv tests"))
 
 (define (reconcile-tests)
   (let* ((env (create-test-env))

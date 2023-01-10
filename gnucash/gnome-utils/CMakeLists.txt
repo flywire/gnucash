@@ -8,7 +8,8 @@ gnc_add_swig_guile_command (swig-gnome-utils-c
     ${CMAKE_CURRENT_SOURCE_DIR}/gnome-utils.i ""
 )
 
-set (WARNINGS_SCHEMA ${DATADIR_BUILD}/glib-2.0/schemas/org.gnucash.warnings.gschema.xml)
+add_dependencies(swig-gnome-utils-c gnc-gnome-utils)
+set (WARNINGS_SCHEMA ${DATADIR_BUILD}/glib-2.0/schemas/org.gnucash.GnuCash.warnings.gschema.xml)
 set (GNC_WARNINGS_C ${CMAKE_CURRENT_BINARY_DIR}/gnc-warnings.c)
 set (GNC_WARNINGS_H ${CMAKE_CURRENT_BINARY_DIR}/gnc-warnings.h)
 
@@ -47,6 +48,7 @@ set (gnome_utils_SOURCES
   dialog-utils.c
   gnc-account-sel.c
   gnc-amount-edit.c
+  gnc-autoclear.c
   gnc-autosave.c
   gnc-cell-renderer-date.c
   gnc-cell-renderer-popup.c
@@ -138,6 +140,7 @@ set (gnome_utils_HEADERS
   dialog-utils.h
   gnc-account-sel.h
   gnc-amount-edit.h
+  gnc-autoclear.h
   gnc-cell-renderer-date.h
   gnc-cell-renderer-popup.h
   gnc-cell-renderer-popup-entry.h

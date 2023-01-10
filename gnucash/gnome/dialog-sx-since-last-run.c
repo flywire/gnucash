@@ -43,6 +43,7 @@
 #include "gnc-prefs.h"
 #include "gnc-ui.h"
 #include "gnc-ui-util.h"
+#include "gnc-glib-utils.h"
 #include "Query.h"
 #include "qof.h"
 #include "gnc-ledger-display.h"
@@ -807,22 +808,11 @@ gnc_sx_slr_tree_model_adapter_new (GncSxInstanceModel *instances)
 static void
 creation_error_dialog (GList **creation_errors)
 {
-    GList *node = *creation_errors;
     GtkWidget *dialog = NULL;
     gchar *message = NULL;
     if (*creation_errors == NULL) return;
-    for(; node != NULL; node = g_list_next (node))
-    {
-        gchar *new_msg = NULL;
-        if (message == NULL)
-            new_msg = g_strdup_printf ("%s", (gchar*)(node->data));
-        else
-            new_msg = g_strdup_printf ("%s\n%s", message, (gchar*)(node->data));
-        g_free (message);
-        message = new_msg;
-        g_free (node->data);
-    }
-    g_list_free (*creation_errors);
+    message = gnc_g_list_stringjoin (*creation_errors, "\n");
+    g_list_free_full (*creation_errors, g_free);
     creation_errors = NULL;
     dialog = gtk_message_dialog_new (NULL, 0,
                                      GTK_MESSAGE_ERROR, GTK_BUTTONS_CLOSE,
@@ -858,18 +848,22 @@ gnc_sx_sxsincelast_book_opened (void)
     gnc_sx_instance_model_effect_change (inst_model, TRUE, &auto_created_txns,
                                          &creation_errors);
 
+    if (auto_created_txns)
+        gnc_gui_refresh_all();
+
     if (summary.need_dialog)
     {
         gnc_ui_sx_since_last_run_dialog (gnc_ui_get_main_window (NULL), inst_model, auto_created_txns);
+        /* gnc_ui_sx_since_last_run_dialog now owns this list */
         auto_created_txns = NULL;
     }
     else
     {
-        if (summary.num_auto_create_no_notify_instances != 0)
-        {
-            if (!gnc_prefs_get_bool (GNC_PREFS_GROUP_STARTUP, GNC_PREF_SHOW_AT_FOPEN))
-                return;
+        g_list_free (auto_created_txns);
 
+        if (summary.num_auto_create_no_notify_instances != 0
+                && gnc_prefs_get_bool (GNC_PREFS_GROUP_STARTUP, GNC_PREF_SHOW_AT_FOPEN))
+        {
             gnc_info_dialog
             (gnc_ui_get_main_window (NULL),
              ngettext
@@ -881,8 +875,9 @@ gnc_sx_sxsincelast_book_opened (void)
               summary.num_auto_create_no_notify_instances);
         }
     }
-    g_list_free (auto_created_txns);
+
     g_object_unref (G_OBJECT(inst_model));
+
     if (creation_errors)
         creation_error_dialog (&creation_errors);
 }
@@ -938,7 +933,7 @@ variable_value_changed_cb (GtkCellRendererText *cell,
     gnc_numeric parsed_num;
     char *endStr = NULL;
 
-    g_debug ("variable to [%s] at path [%s]", value, path);
+    DEBUG ("variable to [%s] at path [%s]", value, path);
     if (!gtk_tree_model_get_iter_from_string (GTK_TREE_MODEL(dialog->editing_model), &tree_iter, path))
     {
         g_warning ("invalid path [%s]", path);
@@ -955,7 +950,7 @@ variable_value_changed_cb (GtkCellRendererText *cell,
             || gnc_numeric_check (parsed_num) != GNC_ERROR_OK)
     {
         gchar *value_copy = g_strdup (value);
-        g_debug ("value=[%s] endStr[%s]", value, endStr);
+        DEBUG ("value=[%s] endStr[%s]", value, endStr);
         if (strlen (g_strstrip (value_copy)) == 0)
         {
             gnc_numeric invalid_num = gnc_numeric_error (GNC_ERROR_ARG);
@@ -1130,6 +1125,7 @@ close_handler (gpointer user_data)
 
     gnc_save_window_size (GNC_PREFS_GROUP_STARTUP, GTK_WINDOW(app_dialog->dialog));
     gtk_widget_destroy (app_dialog->dialog);
+    g_free (app_dialog);
 }
 
 static void
@@ -1147,57 +1143,63 @@ dialog_response_cb (GtkDialog *dialog, gint response_id, GncSxSinceLastRunDialog
     GList* creation_errors = NULL;
     switch (response_id)
     {
+    case GTK_RESPONSE_HELP:
+        gnc_gnome_help (GTK_WINDOW(dialog), HF_HELP, HL_SX_SLR);
+        break;
+
     case GTK_RESPONSE_OK:
         // @@fixme validate current state(GError *errs);
         // - [ ] instance state constraints
         // - [x] required variable binding
         // - [?] ability to create transactions
-    {
-        GList *unbound_variables;
-        unbound_variables = gnc_sx_instance_model_check_variables (app_dialog->editing_model->instances);
-        g_message ("%d variables unbound", g_list_length (unbound_variables));
-        if (g_list_length (unbound_variables) > 0)
         {
-            // focus first variable
-            GncSxVariableNeeded *first_unbound;
-            GtkTreePath *variable_path;
-            GtkTreeViewColumn *variable_col;
-            gint variable_view_column = 2;
-            gboolean start_editing = TRUE;
+            GList *unbound_variables;
+            gint unbound_len;
+            unbound_variables = gnc_sx_instance_model_check_variables (app_dialog->editing_model->instances);
+            unbound_len = g_list_length (unbound_variables);
+            PINFO ("%d variables unbound", unbound_len);
+            if (unbound_len > 0)
+            {
+                // focus first variable
+                GncSxVariableNeeded *first_unbound;
+                GtkTreePath *variable_path;
+                GtkTreeViewColumn *variable_col;
+                gint variable_view_column = 2;
+                gboolean start_editing = TRUE;
 
-            first_unbound = (GncSxVariableNeeded*)unbound_variables->data;
-            variable_path = _get_path_for_variable (app_dialog->editing_model, first_unbound->instance, first_unbound->variable);
-            variable_col = gtk_tree_view_get_column (app_dialog->instance_view, variable_view_column);
+                first_unbound = (GncSxVariableNeeded*)unbound_variables->data;
+                variable_path = _get_path_for_variable (app_dialog->editing_model, first_unbound->instance, first_unbound->variable);
+                variable_col = gtk_tree_view_get_column (app_dialog->instance_view, variable_view_column);
 
-            gtk_tree_view_set_cursor (app_dialog->instance_view, variable_path, variable_col, start_editing);
+                gtk_tree_view_set_cursor (app_dialog->instance_view, variable_path, variable_col, start_editing);
 
-            gtk_tree_view_scroll_to_cell (app_dialog->instance_view, variable_path, variable_col,
-                                          TRUE, 0.5, 0.5);
+                gtk_tree_view_scroll_to_cell (app_dialog->instance_view, variable_path, variable_col,
+                                              TRUE, 0.5, 0.5);
 
-            gtk_tree_path_free (variable_path);
-            g_list_foreach (unbound_variables, (GFunc)g_free, NULL);
-            g_list_free (unbound_variables);
-            return;
+                gtk_tree_path_free (variable_path);
+                g_list_foreach (unbound_variables, (GFunc)g_free, NULL);
+                g_list_free (unbound_variables);
+                return;
+            }
         }
-    }
-    gnc_suspend_gui_refresh ();
-    gnc_sx_slr_model_effect_change (app_dialog->editing_model, FALSE, &app_dialog->created_txns, &creation_errors);
-    gnc_resume_gui_refresh ();
-    gnc_gui_refresh_all (); // force a refresh of all registers
-    if (creation_errors)
-        creation_error_dialog (&creation_errors);
+        gnc_suspend_gui_refresh ();
+        gnc_sx_slr_model_effect_change (app_dialog->editing_model, FALSE, &app_dialog->created_txns, &creation_errors);
+        gnc_resume_gui_refresh ();
+        gnc_gui_refresh_all (); // force a refresh of all registers
+        if (creation_errors)
+            creation_error_dialog (&creation_errors);
 
-    if (gtk_toggle_button_get_active (app_dialog->review_created_txns_toggle)
-            && g_list_length (app_dialog->created_txns) > 0)
-    {
-        _show_created_transactions (app_dialog, app_dialog->created_txns);
-    }
-    g_list_free (app_dialog->created_txns);
-    app_dialog->created_txns = NULL;
+        if (gtk_toggle_button_get_active (app_dialog->review_created_txns_toggle)
+                && g_list_length (app_dialog->created_txns) > 0)
+        {
+            _show_created_transactions (app_dialog, app_dialog->created_txns);
+        }
 
     /* FALL THROUGH */
     case GTK_RESPONSE_CANCEL:
     case GTK_RESPONSE_DELETE_EVENT:
+        g_list_free (app_dialog->created_txns);
+        app_dialog->created_txns = NULL;
         gnc_close_gui_component (app_dialog->component_id);
         break;
     default:

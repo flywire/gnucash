@@ -739,7 +739,10 @@ CsvImpPriceAssist::check_for_valid_filename ()
 {
     auto file_name = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER(file_chooser));
     if (!file_name || g_file_test (file_name, G_FILE_TEST_IS_DIR))
+    {
+        g_free (file_name);
         return false;
+    }
 
     auto filepath = gnc_uri_get_path (file_name);
     auto starting_dir = g_path_get_dirname (filepath);
@@ -1638,7 +1641,6 @@ void CsvImpPriceAssist::preview_refresh_table ()
     }
     gtk_tree_view_set_model (treeview, GTK_TREE_MODEL(store));
     gtk_tree_view_set_tooltip_column (treeview, PREV_COL_ERROR);
-    g_object_unref (store);
 
     /* Adjust treeview to go with the just created model. This consists of adding
      * or removing columns and resetting any parameters related to how
@@ -1647,9 +1649,7 @@ void CsvImpPriceAssist::preview_refresh_table ()
 
     /* Start with counting the current number of columns (ntcols)
      * we have in the treeview */
-    auto columns = gtk_tree_view_get_columns (treeview);
-    auto ntcols = g_list_length(columns);
-    g_list_free (columns);
+    auto ntcols = gtk_tree_view_get_n_columns (treeview);
 
     /* Drop redundant columns if the model has less data columns than the new model
      * ntcols = n° of columns in treeview (1 error column + x data columns)

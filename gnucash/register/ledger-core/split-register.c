@@ -1114,14 +1114,13 @@ gnc_split_register_change_blank_split_ref (SplitRegister* reg, Split* split)
                                                   gnc_get_current_book ());
     Split* pref_split = NULL; // has the same account as incoming split
     Split* other_split = NULL; // other split
-    Split* s;
     Account* blank_split_account = xaccSplitGetAccount (current_blank_split);
     Transaction* trans = xaccSplitGetParent (split);
-    int i = 0;
 
     // loop through splitlist looking for splits other than the blank_split
-    while ((s = xaccTransGetSplit (trans, i)) != NULL)
+    for (GList *n = xaccTransGetSplitList (trans); n; n = n->next)
     {
+        Split *s = n->data;
         if (s != current_blank_split)
         {
             if (blank_split_account == xaccSplitGetAccount (s))
@@ -1129,7 +1128,6 @@ gnc_split_register_change_blank_split_ref (SplitRegister* reg, Split* split)
             else
                 other_split = s; // any other split
         }
-        i++;
     }
     // now change the saved blank split reference
     if (pref_split != NULL)
@@ -1492,7 +1490,7 @@ gnc_split_register_save_to_copy_buffer (SplitRegister *reg,
 
     /* use the changed flag to avoid heavy-weight updates
      * of the split & transaction fields. This will help
-     * cut down on unneccessary register redraws. */
+     * cut down on unnecessary register redraws. */
     if (!gnc_table_current_cursor_changed (reg->table, FALSE))
         return FALSE;
 

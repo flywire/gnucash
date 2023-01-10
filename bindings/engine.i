@@ -131,8 +131,6 @@ functions. */
 %newobject gnc_localtime;
 %newobject gnc_gmtime;
 
-%newobject gnc_budget_get_account_period_note;
-
 /* Parse the header file to generate wrappers */
 %inline {
   static QofIdType QOF_ID_BOOK_SCM (void) { return QOF_ID_BOOK; }
@@ -243,16 +241,11 @@ time64 time64CanonicalDayTime(time64 t);
   {
     SCM key_scm = SCM_CAR (path_scm);
     char *key;
-    gchar* gkey;
-
     if (!scm_is_string (key_scm))
       break;
 
     key = scm_to_locale_string (key_scm);
-    gkey = g_strdup (key);
-    free (key);
-
-    path = g_list_prepend (path, gkey);
+    path = g_list_prepend (path, key);
 
     path_scm = SCM_CDR (path_scm);
   }
@@ -462,13 +455,10 @@ void qof_book_set_string_option(QofBook* book, const char* opt_name, const char*
     {
         SCM key_scm = SCM_CAR (path_scm);
         char *key;
-        gchar* gkey;
         if (!scm_is_string (key_scm))
             break;
         key = scm_to_locale_string (key_scm);
-        gkey = g_strdup (key);
-        free (key);
-        path = g_list_prepend (path, gkey);
+        path = g_list_prepend (path, key);
         path_scm = SCM_CDR (path_scm);
     }
     $1 = g_list_reverse (path);

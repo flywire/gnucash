@@ -817,6 +817,8 @@ gnucash_sheet_finalize (GObject *object)
     g_hash_table_destroy (sheet->cursor_styles);
     g_hash_table_destroy (sheet->dimensions_hash_table);
 
+    g_object_unref (sheet->cursor);
+
     if (G_OBJECT_CLASS(sheet_parent_class)->finalize)
         (*G_OBJECT_CLASS(sheet_parent_class)->finalize)(object);
 }
@@ -1362,12 +1364,22 @@ gnucash_sheet_button_release_event (GtkWidget *widget, GdkEventButton *event)
     return TRUE;
 }
 
+static float
+clamp_scrollable_value (float value, GtkAdjustment* adj)
+{
+    float lower = gtk_adjustment_get_lower (adj);
+    float upper = gtk_adjustment_get_upper (adj);
+    float size = gtk_adjustment_get_page_size (adj);
+    return CLAMP(value, lower, upper - size);
+
+}
 static gboolean
 gnucash_scroll_event (GtkWidget *widget, GdkEventScroll *event)
 {
     GnucashSheet *sheet;
     GtkAdjustment *vadj;
-    gfloat v_value;
+    gfloat h_value, v_value;
+    int direction;
 
     g_return_val_if_fail (widget != NULL, TRUE);
     g_return_val_if_fail (GNUCASH_IS_SHEET(widget), TRUE);
@@ -1385,18 +1397,27 @@ gnucash_scroll_event (GtkWidget *widget, GdkEventScroll *event)
     case GDK_SCROLL_DOWN:
         v_value += gtk_adjustment_get_step_increment (vadj);
         break;
+/* GdkQuartz reserves GDK_SCROLL_SMOOTH for high-resolution touchpad
+ * scrolling events, and in that case scrolling by line is much too
+ * fast. Gdk/Wayland and Gdk/Win32 pass GDK_SCROLL_SMOOTH for all
+ * scroll-wheel events and expect coarse resolution.
+ */
     case GDK_SCROLL_SMOOTH:
-        if (event->delta_y < 0)
-            v_value -= gtk_adjustment_get_step_increment (vadj);
-        if (event->delta_y > 0)
-            v_value += gtk_adjustment_get_step_increment (vadj);
+        h_value = gtk_adjustment_get_value (sheet->hadj);
+        h_value += event->delta_x;
+        h_value = clamp_scrollable_value (h_value, sheet->hadj);
+        gtk_adjustment_set_value (sheet->hadj, h_value);
+#if defined MAC_INTEGRATION
+        v_value += event->delta_y;
+#else
+        direction = event->delta_y > 0 ? 1 : event->delta_y < 0 ? -1 : 0;
+        v_value += gtk_adjustment_get_step_increment (vadj) * direction;
+#endif
         break;
     default:
         return FALSE;
     }
-    v_value = CLAMP(v_value, gtk_adjustment_get_lower (vadj),
-              gtk_adjustment_get_upper (vadj) - gtk_adjustment_get_page_size (vadj));
-
+    v_value = clamp_scrollable_value (v_value, vadj);
     gtk_adjustment_set_value (vadj, v_value);
 
     if (event->delta_y == 0)
@@ -1530,7 +1551,7 @@ gnucash_sheet_button_press_event (GtkWidget *widget, GdkEventButton *event)
 
     gnucash_sheet_cursor_move (sheet, new_virt_loc);
 
-    // if clicked in ocument link cell, run call back
+    // if clicked in document link cell, run call back
     if (g_strcmp0 (gnc_table_get_cell_name (table, new_virt_loc), DOCLINK_CELL) == 0)
     {
         if (sheet->open_doclink_cb)
@@ -1812,6 +1833,13 @@ gnucash_sheet_key_press_event_internal (GtkWidget *widget, GdkEventKey *event)
     /* Followed by the input method */
     if (gtk_entry_im_context_filter_keypress (GTK_ENTRY(sheet->entry), event))
     {
+#if !(defined(__APPLE__) || defined(__WIN32__))
+        /* There's sometimes a timing issue when running under KDE
+         * Plasma where this call removes the selection. This 1ms
+         * sleep prevents it.
+         */
+        usleep(1000);
+#endif
         /* Restore the saved cursor position in case GtkEntry's IMContext
          * handlers messed with it after we set it in our insert_cb.
          */

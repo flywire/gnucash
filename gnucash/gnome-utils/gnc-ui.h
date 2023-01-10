@@ -63,10 +63,14 @@
 #define HL_ACCEDIT           "acct-edit"
 #define HL_COMMODITY         "tool-commodity"
 #define HL_FIND_TRANSACTIONS "tool-find"
+#define HL_FIN_CALC          "tool-calc"
+#define HL_PRICE_DB          "tool-price"
+#define HL_PRICE_EDIT        "tool-price-manual"
 #define HL_GLOBPREFS         "set-prefs"
 #define HL_PRINTCHECK        "print-check"
 #define HL_RECNWIN           "acct-reconcile"
 #define HL_SXEDITOR          "trans-sched"
+#define HL_SX_SLR            "trans-sched-slr"
 #define HL_BOOK_OPTIONS      "book-options"
 #define HL_STYLE_SHEET       "change-style"
 #define HL_CLOSE_BOOK        "tool-close-book"
@@ -104,6 +108,14 @@ extern void
 gnc_error_dialog (GtkWindow *parent,
                   const char *format, ...) G_GNUC_PRINTF (2, 3);
 
+extern gchar *
+gnc_input_dialog (GtkWidget *parent, const gchar *title, const gchar *msg, const gchar *default_input);
+
+extern gchar *
+gnc_input_dialog_with_entry (GtkWidget *parent, const gchar *title, const gchar *msg, const gchar *default_input);
+
+extern void
+gnc_info2_dialog (GtkWidget *parent, const gchar *title, const gchar *msg);
 
 extern void
 gnc_gnome_help (GtkWindow *parent, const char *file_name, const char *target_link);

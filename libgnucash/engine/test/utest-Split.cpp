@@ -760,10 +760,10 @@ test_get_currency_denom (Fixture *fixture, gconstpointer pData)
     const gint denom = gnc_commodity_get_fraction (fixture->curr);
     g_assert_cmpint (fixture->func->get_currency_denom (NULL), ==, 0);
     fixture->split->parent = NULL;
-    g_assert_cmpint (fixture->func->get_currency_denom (fixture->split), ==, GNC_COMMODITY_MAX_FRACTION);
+    g_assert_cmpint (fixture->func->get_currency_denom (fixture->split), ==, GNC_DENOM_AUTO);
     fixture->split->parent = txn;
     txn->common_currency = NULL;
-    g_assert_cmpint (fixture->func->get_currency_denom (fixture->split), ==, GNC_COMMODITY_MAX_FRACTION);
+    g_assert_cmpint (fixture->func->get_currency_denom (fixture->split), ==, GNC_DENOM_AUTO);
     txn->common_currency = fixture->curr;
     g_assert_cmpint (fixture->func->get_currency_denom (fixture->split), ==, denom);
 }
@@ -778,7 +778,7 @@ test_get_commodity_denom (Fixture *fixture, gconstpointer pData)
     const gint denom = gnc_commodity_get_fraction (fixture->comm);
     g_assert_cmpint (fixture->func->get_commodity_denom (NULL), ==, 0);
     fixture->split->acc = NULL;
-    g_assert_cmpint (fixture->func->get_commodity_denom (fixture->split), ==, GNC_COMMODITY_MAX_FRACTION);
+    g_assert_cmpint (fixture->func->get_commodity_denom (fixture->split), ==, GNC_DENOM_AUTO);
     fixture->split->acc = acc;
     g_assert_cmpint (fixture->func->get_commodity_denom (fixture->split), ==, denom);
 }
@@ -1669,7 +1669,7 @@ static void
 test_xaccSplitGetSharePrice (Fixture *fixture, gconstpointer pData)
 {
     gnc_numeric result, quotient;
-    gnc_numeric expected = gnc_numeric_create (1, 1);
+    gnc_numeric expected = gnc_numeric_create (0, 1);
     Split *split = fixture->split;
     /* Warning: this is a define in Split.c */
     char *logdomain = "gnc.engine";
@@ -1699,7 +1699,7 @@ test_xaccSplitGetSharePrice (Fixture *fixture, gconstpointer pData)
     g_assert_cmpint (check.hits, ==, 0);
 
     split->value = gnc_numeric_zero ();
-    expected = gnc_numeric_create (1, 1);
+    expected = gnc_numeric_create (0, 1);
     result = xaccSplitGetSharePrice (split);
     g_assert (gnc_numeric_equal (result, expected));
     g_assert_cmpint (check.hits, ==, 0);

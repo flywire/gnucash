@@ -135,7 +135,7 @@ typedef struct GncPluginPageReportPrivate
 G_DEFINE_TYPE_WITH_PRIVATE(GncPluginPageReport, gnc_plugin_page_report, GNC_TYPE_PLUGIN_PAGE)
 
 #define GNC_PLUGIN_PAGE_REPORT_GET_PRIVATE(o)  \
-   ((GncPluginPageReportPrivate*)g_type_instance_get_private((GTypeInstance*)o, GNC_TYPE_PLUGIN_PAGE_REPORT))
+   ((GncPluginPageReportPrivate*)gnc_plugin_page_report_get_instance_private((GncPluginPageReport*)o))
 
 static void gnc_plugin_page_report_class_init( GncPluginPageReportClass *klass );
 static void gnc_plugin_page_report_init( GncPluginPageReport *plugin_page );
@@ -350,6 +350,7 @@ gnc_plugin_page_report_load_uri (GncPluginPage *page)
 {
     GncPluginPageReport *report;
     GncPluginPageReportPrivate *priv;
+    GncPluginPage *weak_page = page;
     URLType type;
     char * id_name;
     char * child_name;
@@ -373,6 +374,7 @@ gnc_plugin_page_report_load_uri (GncPluginPage *page)
     g_free(id_name);
     g_free(child_name);
 
+    g_object_add_weak_pointer(G_OBJECT(page), (gpointer*)(&weak_page));
     gtk_widget_show_all( GTK_WIDGET(priv->container) );
 
     priv->loaded = TRUE;
@@ -386,7 +388,11 @@ gnc_plugin_page_report_load_uri (GncPluginPage *page)
     gnc_html_show_url(priv->html, type, url_location, url_label, 0);
     g_free(url_location);
 
-    gnc_plugin_page_report_set_progressbar( page, FALSE );
+    if (weak_page)
+    {
+        gnc_plugin_page_report_set_progressbar( page, FALSE );
+        g_object_remove_weak_pointer(G_OBJECT(page), (gpointer*)(&weak_page));
+    }
 
     // this resets the window for the progressbar to NULL
     gnc_window_set_progressbar_window( NULL );
@@ -1812,7 +1818,7 @@ static gchar *report_create_jobname(GncPluginPageReportPrivate *priv)
         char *format_code = gnc_prefs_get_string (GNC_PREFS_GROUP_REPORT_PDFEXPORT,
                                                   GNC_PREF_FILENAME_DATE_FMT);
         const gchar *date_format_string;
-        if (*format_code == '\0')
+        if (!(format_code && *format_code))
         {
             g_free(format_code);
             format_code = g_strdup("locale");
@@ -1872,8 +1878,17 @@ static gchar *report_create_jobname(GncPluginPageReportPrivate *priv)
         // Look up the sprintf format of the output name from the preferences database
         char* format = gnc_prefs_get_string(GNC_PREFS_GROUP_REPORT_PDFEXPORT, GNC_PREF_FILENAME_FMT);
 
-        job_name = g_strdup_printf(format, report_name, report_number, job_date);
-
+        if (format && *format)
+        {
+            job_name = g_strdup_printf(format, report_name,
+                                       report_number, job_date);
+        }
+        else
+        {
+            PWARN("No GNC_PREF_FILENAME_FMT!");
+            job_name = g_strdup_printf ("%s %s %s", report_name,
+                                         report_number, job_date);
+        }
         g_free(format);
     }
     g_free (report_name);

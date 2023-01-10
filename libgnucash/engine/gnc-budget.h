@@ -64,6 +64,11 @@
 #ifndef __GNC_BUDGET_H__
 #define __GNC_BUDGET_H__
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
 #include <glib.h>
 
 /** The budget data.*/
@@ -156,11 +161,10 @@ gnc_numeric gnc_budget_get_account_period_value(
 gnc_numeric gnc_budget_get_account_period_actual_value(
     const GncBudget *budget, Account *account, guint period_num);
 
-/* get/set the budget account period's note, beware when retrieving
-   the period note, the latter must be g_freed by the caller */
+/* get/set the budget account period's note */
 void gnc_budget_set_account_period_note(GncBudget *budget,
     const Account *account, guint period_num, const gchar *note);
-gchar *gnc_budget_get_account_period_note (const GncBudget *budget,
+const gchar *gnc_budget_get_account_period_note (const GncBudget *budget,
     const Account *account, guint period_num);
 
 /* Returns some budget in the book, or NULL. */
@@ -170,6 +174,11 @@ GncBudget* gnc_budget_get_default(QofBook *book);
 /*@ dependent @*/
 GncBudget* gnc_budget_lookup (const GncGUID *guid, const QofBook *book);
 #define  gnc_budget_lookup_direct(g,b) gnc_budget_lookup(&(g),(b))
+
+#ifdef __cplusplus
+}
+#endif
+
 
 #endif // __BUDGET_H__
 

@@ -65,7 +65,7 @@ GNC_DEFINE_TYPE_WITH_CODE(GncPlugin, gnc_plugin, G_TYPE_OBJECT,
 		        G_ADD_PRIVATE(GncPlugin))
 
 #define GNC_PLUGIN_GET_PRIVATE(o)  \
-   ((GncPluginPrivate*)g_type_instance_get_private((GTypeInstance*)o, GNC_TYPE_PLUGIN))
+   ((GncPluginPrivate*)gnc_plugin_get_instance_private((GncPlugin*)o))
 
 /** Initialize the class for the new gnucash plugin object.  This will
  *  set up any function pointers that override functions in the parent
@@ -283,18 +283,14 @@ gnc_plugin_update_actions (GtkActionGroup *action_group,
                            gboolean value)
 {
     GtkAction    *action;
-    GValue        gvalue = { 0 };
     gint          i;
-
-    g_value_init (&gvalue, G_TYPE_BOOLEAN);
-    g_value_set_boolean (&gvalue, value);
 
     for (i = 0; action_names[i]; i++)
     {
         action = gtk_action_group_get_action (action_group, action_names[i]);
         if (action)
         {
-            g_object_set_property (G_OBJECT(action), property_name, &gvalue);
+            g_object_set (G_OBJECT(action), property_name, value, NULL);
         }
         else
         {
@@ -303,7 +299,6 @@ gnc_plugin_update_actions (GtkActionGroup *action_group,
                       g_list_length(gtk_action_group_list_actions(action_group)));
         }
     }
-    g_value_unset (&gvalue);
 }
 
 

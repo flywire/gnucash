@@ -348,7 +348,7 @@ gnc_entry_ledger_get_taxable_value (VirtualLocation virt_loc,
         const char *valstr =
             get_taxable_entry (virt_loc, translate, conditionally_changed,
                                user_data);
-        if (valstr && *valstr == 'X')
+        if (valstr && *valstr != ' ')
             return TRUE;
     }
     return FALSE;
@@ -759,7 +759,7 @@ static char * get_value_help (VirtualLocation virt_loc, gpointer user_data)
 
     help = gnc_table_get_entry (ledger->table, virt_loc);
     if (!help || *help == '\0')
-        help = _("The subtotal value of this entry ");
+        help = _("The subtotal value of this entry");
 
     return g_strdup (help);
 }

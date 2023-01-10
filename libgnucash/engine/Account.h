@@ -469,7 +469,7 @@ Account * xaccAccountGainsAccount (Account *acc, gnc_commodity *curr);
 void dxaccAccountSetPriceSrc (Account *account, const char *src);
 /** Get a string that identifies the Finance::Quote backend that
  *  should be used to retrieve online prices.  See price-quotes.scm
- *  for more information.
+ *  for more information. This function uses a static char*.
  *
  *  @deprecated Price quote information is now stored on the
  *  commodity, not the account. */
@@ -1217,6 +1217,30 @@ gboolean xaccAccountGetPlaceholder (const Account *account);
  *  @param val The new state for the account's "placeholder" flag. */
 void xaccAccountSetPlaceholder (Account *account, gboolean val);
 
+/** @name Account Append Text flag
+ @{
+*/
+
+/** Get the "import-append-text" flag for an account.  This is the saved
+ *  state of the Append checkbox in the "Generic import transaction matcher"
+ *  used to set the initial state of the Append checkbox next time this
+ *  account is imported.
+ *
+ *  @param account The account whose flag should be retrieved.
+ *
+ *  @return The current state of the account's "import-append-text" flag. */
+gboolean xaccAccountGetAppendText (const Account *account);
+
+/** Set the "import-append-text" flag for an account.  This is the saved
+ *  state of the Append checkbox in the "Generic import transaction matcher"
+ *  used to set the initial state of the Append checkbox next time this
+ *  account is imported.
+ *
+ *  @param account The account whose flag should be retrieved.
+ *
+ *  @param val The new state for the account's "import-append-text" flag. */
+void xaccAccountSetAppendText (Account *account, gboolean val);
+
 /** Get the "opening-balance" flag for an account.  If this flag is set
  *  then the account is used for opening balance transactions.
  *
@@ -1588,13 +1612,15 @@ gnc_commodity * DxaccAccountGetCurrency (const Account *account);
 void dxaccAccountSetQuoteTZ (Account *account, const char *tz);
 /** Get the timezone to be used when interpreting the results from a
  *  given Finance::Quote backend.  Unfortunately, the upstream sources
- *  don't label their output, so the user has to specify this bit.
+ *  don't label their output, so the user has to specify this
+ *  bit. This function uses a static char*.
  *
  *  @deprecated Price quote information is now stored on the
  *  commodity, not the account. */
 const char * dxaccAccountGetQuoteTZ (const Account *account);
 /** @} */
 
+GList * gnc_accounts_and_all_descendants (GList *accounts);
 
 /** @name Account parameter names
  @{

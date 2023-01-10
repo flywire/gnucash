@@ -1,32 +1,50 @@
 
 set(gschema_SOURCES
-  org.gnucash.dialogs.business.gschema.xml
-  org.gnucash.dialogs.checkprinting.gschema.xml
-  org.gnucash.dialogs.commodities.gschema.xml
-  org.gnucash.dialogs.export.csv.gschema.xml
-  org.gnucash.dialogs.gschema.xml
-  org.gnucash.dialogs.import.csv.gschema.xml
-  org.gnucash.dialogs.import.generic.gschema.xml
-  org.gnucash.dialogs.import.qif.gschema.xml
-  org.gnucash.dialogs.reconcile.gschema.xml
-  org.gnucash.dialogs.sxs.gschema.xml
-  org.gnucash.dialogs.totd.gschema.xml
-  org.gnucash.general.finance-quote.gschema.xml
-  org.gnucash.gschema.xml
-  org.gnucash.history.gschema.xml
-  org.gnucash.warnings.gschema.xml
-  org.gnucash.window.pages.account.tree.gschema.xml
-  org.gnucash.window.pages.gschema.xml
+  org.gnucash.GnuCash.deprecated.gschema.xml
+  org.gnucash.GnuCash.dialogs.business.gschema.xml
+  org.gnucash.GnuCash.dialogs.checkprinting.gschema.xml
+  org.gnucash.GnuCash.dialogs.commodities.gschema.xml
+  org.gnucash.GnuCash.dialogs.export.csv.gschema.xml
+  org.gnucash.GnuCash.dialogs.gschema.xml
+  org.gnucash.GnuCash.dialogs.import.csv.gschema.xml
+  org.gnucash.GnuCash.dialogs.import.generic.gschema.xml
+  org.gnucash.GnuCash.dialogs.import.qif.gschema.xml
+  org.gnucash.GnuCash.dialogs.reconcile.gschema.xml
+  org.gnucash.GnuCash.dialogs.sxs.gschema.xml
+  org.gnucash.GnuCash.dialogs.totd.gschema.xml
+  org.gnucash.GnuCash.general.finance-quote.gschema.xml
+  org.gnucash.GnuCash.gschema.xml
+  org.gnucash.GnuCash.history.gschema.xml
+  org.gnucash.GnuCash.warnings.gschema.xml
+  org.gnucash.GnuCash.window.pages.account.tree.gschema.xml
+  org.gnucash.GnuCash.window.pages.gschema.xml
 )
 
 add_gschema_targets("${gschema_SOURCES}")
+
+set(local_preftrans_files ${gschema_preftrans_files})
+list(APPEND local_preftrans_files ${CMAKE_CURRENT_SOURCE_DIR}/pref_transformations.xml)
+set(gschema_preftrans_files ${local_preftrans_files} CACHE INTERNAL "files describing transformations for our gsettings based preferences")
+
+# Provide gnucash runtime with a list of potential transformations to user set preferences
+# following GSettings schema changes between gnucash releases
+add_custom_command(
+    OUTPUT ${DATADIR_BUILD}/${PROJECT_NAME}/pref_transformations.xml
+    COMMAND env cat ${gschema_preftrans_files} > ${DATADIR_BUILD}/${PROJECT_NAME}/pref_transformations.xml
+    DEPENDS ${gschema_preftrans_files}
+)
+
+add_custom_target(pref_transformations ALL DEPENDS ${DATADIR_BUILD}/${PROJECT_NAME}/pref_transformations.xml)
+
+install(FILES ${DATADIR_BUILD}/${PROJECT_NAME}/pref_transformations.xml
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME})
 
 # Handle gschemas.compiled
 if (COMPILE_GSCHEMAS)
 
     add_custom_command(
         OUTPUT ${SCHEMADIR_BUILD}/gschemas.compiled
-        COMMAND ${CMAKE_COMMAND} -E env ${GLIB_COMPILE_SCHEMAS} ${SCHEMADIR_BUILD}
+        COMMAND ${CMAKE_COMMAND} -E env ${GLIB_COMPILE_SCHEMAS} --strict ${SCHEMADIR_BUILD}
         DEPENDS ${gschema_depends}
     )
 
@@ -45,10 +63,10 @@ if (COMPILE_GSCHEMAS)
     endif()
     execute_process(
         COMMAND ${SHELL} -c \"echo Compiling gschema files in \$ENV\{DESTDIR\}${CMAKE_INSTALL_FULL_DATADIR}/glib-2.0/schemas ;
-                              ${GLIB_COMPILE_SCHEMAS} \$ENV\{DESTDIR\}${CMAKE_INSTALL_FULL_DATADIR}/glib-2.0/schemas\")")
+                              ${GLIB_COMPILE_SCHEMAS} --strict \$ENV\{DESTDIR\}${CMAKE_INSTALL_FULL_DATADIR}/glib-2.0/schemas\")")
 endif()
 
-set(gschemas_DIST_local "")
+set(gschemas_DIST_local pref_transformations.xml)
 foreach(file ${gschema_SOURCES})
     list(APPEND gschemas_DIST_local ${file}.in)
 endforeach()

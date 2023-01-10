@@ -225,7 +225,7 @@ gnc_cbwe_require_list_item (GtkComboBox *cbwe)
 
 /** Return whether the current gtk theme is a dark one. A theme is considered "dark" if
  *  it has a dark background color with a light foreground color (used for text and so on).
- *  We only test on the foregrond color assuming a sane theme chooses enough contrast between
+ *  We only test on the foreground color assuming a sane theme chooses enough contrast between
  *  foreground and background colors.
  *
  *  @param fg_color The foreground color to test.
@@ -296,4 +296,39 @@ gnc_style_context_get_border_color (GtkStyleContext *context,
                            NULL);
     *color = *c;
     gdk_rgba_free (c);
+}
+
+static gpointer
+find_widget_func (GtkWidget *widget, const gchar *id)
+{
+    const gchar *name = gtk_buildable_get_name (GTK_BUILDABLE(widget));
+    GtkWidget *ret = NULL;
+
+    if (g_strcmp0 (name, id) == 0)
+        return widget;
+
+    if (GTK_IS_CONTAINER(widget))
+    {
+        GList *container_list = gtk_container_get_children (GTK_CONTAINER(widget));
+        for (GList *n = container_list; !ret && n; n = n->next)
+            ret = find_widget_func (n->data, id);
+        g_list_free (container_list);
+    }
+
+    return ret;
+}
+
+/** Find the Widget defined by 'id' in the dialog
+ *
+ *  @param dialog The dialog to search for 'id'.
+ *
+ *  @param id The widget name to find in the dialog.
+ *
+ *  @returns The widget defined by id in the dialog or NULL.
+ */
+GtkWidget *
+gnc_get_dialog_widget_from_id (GtkDialog *dialog, const gchar *id)
+{
+    GtkWidget *content_area = gtk_dialog_get_content_area (dialog);
+    return find_widget_func (content_area, id);
 }

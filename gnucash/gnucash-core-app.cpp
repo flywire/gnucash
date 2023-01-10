@@ -78,19 +78,19 @@ gnc_print_unstable_message(void)
 {
     if (!is_development_version) return;
 
-    std::cerr << bl::translate ("This is a development version. It may or may not work.") << "\n"
-              << bl::translate ("Report bugs and other problems to gnucash-devel@gnucash.org") << "\n"
+    std::cerr << _("This is a development version. It may or may not work.") << "\n"
+              << _("Report bugs and other problems to gnucash-devel@gnucash.org") << "\n"
               /* Translators: {1} will be replaced with an URL*/
-              << bl::format (bl::translate ("You can also lookup and file bug reports at {1}")) % PACKAGE_BUGREPORT << "\n"
+              << bl::format (std::string{_("You can also lookup and file bug reports at {1}")}) % PACKAGE_BUGREPORT << "\n"
               /* Translators: {1} will be replaced with an URL*/
-              << bl::format (bl::translate ("To find the last stable version, please refer to {1}")) % PACKAGE_URL << "\n";
+              << bl::format (std::string{_("To find the last stable version, please refer to {1}")}) % PACKAGE_URL << "\n";
 }
 
 static void
 update_message(const gchar *msg)
 {
     gnc_update_splash_screen(msg, GNC_SPLASH_PERCENTAGE_UNKNOWN);
-    g_message("%s", msg);
+    PINFO("%s", msg);
 }
 
 void
@@ -99,7 +99,9 @@ Gnucash::gnc_load_scm_config (void)
     static auto is_system_config_loaded = false;
     if (!is_system_config_loaded)
     {
-        update_message ("loading system scm configuration");
+        /* Translators: Guile is the programming language of the reports */
+        auto msg = _("Loading system wide Guile extensions…");
+        update_message (msg);
         auto system_config_dir = gnc_path_get_pkgsysconfdir ();
         auto system_config = g_build_filename (system_config_dir, "config", nullptr);
         is_system_config_loaded = gfec_try_load (system_config);
@@ -110,7 +112,8 @@ Gnucash::gnc_load_scm_config (void)
     static auto is_user_config_loaded = false;
     if (!is_user_config_loaded)
     {
-        update_message("loading user scm configuration");
+        auto msg = _("Loading user specific Guile extensions…");
+        update_message (msg);
         auto config_filename = g_build_filename (gnc_userconfig_dir (), "config-user.scm", nullptr);
         is_user_config_loaded = gfec_try_load (config_filename);
         g_free (config_filename);
@@ -134,10 +137,6 @@ gnc_log_init (const std::vector <std::string> log_flags,
         qof_log_init_filename (tracefilename);
         g_free (tracefilename);
     }
-
-    // set a reasonable default.
-    qof_log_set_default(QOF_LOG_WARNING);
-    gnc_log_default();
 
     if (gnc_prefs_is_debugging_enabled())
     {
@@ -211,6 +210,7 @@ Gnucash::CoreApp::CoreApp ()
 
     gnc_init_boost_locale (localedir);
     std::cerr.imbue (gnc_get_boost_locale());
+    std::cout.imbue (gnc_get_boost_locale());
     g_free(localedir);
 }
 
@@ -222,9 +222,9 @@ Gnucash::CoreApp::CoreApp (const char* app_name)
     m_app_name = std::string(app_name);
 
     // Now that gettext is properly initialized, set our help tagline.
-    m_tagline = bl::translate("- GnuCash, accounting for personal and small business finance").str(gnc_get_boost_locale());
+    m_tagline = _("- GnuCash, accounting for personal and small business finance");
     m_opt_desc_display = std::make_unique<bpo::options_description>
-        ((bl::format (bl::gettext ("{1} [options] [datafile]")) % m_app_name).str() + std::string(" ") + m_tagline);
+        ((bl::format (std::string{_("{1} [options] [datafile]")}) % m_app_name).str() + std::string(" ") + m_tagline);
     add_common_program_options();
 }
 
@@ -250,17 +250,33 @@ Gnucash::CoreApp::parse_command_line (int argc, char **argv)
         exit(1);
     }
 
+    if (m_show_paths)
+    {
+        auto paths { gnc_list_all_paths ()};
+        std::cout << _("GnuCash Paths") << '\n';
+        for (auto n = paths; n; n = n->next)
+        {
+            auto it = static_cast<EnvPaths*>(n->data);
+            std::cout << it->env_name << ": " << it->env_path;
+            if (it->modifiable)
+                std::cout << ' ' << _("(user modifiable)");
+            std::cout << '\n';
+        }
+        g_list_free_full (paths, g_free);
+        exit (0);
+    }
+
     if (m_show_version)
     {
-        bl::format rel_fmt (bl::translate ("GnuCash {1}"));
-        bl::format dev_fmt (bl::translate ("GnuCash {1} development version"));
+        bl::format rel_fmt (std::string{_("GnuCash {1}")});
+        bl::format dev_fmt (std::string{_("GnuCash {1} development version")});
 
         if (is_development_version)
             std::cout << dev_fmt % gnc_version () << "\n";
         else
             std::cout << rel_fmt % gnc_version () << "\n";
 
-        std::cout << bl::translate ("Build ID") << ": " << gnc_build_id () << "\n";
+        std::cout << _("Build ID") << ": " << gnc_build_id () << "\n";
         exit(0);
     }
 
@@ -272,9 +288,6 @@ Gnucash::CoreApp::parse_command_line (int argc, char **argv)
 
     gnc_prefs_set_debugging (m_debug);
     gnc_prefs_set_extra (m_extra);
-
-    if (m_gsettings_prefix)
-        gnc_gsettings_set_prefix (m_gsettings_prefix->c_str());
 }
 
 /* Define command line options common to all gnucash binaries. */
@@ -293,10 +306,10 @@ Gnucash::CoreApp::add_common_program_options (void)
          _("Enable extra/development/debugging features."))
         ("log", bpo::value (&m_log_flags),
          _("Log level overrides, of the form \"modulename={debug,info,warn,crit,error}\"\nExamples: \"--log qof=debug\" or \"--log gnc.backend.file.sx=info\"\nThis can be invoked multiple times."))
+        ("paths", bpo::bool_switch(&m_show_paths),
+         _("Show paths"))
         ("logto", bpo::value (&m_log_to_filename),
-         _("File to log into; defaults to \"/tmp/gnucash.trace\"; can be \"stderr\" or \"stdout\"."))
-        ("gsettings-prefix", bpo::value (&m_gsettings_prefix),
-         _("Set the prefix for gsettings schemas for gsettings queries. This can be useful to have a different settings tree while debugging."));
+         _("File to log into; defaults to \"/tmp/gnucash.trace\"; can be \"stderr\" or \"stdout\"."));
 
     bpo::options_description hidden_options(_("Hidden Options"));
     hidden_options.add_options()

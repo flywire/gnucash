@@ -50,6 +50,7 @@
 #include "gncOwner.h"
 #include "gncInvoice.h"
 #include "gncInvoiceP.h"
+#include <gnc-glib-utils.h>
 
 #include "gncEntryLedger.h"
 
@@ -398,10 +399,8 @@ static void gnc_ui_to_invoice (InvoiceWindow *iw, GncInvoice *invoice)
     /* Only set these values for NEW/MOD INVOICE types */
     if (iw->dialog_type != EDIT_INVOICE)
     {
-        gncInvoiceSetID (invoice, gtk_editable_get_chars
-                         (GTK_EDITABLE (iw->id_entry), 0, -1));
-        gncInvoiceSetBillingID (invoice, gtk_editable_get_chars
-                                (GTK_EDITABLE (iw->billing_id_entry), 0, -1));
+        gncInvoiceSetID (invoice, gtk_entry_get_text (GTK_ENTRY (iw->id_entry)));
+        gncInvoiceSetBillingID (invoice, gtk_entry_get_text (GTK_ENTRY (iw->billing_id_entry)));
         gncInvoiceSetTerms (invoice, iw->terms);
 
         gncInvoiceSetDateOpened (invoice, time);
@@ -1714,10 +1713,14 @@ static void
 gnc_invoice_reset_total_label (GtkLabel *label, gnc_numeric amt, gnc_commodity *com)
 {
     char string[256];
+    gchar *bidi_string;
 
     amt = gnc_numeric_convert (amt, gnc_commodity_get_fraction(com), GNC_HOW_RND_ROUND_HALF_UP);
     xaccSPrintAmount (string, amt, gnc_commodity_print_info (com, TRUE));
-    gtk_label_set_text (label, string);
+
+    bidi_string = gnc_wrap_text_with_bidi_ltr_isolate (string);
+    gtk_label_set_text (label, bidi_string);
+    g_free (bidi_string);
 }
 
 static void
@@ -3237,7 +3240,7 @@ multi_post_invoice_cb (GtkWindow *dialog, GList *invoice_list, gpointer user_dat
     gboolean test;
     InvoiceWindow *iw;
 
-    if (g_list_length(invoice_list) == 0)
+    if (!gnc_list_length_cmp (invoice_list, 0))
         return;
     // Get the posting parameters for these invoices
     iw = gnc_ui_invoice_edit(dialog, invoice_list->data);
@@ -3287,7 +3290,7 @@ multi_print_invoice_cb (GtkWindow *dialog, GList *invoice_list, gpointer user_da
 {
     struct multi_edit_invoice_data meid;
 
-    if (g_list_length(invoice_list) == 0)
+    if (!gnc_list_length_cmp (invoice_list, 0))
         return;
 
     meid.user_data = user_data;

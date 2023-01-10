@@ -624,6 +624,8 @@ void
 xaccSplitCopyKvp (const Split *from, Split *to)
 {
     qof_instance_copy_kvp (QOF_INSTANCE (to), QOF_INSTANCE (from));
+    /* But not the online-id */
+    qof_instance_set (QOF_INSTANCE (to), "online-id", NULL, NULL);
 }
 
 /*################## Added for Reg2 #################*/
@@ -1130,13 +1132,9 @@ xaccSplitDetermineGainStatus (Split *split)
 static inline int
 get_currency_denom(const Split * s)
 {
-    if (!s)
+    if (!(s && s->parent && s->parent->common_currency))
     {
-        return 0;
-    }
-    else if (!s->parent || !s->parent->common_currency)
-    {
-        return GNC_COMMODITY_MAX_FRACTION;
+        return GNC_DENOM_AUTO;
     }
     else
     {
@@ -1147,13 +1145,9 @@ get_currency_denom(const Split * s)
 static inline int
 get_commodity_denom(const Split * s)
 {
-    if (!s)
+    if (!(s && s->acc))
     {
-        return 0;
-    }
-    else if (!s->acc)
-    {
-        return GNC_COMMODITY_MAX_FRACTION;
+        return GNC_DENOM_AUTO;
     }
     else
     {
@@ -1196,6 +1190,10 @@ void
 xaccSplitSetSharePrice (Split *s, gnc_numeric price)
 {
     if (!s) return;
+
+    if (gnc_numeric_zero_p (price))
+        return;
+
     ENTER (" ");
     xaccTransBeginEdit (s->parent);
 
@@ -1927,22 +1925,18 @@ gnc_numeric
 xaccSplitGetSharePrice (const Split * split)
 {
     gnc_numeric amt, val, price;
-    if (!split) return gnc_numeric_create(1, 1);
+    if (!split) return gnc_numeric_create(0, 1);
 
 
-    /* if amount == 0 and value == 0, then return 1.
-     * if amount == 0 and value != 0 then return 0.
+    /* if amount == 0, return 0
      * otherwise return value/amount
      */
 
     amt = xaccSplitGetAmount(split);
     val = xaccSplitGetValue(split);
     if (gnc_numeric_zero_p(amt))
-    {
-        if (gnc_numeric_zero_p(val))
-            return gnc_numeric_create(1, 1);
         return gnc_numeric_create(0, 1);
-    }
+
     price = gnc_numeric_div(val, amt,
                             GNC_DENOM_AUTO,
                             GNC_HOW_RND_ROUND_HALF_UP);
@@ -2107,6 +2101,7 @@ xaccSplitGetOtherSplit (const Split *split)
     {
         Split *s = n->data;
         if ((s == split) ||
+            (!xaccTransStillHasSplit(trans, s)) ||
             (xaccAccountGetType (xaccSplitGetAccount (s)) == ACCT_TYPE_TRADING) ||
             (qof_instance_has_slot (QOF_INSTANCE (s), "lot-split")))
             continue;

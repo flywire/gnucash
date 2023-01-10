@@ -138,7 +138,7 @@ gnc_style_sheet_options_close_cb (GNCOptionWin * propertybox,
     ss_info * ssi = user_data;
     GtkTreeIter iter;
 
-    if (gtk_tree_row_reference_valid (ssi->row_ref))
+    if (gnc_style_sheet_dialog && gtk_tree_row_reference_valid (ssi->row_ref))
     {
         StyleSheetDialog * ss = gnc_style_sheet_dialog;
         GtkTreePath *path = gtk_tree_row_reference_get_path (ssi->row_ref);
@@ -230,9 +230,7 @@ gnc_style_sheet_new (StyleSheetDialog * ssd)
 
     g_assert (ssd);
 
-    /* Erase the initial dummy entry. */
     template_model = gtk_combo_box_get_model (GTK_COMBO_BOX(template_combo));
-    gtk_list_store_clear (GTK_LIST_STORE(template_model));
 
     /* put in the list of style sheet type names */
     for (; !scm_is_null (templates); templates = SCM_CDR(templates))
