@@ -554,50 +554,56 @@ Defaulting to today."))
 ;; end relative-date functions
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define* (gnc:get-start-cur-year #:key (start-month-fy 0))
-;; 0 is Jan
+(define* (gnc:get-start-cur-year #:key (start-month-fy 6))
+;; Jan is 0
   (let ((now (gnc-localtime (current-time))))
     (set-tm:sec now 0)
     (set-tm:min now 0)
     (set-tm:hour now 0)
     (set-tm:mday now 1)
-    (set-tm:mon now start-month-fy)
     (if (< (tm:mon now) start-month-fy)
       (set-tm:year now (- (tm:year now) 1))
       (set-tm:year now (tm:year now)))
+    (set-tm:mon now start-month-fy) ; move line and it works
     (set-tm:isdst now -1)
     (gnc-mktime now)))
 
-(define* (gnc:get-end-cur-year #:key (start-month-fy 0))
+(define* (gnc:get-end-cur-year #:key (start-month-fy 6))
   (let ((now (gnc-localtime (current-time))))
     (set-tm:sec now 59)
     (set-tm:min now 59)
     (set-tm:hour now 23)
-    (set-tm:mday now 31)
-    (set-tm:mon now start-month-fy)
+    (set-tm:mday now 30) ; set for month before start-month-fy
     (if (< (tm:mon now) start-month-fy)
       (set-tm:year now (tm:year now))
       (set-tm:year now (+ (tm:year now) 1)))
+    (set-tm:mon now (- start-month-fy 1)) ; move line and it works
     (set-tm:isdst now -1)
     (gnc-mktime now)))
 
-(define (gnc:get-start-cal-year)
+(define* (gnc:get-start-prev-year #:key (start-month-fy 6))
   (let ((now (gnc-localtime (current-time))))
     (set-tm:sec now 0)
     (set-tm:min now 0)
     (set-tm:hour now 0)
     (set-tm:mday now 1)
-    (set-tm:mon now 0)
+    (if (< (tm:mon now) start-month-fy)
+      (set-tm:year now (- (tm:year now) 2))
+      (set-tm:year now (- (tm:year now) 1)))
+    (set-tm:mon now start-month-fy) ; move line and it works
     (set-tm:isdst now -1)
     (gnc-mktime now)))
 
-(define (gnc:get-end-cal-year)
+(define* (gnc:get-end-prev-year #:key (start-month-fy 6))
   (let ((now (gnc-localtime (current-time))))
     (set-tm:sec now 59)
     (set-tm:min now 59)
     (set-tm:hour now 23)
-    (set-tm:mday now 31)
-    (set-tm:mon now 11)
+    (set-tm:mday now 30) ; set for month before start-month-fy
+    (if (< (tm:mon now) start-month-fy)
+      (set-tm:year now (- (tm:year now) 1))
+      (set-tm:year now (tm:year now)))
+    (set-tm:mon now (- start-month-fy 1)) ; move line and it works
     (set-tm:isdst now -1)
     (gnc-mktime now)))
 
